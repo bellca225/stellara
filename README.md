@@ -2,12 +2,56 @@
 
 Stellara는 출생 정보 기반 점성술 분석, 친구 궁합, 랜덤 질문, 오늘의 운세를 제공하는 Flutter 앱입니다.
 
-현재 버전은 API를 실제로 연결하기 전 단계의 화면 프로토타입입니다. 모든 화면은 목업 데이터로 동작하며, Android 에뮬레이터와 Chrome에서 실행해 UI 흐름을 확인할 수 있습니다.
+현재 버전은 API 연결 전 단계의 화면 프로토타입입니다. Android 에뮬레이터와 Chrome에서 화면 흐름을 확인할 수 있고, Prokerala 연동을 위한 기본 구조와 Riverpod 상태 관리 골격이 포함되어 있습니다.
+
+## 터미널에서 바로 실행하기
+
+### 1. 브랜치 이동
+
+```sh
+cd /Users/nywoo/proj/stellara
+git checkout feature/week09-prokerala-api
+```
+
+### 2. 환경 변수 준비
+
+`.env` 파일이 이미 있으면 그대로 사용하면 됩니다. 처음 받는 환경이라면 `.env.example`을 복사해 `.env`를 만든 뒤 Prokerala 키를 채워주세요.
+
+```sh
+cp .env.example .env
+```
+
+필수 값:
+
+- `PROKERALA_CLIENT_ID`
+- `PROKERALA_CLIENT_SECRET`
+
+### 3. 패키지 설치
+
+```sh
+flutter pub get
+```
+
+### 4. Android 에뮬레이터 실행
+
+```sh
+flutter emulators --launch Medium_Phone_API_36.1
+flutter devices
+flutter run -d emulator-5554
+```
+
+`flutter devices`에 표시되는 기기 ID가 다르면 마지막 줄의 `emulator-5554`만 해당 값으로 바꾸면 됩니다.
+
+### 5. Chrome에서 빠르게 보기
+
+```sh
+flutter run -d chrome
+```
 
 ## 현재 구현 상태
 
 - Flutter 앱 생성 및 Android 에뮬레이터 실행 검증 완료
-- 로그인, 온보딩, 메인 홈, 점성술 분석, 친구 관리, 마이페이지, 궁합, 랜덤 질문, 오늘의 운세, 공유 화면 구현
+- 로그인, 온보딩, 메인 홈, 점성술 분석, 친구 관리, 마이페이지, 궁합, 랜덤 질문, 오늘의 운세 화면 프로토타입 구현
 - 실제 API, Firebase, Kakao 로그인, 점성술 계산, AI 생성 기능은 아직 연결하지 않음
 - 현재 앱 패키지명: `com.example.stellara`
 - 현재 테스트 대상 에뮬레이터: `Medium_Phone_API_36.1`
@@ -40,9 +84,10 @@ Stellara는 출생 정보 기반 점성술 분석, 친구 궁합, 랜덤 질문,
 
 다음 개발자나 AI가 이어서 작업할 때는 아래 전제를 유지하세요.
 
-- 현재 목표는 화면 프로토타입입니다. 실제 API 호출은 아직 하지 않습니다.
-- 화면 파일은 현재 `lib/main.dart` 하나에 모여 있습니다. 기능 연결 단계에서 `features/auth`, `features/profile`, `features/astro`, `features/friends`, `features/content`, `features/share` 등으로 분리하는 것이 좋습니다.
-- 상태 관리는 계획상 Riverpod입니다. 실제 연결 시 `flutter_riverpod`, `riverpod_annotation`, `build_runner`를 추가하고 Provider 단위로 API와 UI를 분리하세요.
+- 현재 목표는 화면 프로토타입과 Prokerala 연결 준비입니다. 실제 사용자 인증, Firebase 저장, AI 질문 생성은 아직 연결하지 않습니다.
+- 화면 구조는 `lib/features/*` 아래로 이미 분리되어 있습니다. 현재 핵심 흐름은 `auth -> onboarding -> app_shell -> home/astrology/today/profile` 순서입니다.
+- 홈 탭은 `MAIN-001`이고, 점성술 분석 화면은 홈에서 내 행성 아이콘을 눌렀을 때 들어가는 상세 화면 `ASTROLOGY-001`입니다.
+- 상태 관리는 Riverpod을 사용합니다. 현재 `currentBirthInfoProvider`, `myNatalChartProvider`, `todayHoroscopeProvider`, `synastryProvider`가 기본 흐름을 담당합니다.
 - Firestore, Kakao, Prokerala, OpenAI 키는 앱에 직접 넣지 마세요. 앱은 백엔드 또는 보안 설정 파일을 통해 필요한 최소 데이터만 받아야 합니다.
 - 점성술 계산 결과는 앱에서 매번 새로 계산하지 말고, 사용자 birth profile 해시 또는 chart version 기준으로 캐시하세요.
 - 공유 화면은 `screenshot`으로 위젯을 이미지화하고 `share_plus`로 공유하는 구조를 예상합니다.

@@ -43,3 +43,15 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Environment variables (Prokerala client_id/secret 등 민감정보 — 절대 커밋 금지)
+.env
+.env.local
+.env.*.local
+
+# Generated files (build_runner: freezed/json_serializable)
+# 코드 생성 결과물도 가독성을 위해 커밋해도 되지만,
+# 협업 충돌을 줄이려고 .gitignore에 두는 팀이 많음. 본 프로젝트는 커밋함 → 주석 처리.
+# *.freezed.dart
+# *.g.dart
+
