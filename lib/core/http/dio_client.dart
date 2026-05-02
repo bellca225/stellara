@@ -19,6 +19,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
 import '../env/env.dart';
+import '../ui/app_alerts.dart';
 
 /// 토큰을 비동기로 발급/갱신해 주는 함수 시그니처.
 ///
@@ -124,6 +125,7 @@ class _RateLimitInterceptor extends Interceptor {
     final status = err.response?.statusCode;
     final alreadyRetried = err.requestOptions.extra['__rateRetried'] == true;
     if (status == 429 && !alreadyRetried) {
+      AppAlerts.showTokenExhaustedDialog();
       // Retry-After 헤더가 있으면 그 시간만큼, 없으면 1.5초 대기.
       final retryAfter = err.response?.headers.value('retry-after');
       final waitSeconds = int.tryParse(retryAfter ?? '') ?? 2;
@@ -159,11 +161,17 @@ class _LoggingInterceptor extends Interceptor {
         'cost=${cost ?? '?'} remaining=${remaining ?? '?'}',
       );
     }
+    if (int.tryParse(remaining ?? '') == 0) {
+      AppAlerts.showTokenExhaustedDialog();
+    }
     handler.next(response);
   }
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
+    if (err.response?.statusCode == 429) {
+      AppAlerts.showTokenExhaustedDialog();
+    }
     if (kDebugMode) {
       // ignore: avoid_print
       print(

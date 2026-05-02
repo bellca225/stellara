@@ -40,7 +40,10 @@ class TodayScreen extends ConsumerWidget {
             AppSpacing.xxl,
           ),
           children: [
-            const WireframeHeader('TODAY-001 · 오늘의 운세'),
+            const ScreenCodeChip(
+              code: 'TODAY-001',
+              label: '오늘의 운세',
+            ),
             const SizedBox(height: AppSpacing.xl),
             Text(
               '오늘의 운세',

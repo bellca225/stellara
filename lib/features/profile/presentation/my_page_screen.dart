@@ -5,6 +5,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/astro_text.dart';
 import '../../../core/widgets/panel.dart';
 import '../../astrology/application/astrology_providers.dart';
+import '../../onboarding/presentation/onboarding_screen.dart';
 
 class MyPageScreen extends ConsumerWidget {
   const MyPageScreen({super.key});
@@ -24,7 +25,10 @@ class MyPageScreen extends ConsumerWidget {
             AppSpacing.xxl,
           ),
           children: [
-            const WireframeHeader('03 · 마이페이지'),
+            const ScreenCodeChip(
+              code: 'MYPAGE-001',
+              label: '마이페이지',
+            ),
             const SizedBox(height: AppSpacing.xl),
             Center(
               child: Container(
@@ -141,6 +145,27 @@ class MyPageScreen extends ConsumerWidget {
                   KeyValueRow(
                     label: '출생지',
                     value: birth.placeName ?? '-',
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  OutlinedButton(
+                    onPressed: () async {
+                      final changed = await Navigator.of(context).push<bool>(
+                        MaterialPageRoute(
+                          builder: (_) => OnboardingScreen(
+                            initialBirthInfo: birth,
+                            isEditing: true,
+                          ),
+                        ),
+                      );
+                      if (changed == true && context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('출생 정보가 변경되었어요.'),
+                          ),
+                        );
+                      }
+                    },
+                    child: const Text('출생 정보 수정'),
                   ),
                 ],
               ),

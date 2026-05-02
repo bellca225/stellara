@@ -19,7 +19,10 @@ class FriendScreen extends StatelessWidget {
             AppSpacing.xxl,
           ),
           children: [
-            const WireframeHeader('FRIEND-001 · 친구 관리'),
+            const ScreenCodeChip(
+              code: 'FRIEND-001',
+              label: '친구 관리',
+            ),
             const SizedBox(height: AppSpacing.lg),
             Row(
               children: [

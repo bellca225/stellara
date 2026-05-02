@@ -19,19 +19,41 @@ import '../../astrology/domain/birth_info.dart';
 import '../app_shell.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
-  const OnboardingScreen({super.key});
+  const OnboardingScreen({
+    super.key,
+    this.initialBirthInfo,
+    this.isEditing = false,
+  });
+
+  final BirthInfo? initialBirthInfo;
+  final bool isEditing;
 
   @override
   ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
-  final _nicknameC = TextEditingController(text: '물병자리의 꿈');
-  final _dateC = TextEditingController(text: '1995-02-15');
-  final _timeC = TextEditingController(text: '14:30');
-  final _placeC = TextEditingController(text: '서울특별시');
+  late final TextEditingController _nicknameC;
+  late final TextEditingController _dateC;
+  late final TextEditingController _timeC;
+  late final TextEditingController _placeC;
 
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    final birth = widget.initialBirthInfo ?? BirthInfo.demo();
+    _nicknameC = TextEditingController(text: birth.nickname);
+    _dateC = TextEditingController(
+      text:
+          '${birth.dateTime.year}-${_pad(birth.dateTime.month)}-${_pad(birth.dateTime.day)}',
+    );
+    _timeC = TextEditingController(
+      text: '${_pad(birth.dateTime.hour)}:${_pad(birth.dateTime.minute)}',
+    );
+    _placeC = TextEditingController(text: birth.placeName ?? '서울특별시');
+  }
 
   @override
   void dispose() {
@@ -71,10 +93,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       );
 
       ref.read(currentBirthInfoProvider.notifier).state = birth;
+      ref.invalidate(myNatalChartProvider);
 
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const AppShell()),
-      );
+      if (widget.isEditing) {
+        Navigator.of(context).pop(true);
+      } else {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const AppShell()),
+        );
+      }
     } catch (e) {
       setState(() => _error =
           '입력값을 다시 확인해주세요 (생년월일은 1995-02-15, 시간은 14:30 형식).');
@@ -84,22 +111,30 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('출생 정보 입력')),
+      appBar: AppBar(
+        title: Text(widget.isEditing ? '출생 정보 수정' : '출생 정보 입력'),
+      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(AppSpacing.lg),
           children: [
-            const ScreenCodeChip(
-                code: 'ONBOARDING-001', label: '출생 정보 입력'),
+            ScreenCodeChip(
+              code: 'ONBOARDING-001',
+              label: widget.isEditing ? '출생 정보 수정' : '출생 정보 입력',
+            ),
             const SizedBox(height: AppSpacing.lg),
             Text(
-              '차트를 만들기 위한\n첫 정보를 알려주세요',
+              widget.isEditing
+                  ? '출생 정보를\n다시 조정해 주세요'
+                  : '차트를 만들기 위한\n첫 정보를 알려주세요',
               style: Theme.of(context).textTheme.headlineMedium,
             ),
             const SizedBox(height: AppSpacing.sm),
-            const Text(
-              '정확한 시간을 알수록 차트의 정밀도가 올라갑니다. '
-              '나중에 마이페이지에서 언제든 수정할 수 있어요.',
+            Text(
+              widget.isEditing
+                  ? '저장하면 현재 차트와 화면 정보가 새 입력값 기준으로 다시 반영됩니다.'
+                  : '정확한 시간을 알수록 차트의 정밀도가 올라갑니다. '
+                      '나중에 마이페이지에서 언제든 수정할 수 있어요.',
               style: TextStyle(color: AppColors.inkMuted, height: 1.4),
             ),
             const SizedBox(height: AppSpacing.lg),
@@ -147,10 +182,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               Text(_error!, style: const TextStyle(color: AppColors.ink)),
             ],
             const SizedBox(height: AppSpacing.lg),
-            ElevatedButton(onPressed: _submit, child: const Text('차트 만들기')),
+            ElevatedButton(
+              onPressed: _submit,
+              child: Text(widget.isEditing ? '변경 사항 저장' : '차트 만들기'),
+            ),
           ],
         ),
       ),
     );
   }
+
+  String _pad(int value) => value.toString().padLeft(2, '0');
 }

@@ -54,6 +54,26 @@ flutter run -d emulator-5554
 flutter run -d chrome
 ```
 
+### 6. 에뮬레이터에서 앱 닫기 / 다시 열기
+
+앱만 종료하고 에뮬레이터는 켜둔 채 유지하려면:
+
+```sh
+adb shell am force-stop com.example.stellara
+```
+
+이미 설치된 앱을 다시 열려면:
+
+```sh
+adb shell monkey -p com.example.stellara 1
+```
+
+코드를 다시 빌드해서 실행하려면:
+
+```sh
+flutter run -d emulator-5554
+```
+
 ## 현재 구현 상태
 
 - Flutter 앱 생성 및 Android 에뮬레이터 실행 검증 완료
@@ -334,10 +354,12 @@ flutter emulators --launch <emulator-id>
 flutter devices
 flutter run -d <device-id>
 adb devices
+adb shell am force-stop com.example.stellara
 adb shell monkey -p com.example.stellara 1
 ```
 
-`adb shell monkey -p com.example.stellara 1`은 이미 설치된 Stellara 앱을 에뮬레이터에서 다시 앞으로 띄울 때 사용합니다.
+- `adb shell am force-stop com.example.stellara`는 앱만 종료하고 에뮬레이터는 유지합니다.
+- `adb shell monkey -p com.example.stellara 1`은 이미 설치된 Stellara 앱을 다시 앞으로 띄울 때 사용합니다.
 
 ## 현재 확인된 검증 결과
 

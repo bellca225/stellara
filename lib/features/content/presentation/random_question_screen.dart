@@ -18,7 +18,10 @@ class RandomQuestionScreen extends StatelessWidget {
             AppSpacing.xxl,
           ),
           children: [
-            const WireframeHeader('CONTENT-001 · 랜덤 질문'),
+            const ScreenCodeChip(
+              code: 'CONTENT-001',
+              label: '랜덤 질문',
+            ),
             const SizedBox(height: AppSpacing.xl),
             Text(
               '랜덤 질문',

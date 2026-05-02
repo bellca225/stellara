@@ -51,7 +51,10 @@ class _ChartContent extends StatelessWidget {
         AppSpacing.xxl,
       ),
       children: [
-        const WireframeHeader('01 · 점성술 분석'),
+        const ScreenCodeChip(
+          code: 'ASTROLOGY-001',
+          label: '점성술 분석',
+        ),
         const SizedBox(height: AppSpacing.lg),
         Row(
           children: [

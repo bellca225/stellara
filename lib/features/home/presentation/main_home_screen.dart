@@ -58,7 +58,10 @@ class _MainHomeContent extends StatelessWidget {
         AppSpacing.xxl,
       ),
       children: [
-        const WireframeHeader('02 · 나의 우주 (홈)'),
+        const ScreenCodeChip(
+          code: 'MAIN-001',
+          label: '메인 홈',
+        ),
         const SizedBox(height: AppSpacing.xl),
         Text(
           '나의 우주',
