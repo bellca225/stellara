@@ -80,12 +80,12 @@ class ProkeralaApi {
     DateTime? date,
   }) async {
     final d = date ?? DateTime.now();
-    final dateStr = DateFormat('yyyy-MM-dd').format(d);
+    final dateTimeStr = DateFormat("yyyy-MM-dd'T'HH:mm:ss").format(d.toUtc());
     final res = await _dio.get<Map<String, dynamic>>(
       '/v2/horoscope/daily',
       queryParameters: {
         'sign': signSlug,
-        'date': dateStr,
+        'datetime': '${dateTimeStr}Z',
         'la': 'en',
       },
     );

@@ -25,6 +25,12 @@ cp .env.example .env
 
 - `PROKERALA_CLIENT_ID`
 - `PROKERALA_CLIENT_SECRET`
+- `USE_FIXTURE_IN_DEBUG=false`
+
+참고:
+
+- `USE_FIXTURE_IN_DEBUG=false`이면 디버그에서도 실제 Prokerala API를 먼저 호출합니다.
+- 현재 Prokerala sandbox 계정은 나탈 차트에서 `1월 1일`만 허용하므로, 다른 날짜를 넣으면 앱은 자동으로 fixture 차트로 fallback 합니다.
 
 ### 3. 패키지 설치
 

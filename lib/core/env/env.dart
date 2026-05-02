@@ -58,7 +58,7 @@ class Env {
   /// 디버그 모드에서 fixture(녹화된 응답)를 우선 사용할지 여부.
   /// true 로 두면 개발 중 credit 소모를 줄이고 오프라인에서도 화면이 뜬다.
   static bool get useFixtureInDebug =>
-      (dotenv.maybeGet(_kUseFixtureInDebug) ?? 'true').toLowerCase() == 'true';
+      (dotenv.maybeGet(_kUseFixtureInDebug) ?? 'false').toLowerCase() == 'true';
 }
 
 /// .env에서 필수 키가 빠졌을 때 던지는 예외.

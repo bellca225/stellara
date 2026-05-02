@@ -7,6 +7,24 @@ import 'package:flutter/material.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/presentation/login_screen.dart';
 
+class AppScrollBehavior extends MaterialScrollBehavior {
+  const AppScrollBehavior();
+
+  @override
+  Widget buildOverscrollIndicator(
+    BuildContext context,
+    Widget child,
+    ScrollableDetails details,
+  ) {
+    return child;
+  }
+
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) {
+    return const ClampingScrollPhysics();
+  }
+}
+
 class StellaraApp extends StatelessWidget {
   const StellaraApp({super.key});
 
@@ -16,6 +34,7 @@ class StellaraApp extends StatelessWidget {
       title: 'Stellara',
       debugShowCheckedModeBanner: false,
       theme: buildAppTheme(),
+      scrollBehavior: const AppScrollBehavior(),
       // 9주차에서는 go_router 도입을 미루고 Navigator.push 로 단순 시작.
       // 라우터 도입은 11주차 친구 기능과 맞물려 진행 예정.
       home: const LoginScreen(),

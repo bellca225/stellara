@@ -18,9 +18,7 @@ class NatalChartPainter extends CustomPainter {
   final NatalChart chart;
 
   static const _zodiac = [
-    'Aries', 'Taurus', 'Gemini', 'Cancer',
-    'Leo', 'Virgo', 'Libra', 'Scorpio',
-    'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces',
+    '양', '황', '쌍', '게', '사', '처', '천', '전', '궁', '염', '병', '고',
   ];
 
   @override
@@ -48,10 +46,10 @@ class NatalChartPainter extends CustomPainter {
       final p1 = c + Offset(math.cos(angle) * r * 0.78, math.sin(angle) * r * 0.78);
       final p2 = c + Offset(math.cos(angle) * r, math.sin(angle) * r);
       canvas.drawLine(p1, p2, inner);
-      // 별자리 약자 표기 (3글자).
+      // 별자리 약자 표기.
       _drawText(
         canvas,
-        _zodiac[i].substring(0, 3),
+        _zodiac[i],
         c + Offset(math.cos(angle - math.pi / 12) * r * 0.88,
             math.sin(angle - math.pi / 12) * r * 0.88),
         size: 10,
@@ -114,27 +112,27 @@ class NatalChartPainter extends CustomPainter {
   String _glyph(String planet) {
     switch (planet.toLowerCase()) {
       case 'sun':
-        return 'Su';
+        return '태';
       case 'moon':
-        return 'Mo';
+        return '달';
       case 'mercury':
-        return 'Me';
+        return '수';
       case 'venus':
-        return 'Ve';
+        return '금';
       case 'mars':
-        return 'Ma';
+        return '화';
       case 'jupiter':
-        return 'Ju';
+        return '목';
       case 'saturn':
-        return 'Sa';
+        return '토';
       case 'uranus':
-        return 'Ur';
+        return '천';
       case 'neptune':
-        return 'Ne';
+        return '해';
       case 'pluto':
-        return 'Pl';
+        return '명';
       default:
-        return planet.substring(0, math.min(2, planet.length));
+        return planet.substring(0, math.min(1, planet.length));
     }
   }
 
