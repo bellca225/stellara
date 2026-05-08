@@ -137,6 +137,7 @@ PROKERALA_CLIENT_SECRET=...
 - `client_secret` 이 앱 안에 있으므로 공개 배포용 APK/IPA 기준으로는 안전한 구조가 아닙니다
 - AI 질문은 **학교 데모용 내부 빌드에 한해 GPT/Claude direct call** 을 허용하고, 실패 시 local fallback 으로 화면이 비지 않게 유지합니다
 - `LoginScreen` 의 `데모 데이터로 둘러보기` 버튼은 최종 마감 직전까지 유지하고, 마지막 정리 단계에서 제거합니다
+- **토큰 절약 원칙**: 이미 받은 데이터는 재요청하지 않습니다. 캐시 계층은 `docs/SDD.md` 5.6 참고 — L0(fixture) → L1(메모리) → L2(디스크, T13.5 도입 후) → L3(Firestore, T12+ 도입 후) → 실호출 순으로 fallback. 개발 중에는 `USE_FIXTURE_IN_DEBUG=true` 가 가장 강한 절약입니다 (실응답 검증 시에만 false)
 
 ### 3-3. AI 질문 운영 방식
 

@@ -385,6 +385,47 @@ main.dart → Env.load() → ProviderScope → StellaraApp
                                 └─ MyPageScreen [MYPAGE-001]
 ```
 
+### 5.6 데이터 캐시 계층 (토큰 절약 정책)
+
+> Prokerala 무료 플랜(5,000 credits / month) + OpenAI/Anthropic 유료 호출이 모두 클라이언트 직접 호출 구조라, **"이미 받은 데이터를 재요청하지 않는다"** 원칙이 비용·일정 모두에 직결된다.
+
+#### 5.6.1 캐시 계층
+
+| 계층 | 도구 | 적용 시점 | 유지 범위 |
+|------|------|-----------|-----------|
+| L0: Fixture | `USE_FIXTURE_IN_DEBUG=true` + `fixtures/*.dart` | 9주차~ (현재 동작) | 디버그 빌드, 모든 호출 |
+| L1: 메모리 | Riverpod `FutureProvider.family` 자동 dedup | 9주차~ (현재 동작) | 앱 세션 동안 동일 인자 호출 합치기 |
+| L2: 디스크 | `shared_preferences` 기반 JSON 캐시 | **T13.5 (10주차 신설)** | 앱 재시작 후에도 유지. 키별 TTL |
+| L3: 원격 | Firestore `charts/dailyFortunes/synastryCaches` | T12, T14, T20 | 디바이스 간 공유. `chartVersion` 기반 무효화 |
+
+호출 흐름: **L0 → L1 → L2 → L3 → 실호출** 순으로 fallback. 한 계층이라도 hit 하면 실호출 안 함.
+
+#### 5.6.2 캐시 키 규칙
+
+| 도메인 | 캐시 키 | 무효화 트리거 |
+|--------|---------|---------------|
+| Natal chart | `chartVersion = "${dateTimeLocal}_${lat}_${lng}_${utcOffset}"` | `BirthInfo` 의 어느 필드라도 변경 |
+| Daily horoscope | `${signSlug}_${yyyyMMdd}` | 날짜 변경 시 자동 (새 키) |
+| Synastry | `${pairKey}|${chartPairVersion}`<br>(`chartPairVersion = ${myChartVersion}__${partnerChartVersion}`) | 둘 중 한 명 `BirthInfo` 변경 |
+| Prokerala access_token | `client_id` 단일 | 만료 60초 전 자동 |
+| AI 질문 응답 | 캐시 안 함 | "매번 새 질문" 이 의도된 UX |
+
+#### 5.6.3 디스크 캐시 (L2) TTL
+
+| 도메인 | TTL | 이유 |
+|--------|-----|------|
+| Natal chart | 영구 (`chartVersion` 무효화로만 삭제) | 출생정보가 같으면 차트는 변하지 않음 |
+| Daily horoscope | 자연 만료 (`yyyyMMdd` 가 키에 포함) | 같은 키 재호출 = 같은 날짜 |
+| Synastry | 영구 (`chartPairVersion` 무효화로만 삭제) | natal 과 동일 논리 |
+
+#### 5.6.4 운영 원칙
+
+- 개발 중에는 `USE_FIXTURE_IN_DEBUG=true` 를 기본으로 둔다 (L0 가 가장 강한 절약)
+- L2 도입 전까지는 L1 만 동작 → 앱 재시작마다 재호출이 발생할 수 있음을 인지하고, 가능하면 L0 모드를 유지
+- L3 (Firestore) 는 T05/T09 완료 후 의미 있음. Spark 무료 한도(읽기 50K/일) 안에서 충분
+- fixture 와 실응답의 응답 모양이 어긋나면 캐시 일관성이 깨질 수 있으므로, T01 실응답 캡처 후 fixture 갱신을 **L2 도입보다 우선** 처리한다
+- 캐시는 "fixture / 실응답" 출처를 같이 저장한다. 디버그 모드에서 fixture 를 디스크에 영구 저장하지 않도록 `source != 'fixture'` 만 캐시한다
+
 ---
 
 ## 6. 화면/기능 구조
@@ -1153,4 +1194,5 @@ PR / 머지 정책 (2026-05-09 결정):
 *최초 작성: 2026-05-08 v0.1 / 수정: 2026-05-09 v0.9*  
 *v0.9 변경: 11주차 친구 트랜잭션 = Firestore `runTransaction` 으로 단일화, 10.6 자원 소유자 표 신설, BirthInfo Firestore 매핑 규칙 명시, 의존성 표 보강, 폴더 구조 실측 정정, JWT 항목에 (Auth 도입 후) prefix 추가*  
 *v0.9.1 추가 (2026-05-09): 4.7 Firebase Anonymous Auth 도입 결정, 4.8 Firestore Security Rules 운영 절차, 10.6 표에 Q2/Q3 결정 반영(단일 .env 모델, OpenAI 등록 + Anthropic 보류), `firestore.rules` 파일 신규 작성*  
+*v0.9.2 추가 (2026-05-09): 5.6 데이터 캐시 계층 (토큰 절약 정책) 신설 — L0/L1/L2/L3 4계층 정의 + 키 규칙 + TTL + 운영 원칙. TASKS T13.5 (SharedPreferences 디스크 캐시) 신설*  
 *기준 브랜치: `feature/week09-prokerala-api`*

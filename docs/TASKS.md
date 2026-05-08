@@ -146,6 +146,24 @@
 - 선행 작업: `T14`
 - 담당 가능 역할: FE
 
+## T13.5. SharedPreferences 디스크 캐시 (L2 — 토큰 절약)
+- 작업명: SharedPreferences 디스크 캐시 (L2)
+- 목적: 앱 재시작 후에도 natal/daily/synastry 결과가 유지되어 불필요한 Prokerala 재호출(credit 소모)을 막는다. SDD 5.6 캐시 계층 정책에서 L2 단계에 해당.
+- 구현 범위:
+  - `pubspec.yaml` 에 `shared_preferences` 의존성 추가
+  - `lib/core/cache/disk_cache.dart` 신설 — generic JSON 캐시 wrapper (key/value/expiry/source meta)
+  - `AstrologyRepository.getNatalChart()` / `HoroscopeRepository.getDaily()` / `SynastryRepository.compare()` 에 캐시 키 생성 + L2 lookup before live call 부착
+  - 캐시 키 규칙은 SDD 5.6.2 그대로 따름 (`chartVersion`, `${signSlug}_${yyyyMMdd}`, `${pairKey}|${chartPairVersion}`)
+  - TTL 은 SDD 5.6.3 따름 (natal/synastry 영구, daily 자연 만료)
+  - `source == 'fixture'` 인 결과는 디스크에 저장하지 않음 (운영 원칙)
+- 수정 예상 파일: `pubspec.yaml`, `lib/core/cache/disk_cache.dart` (신규), `lib/features/astrology/data/astrology_repository.dart`, `lib/features/horoscope/data/horoscope_repository.dart`, `lib/features/compatibility/data/synastry_repository.dart`, `test/disk_cache_test.dart` (신규)
+- 완료 기준:
+  1. 앱 재시작 후 동일 `BirthInfo` 로 진입 시 Prokerala 호출 0건 (네트워크 inspector 또는 로그로 검증)
+  2. `chartVersion` 이 바뀌면 자동으로 새 호출 (출생정보 수정 시나리오)
+  3. fixture 모드(`USE_FIXTURE_IN_DEBUG=true`)에서는 디스크 캐시 미저장
+- 선행 작업: 없음 (T05/T09/T11 와 무관, 단독 가능). T01 실응답 캡처가 있으면 fixture 일관성이 더 좋아지지만 강제 아님.
+- 담당 가능 역할: 공통
+
 ## Phase 2 — 친구 / 궁합 / 홈 실데이터 연결
 
 ## T16. 친구 코드 발급 및 검색
