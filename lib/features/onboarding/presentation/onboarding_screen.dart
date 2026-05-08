@@ -9,6 +9,7 @@
 //
 // 10주차에서 Firestore + 입력값 검증 정교화 + geocoding 으로 lat/lng 변환.
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -16,6 +17,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/panel.dart';
 import '../../astrology/application/astrology_providers.dart';
 import '../../astrology/domain/birth_info.dart';
+import '../data/place_resolver.dart';
 import '../app_shell.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
@@ -37,8 +39,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   late final TextEditingController _dateC;
   late final TextEditingController _timeC;
   late final TextEditingController _placeC;
+  late final PlaceResolver _placeResolver;
 
   String? _error;
+  bool _isSubmitting = false;
 
   @override
   void initState() {
@@ -53,6 +57,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       text: '${_pad(birth.dateTime.hour)}:${_pad(birth.dateTime.minute)}',
     );
     _placeC = TextEditingController(text: birth.placeName ?? '서울특별시');
+    _placeResolver = PlaceResolver();
   }
 
   @override
@@ -64,9 +69,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
+    if (_isSubmitting) {
+      return;
+    }
+
     setState(() => _error = null);
     try {
+      setState(() => _isSubmitting = true);
       final dateParts = _dateC.text.split('-').map(int.parse).toList();
       final timeParts = _timeC.text.split(':').map(int.parse).toList();
       if (dateParts.length != 3 || timeParts.length != 2) {
@@ -79,21 +89,35 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         timeParts[0],
         timeParts[1],
       );
+      final placeQuery = _placeC.text.trim();
+      final supportsPlaceResolution = _placeResolver.supportsForwardGeocoding;
+      final resolvedPlace = await _placeResolver.resolve(placeQuery);
+
+      if (supportsPlaceResolution && resolvedPlace == null) {
+        setState(() => _error =
+            '출생지를 찾지 못했어요. 예: 서울특별시 강남구 역삼동처럼 더 구체적으로 입력해 주세요.');
+        return;
+      }
+
+      final fallbackBirth = widget.initialBirthInfo ?? BirthInfo.demo();
 
       final birth = BirthInfo(
         nickname: _nicknameC.text.trim().isEmpty
             ? '익명의 행성'
             : _nicknameC.text.trim(),
         dateTime: dt,
-        // 9주차에는 출생지 → 좌표 변환은 나중. 한국 기본값으로 폴백.
-        latitude: 37.5665,
-        longitude: 126.9780,
+        latitude: resolvedPlace?.latitude ?? fallbackBirth.latitude,
+        longitude: resolvedPlace?.longitude ?? fallbackBirth.longitude,
         utcOffset: '+09:00',
-        placeName: _placeC.text.trim(),
+        placeName: placeQuery.isEmpty ? fallbackBirth.placeName : placeQuery,
       );
 
       ref.read(currentBirthInfoProvider.notifier).state = birth;
       ref.invalidate(myNatalChartProvider);
+
+      if (!mounted) {
+        return;
+      }
 
       if (widget.isEditing) {
         Navigator.of(context).pop(true);
@@ -105,6 +129,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     } catch (e) {
       setState(() => _error =
           '입력값을 다시 확인해주세요 (생년월일은 1995-02-15, 시간은 14:30 형식).');
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
     }
   }
 
@@ -171,9 +199,17 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     controller: _placeC,
                     decoration: const InputDecoration(
                       labelText: '출생지',
-                      hintText: '예: 서울특별시',
+                      hintText: '예: 서울특별시 강남구 역삼동',
                     ),
                   ),
+                  if (kIsWeb) ...[
+                    const SizedBox(height: 10),
+                    const Text(
+                      '웹에서는 출생지 좌표 자동 변환이 제한될 수 있어요. '
+                      '정확한 좌표 저장은 Android/iOS 입력이 더 안정적입니다.',
+                      style: TextStyle(color: AppColors.inkMuted, height: 1.4),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -183,8 +219,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             ],
             const SizedBox(height: AppSpacing.lg),
             ElevatedButton(
-              onPressed: _submit,
-              child: Text(widget.isEditing ? '변경 사항 저장' : '차트 만들기'),
+              onPressed: _isSubmitting ? null : _submit,
+              child: _isSubmitting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(widget.isEditing ? '변경 사항 저장' : '차트 만들기'),
             ),
           ],
         ),

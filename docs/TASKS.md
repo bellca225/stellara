@@ -1,7 +1,9 @@
 # Stellara — 개발 작업 분해
 
-> 기준 문서: `docs/SDD.md` v0.4, `docs/MVP.md`  
+> 기준 문서: `docs/SDD.md` v0.9, `docs/MVP.md`  
 > 목적: 협업자가 바로 가져갈 수 있는 이슈 단위로 개발 작업을 분해한다.
+>
+> **2026-05-09 변경**: T16 / T18 / T27 의 Cloud Functions 경로를 제거하고 Firestore `runTransaction`(클라이언트) 으로 단일화. T16.5 (Firestore Security Rules 초안) 신설. 이유와 단점은 `docs/SDD.md` 7.4 마지막 박스 참고.
 
 ## Phase 1 — 기반 안정화 / 백엔드 전환
 
@@ -50,31 +52,31 @@
 - 선행 작업: 없음
 - 담당 가능 역할: 공통
 
-## T06. Cloud Functions 스캐폴드 및 secret 이관
-- 작업명: Cloud Functions 스캐폴드 및 secret 이관
-- 목적: 앱에서 Prokerala secret 을 제거할 준비를 한다.
-- 구현 범위: `functions/` 초기 구조 생성, Node/TypeScript 설정, Prokerala secret 환경 변수 정의, 공통 에러 응답 형식 정리.
-- 수정 예상 파일: `functions/package.json`, `functions/tsconfig.json`, `functions/src/index.ts`, `functions/src/config.ts`, `docs/SDD.md`
-- 완료 기준: Functions 프로젝트가 빌드 가능하고, secret 을 앱 `.env` 대신 Functions 설정으로 관리할 수 있다.
+## T06. 무료 플랜 운영 규칙 문서화
+- 작업명: 무료 플랜 운영 규칙 문서화
+- 목적: Spark-only 전제를 팀이 같은 기준으로 이해하도록 한다.
+- 구현 범위: direct Prokerala 호출 허용 범위, multi-key fallback, fixture 기본 전략, 공개 배포 금지 원칙을 README/SDD/MVP에 반영한다.
+- 수정 예상 파일: `README.md`, `docs/SDD.md`, `docs/MVP.md`, `docs/README.md`
+- 완료 기준: 팀원이 무료 플랜 기준 현재 운영 방식과 제한 사항을 문서만 보고 이해할 수 있다.
 - 선행 작업: 없음
-- 담당 가능 역할: BE
+- 담당 가능 역할: 공통
 
-## T07. `places-resolve` Function 구현
-- 작업명: 출생지 좌표 변환 Function 구현
-- 목적: 서울/부산 하드코딩 폴백을 제거하고 실제 좌표를 저장한다.
-- 구현 범위: 출생지 텍스트를 좌표로 변환하는 `places-resolve` API 구현, 실패 시 표준 에러 응답 또는 fallback 전략 정의.
-- 수정 예상 파일: `functions/src/index.ts`, `functions/src/places_resolve.ts`, `docs/SDD.md`
-- 완료 기준: `"서울특별시"` 같은 입력으로 `placeName`, `latitude`, `longitude` 가 반환된다.
-- 선행 작업: `T06`
-- 담당 가능 역할: BE
+## T07. 클라이언트 출생지 좌표 변환 helper 구현
+- 작업명: 클라이언트 출생지 좌표 변환 helper 구현
+- 목적: 무료 플랜 기준에서 가장 먼저 출생지 정확도를 높인다.
+- 구현 범위: Android/iOS `geocoding` 기반 주소→좌표 helper 작성, 한국 입력 보정 쿼리 전략 정리, 실패 시 에러 메시지 정책 확정.
+- 수정 예상 파일: `lib/features/onboarding/data/place_resolver.dart`, `docs/SDD.md`
+- 완료 기준: `"서울특별시 강남구 역삼동"` 같은 입력으로 실제 위도/경도를 얻을 수 있다.
+- 선행 작업: 없음
+- 담당 가능 역할: FE
 
 ## T08. 온보딩 출생지 좌표 연동
 - 작업명: 온보딩 출생지 좌표 연동
 - 목적: 사용자가 입력한 출생지가 실제 `BirthInfo` 좌표로 반영되게 한다.
-- 구현 범위: 온보딩 제출 시 `places-resolve` 호출, `BirthInfo` 에 `dateTimeLocal + utcOffset + lat/lng` 저장 규칙 반영, 실패 메시지 처리.
-- 수정 예상 파일: `lib/features/onboarding/presentation/onboarding_screen.dart`, `lib/features/astrology/domain/birth_info.dart`, `lib/core/http/dio_client.dart`
-- 완료 기준: 온보딩에서 입력한 출생지가 실제 좌표로 저장되고, 서울/부산 고정값을 기본 경로에서 사용하지 않는다.
-- 선행 작업: `T05`, `T07`
+- 구현 범위: 온보딩 제출 시 geocoding helper 호출, `BirthInfo` 에 `dateTimeLocal + utcOffset + lat/lng` 저장 규칙 반영, Web 보조 타깃 안내 문구 처리.
+- 수정 예상 파일: `lib/features/onboarding/presentation/onboarding_screen.dart`, `lib/features/astrology/domain/birth_info.dart`
+- 완료 기준: Android/iOS 기준 온보딩에서 입력한 출생지가 실제 좌표로 저장되고, 서울 고정값이 기본 경로에서 제거된다.
+- 선행 작업: `T07`
 - 담당 가능 역할: FE
 
 ## T09. Firestore 스키마 초안 반영 및 시딩 데이터 준비
@@ -89,9 +91,9 @@
 ## T10. 개발 모드 로그인 진입
 - 작업명: 개발 모드 로그인 진입
 - 목적: 카카오 로그인 없이도 Firestore 사용자로 앱에 진입할 수 있게 한다.
-- 구현 범위: `LoginScreen` 에 uid 선택 또는 입력 기반 개발 모드 진입 추가, Firestore 사용자 존재 여부 확인.
+- 구현 범위: 현재 `시작하기` / `데모 데이터로 둘러보기` 흐름을 유지하면서, 필요 시 테스트 uid 연결 경로를 추가하고 Firestore 사용자 존재 여부를 확인한다.
 - 수정 예상 파일: `lib/features/auth/presentation/login_screen.dart`, `lib/app.dart`, `lib/features/astrology/application/astrology_providers.dart`
-- 완료 기준: 테스트 uid로 로그인 화면에서 바로 `AppShell` 로 진입할 수 있다.
+- 완료 기준: 데모 버튼을 유지한 채 테스트 사용자로 `AppShell` 진입이 가능하다.
 - 선행 작업: `T05`, `T09`
 - 담당 가능 역할: FE
 
@@ -104,52 +106,61 @@
 - 선행 작업: `T05`, `T09`, `T10`
 - 담당 가능 역할: 공통
 
-## T12. `prokerala-natal` Function 및 차트 캐시 구현
-- 작업명: 나탈 차트 Function 및 차트 캐시 구현
-- 목적: Prokerala secret 을 서버로 옮기고 `chartVersion` 기반 캐시를 만든다.
-- 구현 범위: `prokerala-natal` API 구현, Prokerala 호출, `charts/{uid}` 저장, `chartVersion` 생성, raw snapshot 임시 저장.
-- 수정 예상 파일: `functions/src/index.ts`, `functions/src/prokerala_natal.ts`, `docs/SDD.md`
-- 완료 기준: 동일한 `birthInfo` 로 재호출 시 캐시가 동작하고, `charts/{uid}` 문서가 생성된다.
-- 선행 작업: `T06`, `T09`
-- 담당 가능 역할: BE
+## T12. 나탈 차트 Firestore 캐시 구현
+- 작업명: 나탈 차트 Firestore 캐시 구현
+- 목적: 무료 플랜에서 중복 API 호출을 줄이고 `chartVersion` 기반 재사용 구조를 만든다.
+- 구현 범위: `charts/{uid}` 저장, `chartVersion` 생성 규칙 적용, raw snapshot 저장 여부 확정, stale 처리 기준 정리.
+- 수정 예상 파일: `lib/features/astrology/data/astrology_repository.dart`, `docs/SDD.md`, `docs/MVP.md`
+- 완료 기준: 동일한 `birthInfo` 로 재조회 시 캐시 재사용 전략이 문서와 구현에 반영된다.
+- 선행 작업: `T05`, `T09`
+- 담당 가능 역할: 공통
 
-## T13. Flutter 나탈 데이터 경로 Functions 로 이관
-- 작업명: Flutter 나탈 데이터 경로 Functions 로 이관
-- 목적: 앱이 더 이상 Prokerala 직접 호출에 의존하지 않게 한다.
-- 구현 범위: `ProkeralaApi` 또는 `AstrologyRepository` 가 `prokerala-natal` 응답을 사용하도록 교체하고, `NatalChart` 정규화 응답에 맞춰 조정한다.
-- 수정 예상 파일: `lib/features/astrology/data/prokerala_api.dart`, `lib/features/astrology/data/astrology_repository.dart`, `lib/features/astrology/application/astrology_providers.dart`
-- 완료 기준: 앱에서 나탈 차트가 Cloud Functions 경유로 정상 조회된다.
+## T13. Flutter 나탈 데이터 경로 캐시 연동
+- 작업명: Flutter 나탈 데이터 경로 캐시 연동
+- 목적: direct Prokerala 호출과 Firestore 차트 캐시를 함께 쓰도록 한다.
+- 구현 범위: `AstrologyRepository` 와 Provider가 캐시 우선/실호출 fallback 흐름을 따르도록 조정한다.
+- 수정 예상 파일: `lib/features/astrology/data/astrology_repository.dart`, `lib/features/astrology/application/astrology_providers.dart`
+- 완료 기준: 앱에서 나탈 차트가 캐시 우선 전략으로 정상 조회된다.
 - 선행 작업: `T12`
 - 담당 가능 역할: 공통
 
-## T14. `prokerala-horoscope` Function 및 운세 캐시 구현
-- 작업명: 일일 운세 Function 및 운세 캐시 구현
-- 목적: 운세 조회를 서버 경유로 전환하고 날짜별 캐시를 만든다.
-- 구현 범위: `prokerala-horoscope` API 구현, Prokerala 호출, `dailyFortunes/{uid}_{signSlug}_{yyyyMMdd}` 저장, force refresh 전략 정의.
-- 수정 예상 파일: `functions/src/index.ts`, `functions/src/prokerala_horoscope.ts`, `docs/SDD.md`
-- 완료 기준: 같은 날짜/같은 별자리 재호출 시 Firestore 캐시를 재사용한다.
-- 선행 작업: `T06`, `T09`
-- 담당 가능 역할: BE
+## T14. 일일 운세 Firestore 캐시 구현
+- 작업명: 일일 운세 Firestore 캐시 구현
+- 목적: 운세 조회를 무료 플랜 범위 안에서 재사용 가능하게 만든다.
+- 구현 범위: `dailyFortunes/{uid}_{signSlug}_{yyyyMMdd}` 저장, 같은 날짜/별자리 재호출 시 캐시 우선 전략 정의.
+- 수정 예상 파일: `lib/features/horoscope/data/horoscope_repository.dart`, `docs/SDD.md`
+- 완료 기준: 같은 날짜/같은 별자리 재호출 시 Firestore 또는 로컬 캐시 재사용 전략이 정리된다.
+- 선행 작업: `T05`, `T09`
+- 담당 가능 역할: 공통
 
-## T15. Flutter 운세 데이터 경로 Functions 로 이관
-- 작업명: Flutter 운세 데이터 경로 Functions 로 이관
-- 목적: `TODAY-001` 이 서버 경유 캐시 응답을 사용하게 한다.
-- 구현 범위: `HoroscopeRepository` 와 `todayHoroscopeProvider` 를 `prokerala-horoscope` 응답 형식으로 교체하고, 로딩/에러 상태를 정리한다.
+## T15. Flutter 운세 데이터 경로 캐시 연동
+- 작업명: Flutter 운세 데이터 경로 캐시 연동
+- 목적: `TODAY-001` 이 direct 호출 + 캐시 조합으로 동작하게 한다.
+- 구현 범위: `HoroscopeRepository` 와 `todayHoroscopeProvider` 의 캐시 우선 흐름, 로딩/에러 상태를 정리한다.
 - 수정 예상 파일: `lib/features/horoscope/data/horoscope_repository.dart`, `lib/features/horoscope/application/horoscope_providers.dart`, `lib/features/horoscope/presentation/today_screen.dart`
-- 완료 기준: 오늘의 운세 화면이 Cloud Functions 응답으로 정상 렌더링된다.
+- 완료 기준: 오늘의 운세 화면이 캐시 우선 전략으로 정상 렌더링된다.
 - 선행 작업: `T14`
 - 담당 가능 역할: FE
 
 ## Phase 2 — 친구 / 궁합 / 홈 실데이터 연결
 
-## T16. 친구 코드 발급 및 검색 백엔드
-- 작업명: 친구 코드 발급 및 검색 백엔드
+## T16. 친구 코드 발급 및 검색
+- 작업명: 친구 코드 발급 및 검색
 - 목적: `friendCode` 유일성과 빠른 검색을 보장한다.
-- 구현 범위: `friendCodes/{code}` 인덱스 설계, 코드 발급/재발급 로직, 코드 검색 규칙 정리.
-- 수정 예상 파일: `functions/src/index.ts`, `functions/src/friend_code_issue.ts`, `docs/SDD.md`
-- 완료 기준: 중복 없는 친구 코드가 발급되고, 코드로 사용자 검색이 가능하다.
-- 선행 작업: `T06`, `T09`
-- 담당 가능 역할: BE
+- 구현 범위: `friendCodes/{code}` 인덱스 설계, 코드 발급/재발급 로직, 코드 검색 규칙 정리. **Firestore `runTransaction`(클라이언트)** 으로 구현하고, Cloud Functions 경로는 Blaze 전환 시 후속.
+- 수정 예상 파일: `lib/features/friends/data/friend_code_repository.dart`, `lib/features/friends/domain/friend_code.dart`, `firestore.rules`, `docs/SDD.md`
+- 완료 기준: 중복 없는 친구 코드가 발급되고, 코드로 사용자 검색이 가능하다. 동시 발급 시도에서도 unique 제약이 깨지지 않는다.
+- 선행 작업: `T06`, `T09`, `T16.5`
+- 담당 가능 역할: 공통
+
+## T16.5. Firestore Security Rules 초안
+- 작업명: Firestore Security Rules 초안
+- 목적: 클라이언트가 직접 Firestore 에 쓰는 경로를 안전하게 제한한다.
+- 구현 범위: `users`, `friendCodes`, `friendRequests`, `friendships`, `charts`, `dailyFortunes`, `synastryCaches` 의 read/write 규칙 작성. 읽기는 본인 또는 friendship 상대만, 쓰기는 본인 또는 트랜잭션 조건만 허용. `friendCodes` 는 발급/재발급 트랜잭션 외에는 쓰기 금지. `favoriteIds.length <= 3` 강제.
+- 수정 예상 파일: `firestore.rules`, `docs/SDD.md`
+- 완료 기준: emulator(`firebase emulators:start --only firestore`) 또는 콘솔에서 의도된 권한 위반 케이스가 모두 거부된다.
+- 선행 작업: `T05`, `T09`
+- 담당 가능 역할: 공통
 
 ## T17. 친구 요청 전송 흐름 구현
 - 작업명: 친구 요청 전송 흐름 구현
@@ -163,11 +174,11 @@
 ## T18. 친구 요청 수락 트랜잭션 구현
 - 작업명: 친구 요청 수락 트랜잭션 구현
 - 목적: 요청 수락 시 `friendships` 와 요청 상태가 일관되게 갱신되게 한다.
-- 구현 범위: `friend-request-accept` Function 또는 Firestore transaction 구현, `pairKey` 생성 규칙 반영, 중복 friendship 방지.
-- 수정 예상 파일: `functions/src/index.ts`, `functions/src/friend_request_accept.ts`, `docs/SDD.md`
-- 완료 기준: 요청 수락 시 `friendRequests.status=accepted` 와 `friendships/{pairKey}` 생성이 한 번에 처리된다.
-- 선행 작업: `T16`, `T17`
-- 담당 가능 역할: BE
+- 구현 범위: **Firestore `runTransaction`(클라이언트)** 으로 `friendRequests.status=accepted` 와 `friendships/{pairKey}` 생성을 한 번에 처리. `pairKey` 생성 규칙(`min(uidA,uidB)__max(uidA,uidB)`) 반영, 문서 ID 자체를 `pairKey` 로 두어 중복 friendship 방지. Functions 경로는 Blaze 전환 시 후속.
+- 수정 예상 파일: `lib/features/friends/data/friend_repository.dart`, `firestore.rules`, `docs/SDD.md`
+- 완료 기준: 요청 수락 시 `friendRequests.status=accepted` 와 `friendships/{pairKey}` 생성이 한 번에 처리된다. 동시 수락 시도에서도 friendship 이 1개만 생성된다.
+- 선행 작업: `T16`, `T17`, `T16.5`
+- 담당 가능 역할: 공통
 
 ## T19. 친구 목록 및 즐겨찾기 연동
 - 작업명: 친구 목록 및 즐겨찾기 연동
@@ -178,14 +189,14 @@
 - 선행 작업: `T17`, `T18`
 - 담당 가능 역할: FE
 
-## T20. `prokerala-synastry` Function 및 궁합 캐시 구현
-- 작업명: 궁합 Function 및 궁합 캐시 구현
-- 목적: 궁합 계산을 서버 경유로 전환하고 `chartPairVersion` 기반 캐시를 만든다.
-- 구현 범위: `prokerala-synastry` API 구현, 두 사용자 birthInfo 비교, Prokerala 호출, `synastryCaches/{pairKey}_{chartPairVersion}` 저장.
-- 수정 예상 파일: `functions/src/index.ts`, `functions/src/prokerala_synastry.ts`, `docs/SDD.md`
-- 완료 기준: 같은 쌍/같은 차트 버전 재조회 시 캐시가 재사용된다.
-- 선행 작업: `T06`, `T09`, `T12`
-- 담당 가능 역할: BE
+## T20. 궁합 캐시 구현
+- 작업명: 궁합 캐시 구현
+- 목적: `chartPairVersion` 기반으로 Synastry 재호출을 줄인다.
+- 구현 범위: 두 사용자 birthInfo 비교, direct Prokerala 호출 결과를 `synastryCaches/{pairKey}|{chartPairVersion}` 구조에 저장하는 전략 정리.
+- 수정 예상 파일: `lib/features/compatibility/data/synastry_repository.dart`, `docs/SDD.md`
+- 완료 기준: 같은 쌍/같은 차트 버전 재조회 시 캐시 재사용 전략이 문서와 구현에 반영된다.
+- 선행 작업: `T09`, `T12`
+- 담당 가능 역할: 공통
 
 ## T21. MATCH-001 실친구 기반 연동
 - 작업명: MATCH-001 실친구 기반 연동
@@ -198,23 +209,23 @@
 
 ## Phase 3 — AI / 운세 고도화 / 후반부 준비
 
-## T22. `ai-questions` Function 구현
-- 작업명: AI 질문 생성 Function 구현
-- 목적: 랜덤 질문 3개를 백엔드에서 안전하게 생성한다.
-- 구현 범위: OpenAI 호출, 프롬프트 고정, 응답 정규화, 실패 시 fallback 문구 전략 정의.
-- 수정 예상 파일: `functions/src/index.ts`, `functions/src/ai_questions.ts`, `docs/SDD.md`
-- 완료 기준: 요청 시 질문 3개가 일관된 JSON 형식으로 반환된다.
-- 선행 작업: `T06`
-- 담당 가능 역할: BE
+## T22. AI provider / env / fallback 정책 정리
+- 작업명: AI provider / env / fallback 정책 정리
+- 목적: GPT/Claude 연결 시 팀이 같은 기준으로 키, provider, fallback 흐름을 이해하도록 한다.
+- 구현 범위: `.env.example` 키 이름 확정, `자동/GPT/Claude` UX 원칙, `OpenAI → Anthropic → local fallback` 기본 순서, `primary → seoyeon → seonwoo → doyeon` backup 규칙을 문서에 반영한다.
+- 수정 예상 파일: `.env.example`, `README.md`, `docs/SDD.md`, `docs/MVP.md`, `docs/TASKS.md`
+- 완료 기준: 팀원이 문서만 보고 AI 질문의 키 관리 방식과 사용자 노출 정책을 이해할 수 있다.
+- 선행 작업: 없음
+- 담당 가능 역할: 공통
 
 ## T23. CONTENT-001 실데이터 연동
 - 작업명: 랜덤 질문 화면 실데이터 연동
-- 목적: 정적 카드 UI를 실제 AI 질문 호출 화면으로 바꾼다.
-- 구현 범위: `ai-questions` 호출, 질문 3개 표시, 사용자 직접 질문 1개 입력, 재생성 버튼 상태 처리.
+- 목적: 정적 카드 UI를 실제 AI 질문 호출 화면으로 바꾸되, 메인 UX는 단순하게 유지한다.
+- 구현 범위: `자동(추천) / GPT / Claude` 선택 UI, OpenAI/Anthropic client adapter, provider별 key fallback, local fallback 질문 세트, 질문 3개 표시, 사용자 직접 질문 1개 입력, 재생성 버튼 상태 처리.
 - 수정 예상 파일: `lib/features/content/presentation/random_question_screen.dart`, `lib/features/content/application/question_providers.dart`, `lib/features/content/data/question_repository.dart`
-- 완료 기준: 화면에서 AI 질문 3개가 생성되어 보이고 재요청이 가능하다.
+- 완료 기준: 화면에서 AI 질문 3개가 생성되어 보이고, 실패 시 local fallback 으로 비어 있지 않으며, 사용자에게는 provider 수준의 선택지만 노출된다.
 - 선행 작업: `T22`
-- 담당 가능 역할: FE
+- 담당 가능 역할: 공통
 
 ## T24. SHARE-001 와이어프레임 및 디자인 토큰 선행 준비
 - 작업명: SHARE-001 와이어프레임 및 디자인 토큰 선행 준비
@@ -248,8 +259,8 @@
 ## T27. 마이페이지 출생정보 수정 및 차트 무효화
 - 작업명: 출생정보 수정 및 차트 무효화
 - 목적: 마이페이지 수정이 실제 Firestore 데이터와 차트 재계산으로 이어지게 한다.
-- 구현 범위: `MYPAGE-001` 수정 액션 저장, `users.birthInfo` 갱신, `activeChartVersion`/`charts` stale 처리, 재조회 트리거.
-- 수정 예상 파일: `lib/features/profile/presentation/my_page_screen.dart`, `lib/features/onboarding/presentation/onboarding_screen.dart`, `lib/features/astrology/application/astrology_providers.dart`, `functions/src/prokerala_natal.ts`
+- 구현 범위: `MYPAGE-001` 수정 액션 저장, `users.birthInfo` 갱신, `activeChartVersion`/`charts` stale 처리, 재조회 트리거. 차트 재계산은 클라이언트 `AstrologyRepository` 의 캐시 무효화 경로로 처리하고, Functions 프록시 이전은 Blaze 전환 시 후속.
+- 수정 예상 파일: `lib/features/profile/presentation/my_page_screen.dart`, `lib/features/onboarding/presentation/onboarding_screen.dart`, `lib/features/astrology/application/astrology_providers.dart`, `lib/features/astrology/data/astrology_repository.dart`
 - 완료 기준: 출생정보 수정 후 차트와 궁합 캐시가 새 버전 기준으로 다시 계산된다.
 - 선행 작업: `T11`, `T12`, `T20`
 - 담당 가능 역할: 공통

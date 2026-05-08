@@ -106,7 +106,7 @@ SDD 작업은 아래 순서로 시작하면 됩니다.
 
 예:
 
-- `places-resolve` 방식 변경
+- 출생지 geocoding 방식 변경
 - `friendCodes` 컬렉션 구조 변경
 - `chartVersion` 규칙 변경
 
@@ -139,7 +139,7 @@ SDD 작업은 아래 순서로 시작하면 됩니다.
    Prokerala 실응답 검증과 parser 안정화
 
 2. `T05` ~ `T15`
-   Firebase / Cloud Functions / 출생정보 저장 / 나탈/운세 경로 전환
+   Firebase / 출생정보 저장 / 좌표 변환 / 차트·운세 캐시
 
 3. `T16` ~ `T21`
    친구, 즐겨찾기, 궁합 실데이터 연결
@@ -156,6 +156,11 @@ SDD 작업은 아래 순서로 시작하면 됩니다.
 - Prokerala 실응답 검증이 필요할 때만 실 credential 을 사용
 - Prokerala credential 은 `primary → seoyeon → seonwoo → doyeon` 순서로 backup fallback 가능
 - 이 backup credential 운영은 무료 플랜과 짧은 프로젝트 기간을 고려한 **임시 운영 규칙**이다
+- MVP 기본 경로는 `Spark-only` 이며 `Cloud Functions` 는 포함하지 않는다
+- AI 질문은 메인 화면에서 `자동(추천) / GPT / Claude` 수준만 노출하고, 실제 model id 는 `.env` 에서 관리한다
+- AI provider 기본 흐름은 `OpenAI → Anthropic → local fallback` 순서를 권장한다
+- `데모 데이터로 둘러보기` 버튼은 최종 마감 직전까지 유지한다
+- 출생지 좌표 자동 변환은 현재 Android/iOS에서 우선 지원하고, Web은 보조 타깃으로 본다
 
 ## 후반부 화려한 기능을 어떻게 다루는가
 
