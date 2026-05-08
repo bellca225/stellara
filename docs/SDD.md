@@ -213,6 +213,47 @@ Stellara는 사용자의 출생 정보(생년월일, 출생 시간, 출생지)�
 3. 실제 출생 정보는 `BirthInfo.demo()` 서울 기본값 또는 온보딩 입력값 활용
 4. 카카오 OAuth는 13주차 이후 연결
 
+### 4.7 인증 전략: Firebase Anonymous Auth
+
+Firestore Security Rules 가 동작하려면 `request.auth.uid` 가 채워져 있어야 한다. 카카오 OAuth 도입 전까지는 **Firebase Anonymous Auth** 를 사용한다.
+
+| 항목 | 값 |
+|------|-----|
+| 도입 시점 | 10주차 T05 (Firebase bootstrap) 와 함께 |
+| 비용 | Spark 플랜 무료 |
+| 코드 변경 | `FirebaseAuth.instance.signInAnonymously()` 1회 호출 (앱 시작 시) |
+| 카카오 전환 | 추후 `linkWithCredential` 로 anonymous → kakao 변환 시 uid 유지 가능 |
+
+운영 원칙:
+- 앱 첫 실행 시 anonymous sign-in 자동 수행
+- `users/{uid}` 의 `uid` 는 anonymous uid 그대로 사용
+- 시딩한 테스트 사용자는 콘솔에서 직접 `users/{anonymousUid}` 형태로 입력하거나, 첫 앱 실행 시 자동 생성되도록 클라이언트에서 처리
+- 앱 데이터 초기화(reinstall) 시 anonymous uid 가 바뀌므로 데모용 디바이스는 가능한 한 재설치하지 않는다
+
+### 4.8 Firestore Security Rules
+
+`firestore.rules` 파일이 **유일한 데이터 방어선**이다 (Cloud Functions 사용 안 함).
+
+| 항목 | 값 |
+|------|-----|
+| 파일 위치 | 프로젝트 루트 `firestore.rules` |
+| 작성 시점 | 10주차 T16.5 (실제 작성은 친구 기능 진입 직전) |
+| 책임자 | 나영 (1차 작성), 리뷰: 공통 |
+| 배포 | `firebase deploy --only firestore:rules` 또는 Console → Firestore → 규칙 탭 |
+| 검증 | `firebase emulators:start --only firestore` 또는 콘솔 "규칙 플레이그라운드" |
+
+핵심 규칙 요약:
+
+- 모든 경로는 인증된 사용자(`request.auth != null`)만 접근
+- `users` / `charts` 는 인증되면 read 가능, write 는 본인만
+- `friendCodes` 는 검색을 위해 read 허용, 쓰기는 본인 uid 박힌 문서만
+- `friendRequests` 는 from / to 당사자만, 상태 전이 강제 (`pending → accepted/rejected`)
+- `friendships` 는 멤버만, 문서 ID = `pairKey` 로 중복 자연 차단
+- `dailyFortunes` / `synastryCaches` 는 본인 또는 pair 멤버만
+- `favoriteIds` 는 최대 3명 강제
+
+자세한 규칙은 `firestore.rules` 파일 주석 참조.
+
 ---
 
 ## 5. 시스템 구조
@@ -981,6 +1022,13 @@ kDebugMode && USE_FIXTURE_IN_DEBUG=true → fixture 즉시 반환 (네트워크 
 | 버그 수정 | `fix/{설명}` | `fix/natal-chart-parse-error` |
 | 핫픽스 | `hotfix/{설명}` | `hotfix/env-missing-crash` |
 
+PR / 머지 정책 (2026-05-09 결정):
+
+- `main` 브랜치 보호 — 직접 push 금지
+- feature 브랜치는 자유롭게 push
+- main 머지는 owner(나영) 가 PR 검토 후 처리
+- 다른 팀원의 review 는 권장이지만 필수는 아님
+
 ### 10.2 커밋 메시지 규칙
 
 ```
@@ -1028,9 +1076,9 @@ kDebugMode && USE_FIXTURE_IN_DEBUG=true → fixture 즉시 반환 (네트워크 
 |------|----------------|-----------|------------------|------|
 | Firebase 프로젝트 | 나영 (`nywoo0225@gmail.com`) | 무료 (Spark) | 서연 / 선우 / 도연 Editor 초대 | 콘솔 region 권고: `asia-northeast3` (서울). 4명 모두 Google 계정 보유 확인됨 |
 | Firestore Security Rules | 나영 (1차 작성) | - | 리뷰: 공통 | 11주차 T16.5 결과 반영 |
-| Prokerala primary credential | 나영 | 무료 플랜 | seoyeon / seonwoo / doyeon backup 4명 모두 `.env` 에 등록 | 단일 `.env` 공유 모델. 429 발생 시 다음 키로 자동 fallback. fixture 모드 기본 |
-| OpenAI API key | **12주차 결정 보류** | 결제자 측 usage limit 설정 필요 | - | 4가지 조건 검토 후 등록 (API key 형태 / 한도 설정 / `.env` git 보호 / 데모 한정). local fallback 만 사용해도 화면은 비지 않음 |
-| Anthropic API key | **12주차 결정 보류** | 동일 | - | 동일 |
+| Prokerala primary credential | 나영 | 무료 플랜 | 11주차 후반 ~ 12주차에 seoyeon / seonwoo / doyeon backup 등록 예정 | **운영 모델 (i) 단일 `.env` 공유**. 4명 키를 한 `.env` 에 모아 primary → seoyeon → seonwoo → doyeon 순서 자동 fallback. 9~10주차는 primary 1개로 fixture 모드 위주 운영 |
+| OpenAI API key | 나영 | 나영 결제 카드 (이미 등록됨) | - | 키 `.env` 등록 완료(2026-05-09). **단, 등록 직후 채팅 노출로 인해 즉시 회전 권고** — `platform.openai.com` 에서 Revoke 후 새 키로 교체. usage limit 설정 권고 |
+| Anthropic API key | **추후 결정** (12주차 진입 시점 재검토) | - | - | 사용자가 결정을 미룸. 12주차 시작 시점에 결제 카드 등록 + 키 발급 여부 다시 판단. 그때까지는 OpenAI primary 단독 + local fallback |
 | GitHub 저장소 | 나영 | - | 팀원 4명 push 권한 | 정책 (b): feature 브랜치 자유, `main` 만 보호. PR 머지는 owner 가 처리 |
 
 운영 원칙:
@@ -1104,4 +1152,5 @@ kDebugMode && USE_FIXTURE_IN_DEBUG=true → fixture 즉시 반환 (네트워크 
 
 *최초 작성: 2026-05-08 v0.1 / 수정: 2026-05-09 v0.9*  
 *v0.9 변경: 11주차 친구 트랜잭션 = Firestore `runTransaction` 으로 단일화, 10.6 자원 소유자 표 신설, BirthInfo Firestore 매핑 규칙 명시, 의존성 표 보강, 폴더 구조 실측 정정, JWT 항목에 (Auth 도입 후) prefix 추가*  
+*v0.9.1 추가 (2026-05-09): 4.7 Firebase Anonymous Auth 도입 결정, 4.8 Firestore Security Rules 운영 절차, 10.6 표에 Q2/Q3 결정 반영(단일 .env 모델, OpenAI 등록 + Anthropic 보류), `firestore.rules` 파일 신규 작성*  
 *기준 브랜치: `feature/week09-prokerala-api`*
