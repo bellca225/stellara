@@ -69,6 +69,10 @@
 - 완료 기준: `"서울특별시 강남구 역삼동"` 같은 입력으로 실제 위도/경도를 얻을 수 있다.
 - 선행 작업: 없음
 - 담당 가능 역할: FE
+- ✅ **2026-05-09 완료** (브랜치: `feature/week10-place-resolver`).
+  변경 요약: `PlaceResolution` sealed 결과 타입 도입(success/notSupported/notFound/error 구분), 한국어 sub-region 입력에 서울 prefix 추정 후보 추가, kDebugMode 로깅, `@visibleForTesting` 으로 후보 쿼리 노출, `test/place_resolver_test.dart` 신규 (5 케이스).
+  호환성: 기존 `PlaceResolver.resolve(String)` 시그니처 유지 → onboarding_screen 무수정.
+  미반영: SDD 변경 없음 (T07 단독). T08 에서 신규 결과 타입을 활용해 onboarding_screen 의 사용자 안내 문구를 사유별로 분기할 예정.
 
 ## T08. 온보딩 출생지 좌표 연동
 - 작업명: 온보딩 출생지 좌표 연동
