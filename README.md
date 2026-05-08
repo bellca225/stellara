@@ -1,10 +1,66 @@
 # Stellara
 
-Stellara는 출생 정보 기반 점성술 분석, 친구 궁합, 랜덤 질문, 오늘의 운세를 제공하는 Flutter 앱입니다.
+Stellara는 **출생 정보 기반 점성술 콘텐츠 앱**입니다.  
+사용자의 생년월일, 출생 시간, 출생지를 바탕으로 나탈 차트, 오늘의 운세, 친구 궁합, AI 질문, 결과 공유를 제공하는 것을 목표로 합니다.
 
-현재 버전은 API 연결 전 단계의 화면 프로토타입입니다. Android 에뮬레이터와 Chrome에서 화면 흐름을 확인할 수 있고, Prokerala 연동을 위한 기본 구조와 Riverpod 상태 관리 골격이 포함되어 있습니다.
+이 저장소는 현재 **학교 프로젝트용 Flutter 앱 프로토타입** 단계이며,  
+핵심 화면 흐름과 Prokerala 연동 골격은 존재하지만 Firebase, Cloud Functions, AI, 공유 기능은 아직 순차적으로 붙여가는 중입니다.
 
-## 터미널에서 바로 실행하기
+## 한눈에 보기
+
+### 지금 이미 있는 것
+
+- Flutter 앱 기본 구조
+- Riverpod 상태 관리 골격
+- Prokerala 직접 호출용 wrapper
+- 나탈 차트/운세/궁합용 fixture fallback
+- 로그인, 온보딩, 홈, 차트, 궁합, 친구, 랜덤 질문, 마이페이지 화면 프로토타입
+- Android/Web 실행 검증
+
+### 아직 없는 것
+
+- Firebase 연동
+- Cloud Functions 백엔드
+- 카카오 로그인
+- AI 질문 실연동
+- 공유 화면 구현
+- 후반부 컬러 디자인 / 애니메이션 마감
+
+### 이 문서가 누구를 위한 것인가
+
+- **비개발자 팀원**: 프로젝트가 지금 어디까지 왔는지 빠르게 이해
+- **개발자**: 실행 방법, 문서 읽는 순서, 현재 작업 기준 파악
+- **AI 협업자**: 현재 소스 상태, 문서 기준, 작업 시작 순서 확인
+
+## 문서 읽는 순서
+
+문서는 아래 순서로 보면 가장 덜 헷갈립니다.
+
+1. [docs/README.md](docs/README.md)  
+   문서 전체 구조와 SDD 시작 방법
+2. [docs/MVP.md](docs/MVP.md)  
+   이번 버전에서 반드시 할 것 / 미룰 것
+3. [docs/SDD.md](docs/SDD.md)  
+   시스템 구조, API/DB 설계, 일정, 리스크
+4. [docs/TASKS.md](docs/TASKS.md)  
+   실제 협업용 작업 분해
+
+## 지금 SDD를 어떻게 시작하면 되나
+
+짧게 정리하면 아래 순서입니다.
+
+1. `docs/MVP.md`에서 이번 주기 범위를 먼저 확인합니다.
+2. `docs/SDD.md`에서 현재 구조와 리스크를 확인합니다.
+3. `docs/TASKS.md`에서 선행 작업이 비어 있는 이슈를 하나 고릅니다.
+4. 작업 중 설계가 바뀌면:
+   - 범위 변경은 `docs/MVP.md`
+   - API/DB/일정 변경은 `docs/SDD.md`
+   - 작업 단위 변경은 `docs/TASKS.md`
+   - 실행/온보딩 변경은 `README.md` 와 `docs/README.md`
+
+자세한 가이드는 [docs/README.md](docs/README.md)에 정리되어 있습니다.
+
+## 빠른 실행
 
 ### 1. 브랜치 이동
 
@@ -13,32 +69,53 @@ cd /Users/nywoo/proj/stellara
 git checkout feature/week09-prokerala-api
 ```
 
-### 2. 환경 변수 준비
-
-`.env` 파일이 이미 있으면 그대로 사용하면 됩니다. 처음 받는 환경이라면 `.env.example`을 복사해 `.env`를 만든 뒤 Prokerala 키를 채워주세요.
+### 2. `.env` 파일 만들기
 
 ```sh
 cp .env.example .env
 ```
 
-필수 값:
+`.env` 파일은 **항상 필요**합니다.  
+다만 이제는 **디버그 + fixture 모드**에서는 Prokerala 키를 비워 둔 상태로도 앱을 띄울 수 있습니다.
 
-- `PROKERALA_CLIENT_ID`
-- `PROKERALA_CLIENT_SECRET`
-- `USE_FIXTURE_IN_DEBUG=false`
+### 3. 개발 모드 선택
 
-참고:
+#### 권장: Fixture 모드
 
-- `USE_FIXTURE_IN_DEBUG=false`이면 디버그에서도 실제 Prokerala API를 먼저 호출합니다.
-- 현재 Prokerala sandbox 계정은 나탈 차트에서 `1월 1일`만 허용하므로, 다른 날짜를 넣으면 앱은 자동으로 fixture 차트로 fallback 합니다.
+UI 작업, 문서 작업, 화면 흐름 확인, 비개발자 검토 때 권장합니다.
 
-### 3. 패키지 설치
+```env
+USE_FIXTURE_IN_DEBUG=true
+PROKERALA_CLIENT_ID=
+PROKERALA_CLIENT_SECRET=
+```
+
+이 모드에서는 디버그 환경에서 fixture가 있는 호출은 네트워크를 타지 않습니다.
+
+#### 실응답 검증 모드
+
+Prokerala 실제 응답을 확인하거나 parser를 보정할 때 사용합니다.
+
+```env
+USE_FIXTURE_IN_DEBUG=false
+PROKERALA_CLIENT_ID=...
+PROKERALA_CLIENT_SECRET=...
+```
+
+주의:
+
+- 현재 Prokerala sandbox는 일부 날짜 제약이 있어, 다른 날짜 입력 시 fixture fallback 이 발생할 수 있습니다.
+- 실응답 검증은 필요한 시점에만 짧게 수행하는 것이 좋습니다.
+
+### 4. 패키지 설치
 
 ```sh
 flutter pub get
 ```
 
-### 4. Android 에뮬레이터 실행
+### 5. 실행
+
+Android 에뮬레이터:
 
 ```sh
 flutter emulators --launch Medium_Phone_API_36.1
@@ -46,289 +123,17 @@ flutter devices
 flutter run -d emulator-5554
 ```
 
-`flutter devices`에 표시되는 기기 ID가 다르면 마지막 줄의 `emulator-5554`만 해당 값으로 바꾸면 됩니다.
-
-### 5. Chrome에서 빠르게 보기
+Chrome:
 
 ```sh
 flutter run -d chrome
 ```
 
-### 6. 에뮬레이터에서 앱 닫기 / 다시 열기
-
-앱만 종료하고 에뮬레이터는 켜둔 채 유지하려면:
-
-```sh
-adb shell am force-stop com.example.stellara
-```
-
-이미 설치된 앱을 다시 열려면:
-
-```sh
-adb shell monkey -p com.example.stellara 1
-```
-
-코드를 다시 빌드해서 실행하려면:
-
-```sh
-flutter run -d emulator-5554
-```
-
-## 현재 구현 상태
-
-- Flutter 앱 생성 및 Android 에뮬레이터 실행 검증 완료
-- 로그인, 온보딩, 메인 홈, 점성술 분석, 친구 관리, 마이페이지, 궁합, 랜덤 질문, 오늘의 운세 화면 프로토타입 구현
-- 실제 API, Firebase, Kakao 로그인, 점성술 계산, AI 생성 기능은 아직 연결하지 않음
-- 현재 앱 패키지명: `com.example.stellara`
-- 현재 테스트 대상 에뮬레이터: `Medium_Phone_API_36.1`
-
-## 핵심 기능 범위
-
-| 기능명 | 설명 | 구현 계획 |
-| --- | --- | --- |
-| 회원가입 및 로그인 | 사용자가 카카오 계정으로 가입하고 개인 데이터를 안전하게 관리 | `kakao_flutter_sdk_user`로 Kakao OAuth 처리, 백엔드 또는 Firebase에서 앱 사용자 ID 발급, JWT/세션은 `flutter_secure_storage` 저장 |
-| 출생 정보 입력 및 저장 | 생년월일, 출생 시간, 출생지를 입력하고 이후 운세 콘텐츠에 활용 | 회원 프로필에 출생 정보 저장, 개인정보 동의, 입력값 검증, 마이페이지 수정 기능 제공 |
-| 점성술 봐주기 | 출생 정보를 기반으로 나탈 차트, 행성, 별자리, 하우스 분석 | 출생지 좌표 변환 후 Prokerala 또는 별도 점성술 API 호출, 결과를 Firestore 또는 캐시에 저장 |
-
-## 화면 설계
-
-| 화면 ID | 화면 | 현재 상태 |
-| --- | --- | --- |
-| `LOGIN-001` | 카카오 로그인 첫 진입 화면 | 목업 버튼 및 API 연결 구상 표시 |
-| `ONBOARDING-001` | 최초 로그인 이후 출생 정보 입력 | 닉네임, 생년월일, 출생 시간, 출생지 입력 UI |
-| `NAV-001` | 하단 네비게이션 | 홈, 랜덤 질문, 오늘의 운세, 마이페이지 탭 |
-| `MAIN-001` | 메인 홈 | 나의 행성 시각화, Big 3, 즐겨찾기 친구, 친구 관리 이동 |
-| `ASTROLOGY-001` | 상세 점성술 분석 | 나탈 차트 목업 및 행성별 해석 카드 |
-| `FRIEND-001` | 친구 관리 | 친구 요청, 랜덤 코드 검색, 친구 목록, 즐겨찾기 3명 제한 UI |
-| `MYPAGE-001` | 마이페이지 | 친구 코드, 출생 정보, 차트 재생성, 로그아웃 |
-| `MATCH-001` | 친구와 궁합 결과 | 총점, 감정/대화/연애 점수, 요약, 공유 이동 |
-| `CONTENT-001` | 랜덤 질문 | AI 생성 3개와 사용자 생성 1개 목업 |
-| `TODAY-001` | 오늘의 운세 | 운세 한 줄, 감정 상태, 행운 요소 |
-| `SHARE-001` | 결과 공유 | 공유 이미지 미리보기, 이미지 저장, SNS 공유 버튼 |
-
-## AI 협업 컨텍스트
-
-다음 개발자나 AI가 이어서 작업할 때는 아래 전제를 유지하세요.
-
-- 현재 목표는 화면 프로토타입과 Prokerala 연결 준비입니다. 실제 사용자 인증, Firebase 저장, AI 질문 생성은 아직 연결하지 않습니다.
-- 화면 구조는 `lib/features/*` 아래로 이미 분리되어 있습니다. 현재 핵심 흐름은 `auth -> onboarding -> app_shell -> home/astrology/today/profile` 순서입니다.
-- 홈 탭은 `MAIN-001`이고, 점성술 분석 화면은 홈에서 내 행성 아이콘을 눌렀을 때 들어가는 상세 화면 `ASTROLOGY-001`입니다.
-- 상태 관리는 Riverpod을 사용합니다. 현재 `currentBirthInfoProvider`, `myNatalChartProvider`, `todayHoroscopeProvider`, `synastryProvider`가 기본 흐름을 담당합니다.
-- Firestore, Kakao, Prokerala, OpenAI 키는 앱에 직접 넣지 마세요. 앱은 백엔드 또는 보안 설정 파일을 통해 필요한 최소 데이터만 받아야 합니다.
-- 점성술 계산 결과는 앱에서 매번 새로 계산하지 말고, 사용자 birth profile 해시 또는 chart version 기준으로 캐시하세요.
-- 공유 화면은 `screenshot`으로 위젯을 이미지화하고 `share_plus`로 공유하는 구조를 예상합니다.
-
-## 예정 패키지
-
-아래 패키지는 실제 기능 연결 단계에서 추가할 예정입니다. 현재 프로토타입은 Flutter 기본 패키지 위주로 동작합니다.
-
-| 패키지 | 용도 |
-| --- | --- |
-| `kakao_flutter_sdk_user` | 카카오 소셜 로그인 |
-| `flutter_riverpod`, `riverpod_annotation`, `build_runner` | 상태 관리 및 코드 생성 |
-| `firebase_core`, `cloud_firestore`, `firebase_messaging` | Firebase 초기화, 데이터 저장, 푸시 |
-| `flutter_secure_storage` | JWT, 카카오 토큰 등 민감 정보 저장 |
-| `dio` | 점성술 백엔드, OpenAI 백엔드, 외부 API HTTP 통신 |
-| `geocoding` | 출생지 주소를 좌표로 변환 |
-| `lottie` | 우주, 행성 애니메이션 |
-| `share_plus`, `screenshot` | 결과 이미지 저장 및 SNS 공유 |
-| `intl` | 날짜, 시간, 다국어 형식 |
-| `go_router` | 선언형 라우팅 및 딥링크 |
-| `shared_preferences` | 오늘의 운세 캐시, 앱 설정 |
-| `freezed`, `freezed_annotation`, `json_serializable` | 불변 모델 및 JSON 변환 |
-| `cached_network_image` | 프로필 이미지 캐싱 |
-| `flutter_local_notifications` | 로컬 알림 |
-
-## API 연결 계획
-
-| API | 용도 | 연결 방식 |
-| --- | --- | --- |
-| Kakao Login API | 소셜 로그인, 사용자 고유 ID, 프로필 조회 | 앱에서 Kakao OAuth 진행 후 백엔드/Firebase 사용자 문서와 매핑 |
-| Google Geocoding API | 출생지 주소를 위도/경도로 변환 | 앱 또는 백엔드에서 주소 검색, 좌표를 birth profile에 저장 |
-| Prokerala Astrology API | 행성 위치, 하우스, Ascendant, 나탈 차트, 궁합 계산 | `dio`로 백엔드 프록시 호출 권장. API 키는 앱에 직접 포함하지 않음 |
-| OpenAI API | 성격 리포트, 랜덤 질문 생성 | 백엔드에서 호출하고 앱은 결과 텍스트만 수신 |
-| Firebase Firestore | 사용자, 친구, 차트, 운세 결과 저장 | `users`, `friendRequests`, `friendships`, `charts`, `dailyFortunes` 컬렉션 예상 |
-
-## Mac에서 처음 실행하기
-
-### 1. 사전 설치
-
-Mac에는 아래가 필요합니다.
-
-- Git
-- Flutter SDK
-- Android Studio
-- Android SDK Platform Tools
-- Android Emulator
-- Android SDK Command-line Tools
-- Chrome
-
-설치 확인:
-
-```sh
-git --version
-flutter --version
-flutter doctor -v
-```
-
-`flutter doctor -v`에서 Android toolchain이 통과해야 Android 에뮬레이터 실행이 편합니다. iOS 개발까지 할 경우에만 Xcode와 CocoaPods를 추가로 설치하세요.
-
-### 2. 소스 받기
-
-```sh
-git clone <repository-url>
-cd stellara
-flutter pub get
-```
-
-### 3. 에뮬레이터 확인
-
-```sh
-flutter emulators
-flutter devices
-```
-
-현재 이 Mac에서 확인한 에뮬레이터 이름은 다음과 같습니다.
-
-```sh
-Medium_Phone_API_36.1
-```
-
-### 4. 에뮬레이터 켜기
-
-```sh
-flutter emulators --launch Medium_Phone_API_36.1
-```
-
-에뮬레이터가 완전히 켜진 뒤 다시 확인합니다.
-
-```sh
-flutter devices
-```
-
-예시 출력에 `emulator-5554`가 보이면 실행할 수 있습니다.
-
-### 5. 앱 실행
-
-```sh
-flutter run -d emulator-5554
-```
-
-기기 ID가 다르면 `emulator-5554` 대신 `flutter devices`에 표시된 ID를 사용하세요.
-
-### 6. 에뮬레이터가 검은 화면일 때
-
-에뮬레이터는 켜져 있는데 캡처나 화면이 검게 보이면 화면을 깨웁니다.
-
-```sh
-adb shell input keyevent KEYCODE_WAKEUP
-adb shell input swipe 540 2100 540 500 300
-```
-
-`adb`가 명령어로 잡히지 않으면 Android SDK의 platform-tools 경로를 PATH에 추가하세요.
-
-## Windows에서 처음 실행하기
-
-### 1. 사전 설치
-
-Windows에는 아래가 필요합니다.
-
-- Git for Windows
-- Flutter SDK
-- Android Studio
-- Android SDK Platform Tools
-- Android Emulator
-- Android SDK Command-line Tools
-- Chrome
-
-PowerShell에서 확인합니다.
-
-```powershell
-git --version
-flutter --version
-flutter doctor -v
-```
-
-Android Studio에서 `SDK Manager`를 열고 아래 항목이 설치되어 있는지 확인하세요.
-
-- Android SDK Platform
-- Android SDK Build-Tools
-- Android SDK Command-line Tools
-- Android Emulator
-- Android SDK Platform-Tools
-
-### 2. 소스 받기
-
-```powershell
-git clone <repository-url>
-cd stellara
-flutter pub get
-```
-
-### 3. 에뮬레이터 만들기
-
-Android Studio에서 만드는 방법이 가장 쉽습니다.
-
-1. Android Studio 실행
-2. `More Actions` 또는 `Tools`에서 `Device Manager` 열기
-3. `Create Virtual Device`
-4. Pixel 계열 디바이스 선택
-5. API 35 이상 이미지 선택
-6. 생성 후 실행
-
-CLI에서 확인:
-
-```powershell
-flutter emulators
-flutter devices
-```
-
-### 4. 에뮬레이터 켜기
-
-목록에 보이는 에뮬레이터 ID를 사용합니다.
-
-```powershell
-flutter emulators --launch <emulator-id>
-flutter devices
-```
-
-예를 들어 기기 ID가 `emulator-5554`라면:
-
-```powershell
-flutter run -d emulator-5554
-```
-
-### 5. Windows에서 adb가 안 잡힐 때
-
-Android SDK platform-tools 경로를 PATH에 추가하세요. 보통 아래 위치 중 하나입니다.
-
-```text
-C:\Users\<사용자명>\AppData\Local\Android\Sdk\platform-tools
-```
-
-새 PowerShell을 열고 확인합니다.
-
-```powershell
-adb devices
-```
-
-## Chrome으로 빠르게 실행
-
-에뮬레이터가 무겁거나 설치가 덜 된 경우 Chrome으로 먼저 UI를 볼 수 있습니다.
-
-```sh
-flutter run -d chrome
-```
-
-Windows PowerShell도 동일합니다.
-
-```powershell
-flutter run -d chrome
-```
+기기 ID가 다르면 `flutter devices` 출력값을 사용하세요.
 
 ## 개발 검증 명령
 
-커밋이나 PR 전에 아래를 실행하세요.
+작업 전후로 아래 명령을 기준으로 확인합니다.
 
 ```sh
 flutter analyze
@@ -337,37 +142,65 @@ flutter build apk --debug
 flutter build web
 ```
 
-Windows PowerShell에서도 동일합니다.
+## 현재 로컬에서 확인된 결과
 
-```powershell
+이 브랜치 기준으로 아래 명령이 통과했습니다.
+
+```sh
+flutter pub get
 flutter analyze
 flutter test
 flutter build apk --debug
 flutter build web
 ```
 
-## 자주 쓰는 에뮬레이터 명령
+추가 메모:
 
-```sh
-flutter emulators
-flutter emulators --launch <emulator-id>
-flutter devices
-flutter run -d <device-id>
-adb devices
-adb shell am force-stop com.example.stellara
-adb shell monkey -p com.example.stellara 1
+- Android/Web 기준으로는 바로 개발 시작 가능
+- iOS/macOS는 Xcode/CocoaPods 미설치 상태에서는 바로 개발 불가
+
+## 저장소 구조
+
+```text
+stellara/
+├── lib/
+│   ├── core/          # 테마, env, HTTP, 공용 위젯
+│   └── features/      # 기능별 모듈
+├── test/              # 위젯/유닛 테스트
+├── docs/              # SDD, MVP, TASKS, 문서 시작 가이드
+├── android/ ios/ web/ macos/
+├── .env.example
+└── README.md
 ```
 
-- `adb shell am force-stop com.example.stellara`는 앱만 종료하고 에뮬레이터는 유지합니다.
-- `adb shell monkey -p com.example.stellara 1`은 이미 설치된 Stellara 앱을 다시 앞으로 띄울 때 사용합니다.
+### 앱 구조 원칙
 
-## 현재 확인된 검증 결과
+- `lib/core`: 앱 전반 공통 인프라
+- `lib/features`: 기능 단위 모듈
+- 각 feature는 가능하면 `presentation → application → data → domain` 흐름 유지
 
-이 로컬 환경에서 아래 명령이 통과했습니다.
+## 현재 기준 작업 원칙
 
-```sh
-flutter analyze
-flutter test
-flutter build apk --debug
-flutter build web
-```
+- **기능 추가보다 리스크 제거를 우선**합니다.
+- Firebase/Functions 전환 전까지는 현재 Flutter 골격을 최대한 유지합니다.
+- 화려한 디자인과 공유 기능은 후반부에 구현하되, 12주차 후반부터 선행 준비를 시작합니다.
+- 문서와 코드가 어긋나면 문서를 같이 갱신합니다.
+
+## 협업 시 꼭 기억할 것
+
+- `docs/` 문서가 현재 작업 기준입니다.
+- 비개발자도 문서를 읽고 참여할 수 있게 **문서 언어는 최대한 명확하게 유지**합니다.
+- AI 협업 시에는 실제 secret 값을 프롬프트에 넣지 않습니다.
+- 범위가 바뀌면 문서부터 고치고 작업합니다.
+
+## 아직 결정되지 않은 것
+
+아래 항목은 아직 최종 고정 전입니다.
+
+- Firebase Auth 전략
+- 친구 코드 생성 규칙
+- `chartVersion` / `chartPairVersion` 규칙
+- `places-resolve` 실제 구현 방식
+- 카카오 로그인 포함 시점
+
+이 항목들은 `docs/SDD.md` 와 `docs/TASKS.md` 기준으로 순차 확정합니다.

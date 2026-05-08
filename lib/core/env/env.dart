@@ -9,6 +9,7 @@
 // - Env 클래스에 모아두면 IDE 자동완성과 타입 체크가 동작하고,
 //   "이 키가 없을 때 어떻게 처리할지" 도 한 곳에서 결정할 수 있습니다.
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// Prokerala / 그 외 환경 변수를 읽어오는 정적 헬퍼.
@@ -26,10 +27,18 @@ class Env {
   /// .env 파일을 메모리에 로드한다. 앱 시작 시 한 번 호출.
   ///
   /// 파일이 없거나 키가 비어있으면 [MissingEnvException] 을 던진다.
-  /// 이렇게 일찍 실패하게 두면 "릴리즈 빌드에서야 secret 빠진 걸 발견" 하는
-  /// 사고를 막을 수 있다.
+  /// 단, 디버그 + fixture 우선 모드에서는 Prokerala 실호출을 하지 않으므로
+  /// client id/secret 없이도 앱을 띄울 수 있게 예외를 완화한다.
+  /// 이렇게 하면 비개발자/디자인 작업자도 API 키 없이 화면 작업을 시작할 수 있다.
   static Future<void> load({String fileName = '.env'}) async {
     await dotenv.load(fileName: fileName);
+
+    // 디버그 + fixture 우선 모드에서는 네트워크 호출 전 단계에서 대부분 종료되므로
+    // Prokerala 키를 강제하지 않는다. 릴리즈/실호출 모드에서는 기존처럼 필수다.
+    if (kDebugMode && useFixtureInDebug) {
+      return;
+    }
+
     // 반드시 있어야 하는 값 검증
     _require(_kProkeralaClientId);
     _require(_kProkeralaClientSecret);
