@@ -84,9 +84,7 @@ class _MainHomeContent extends StatelessWidget {
           onTapMe: () => Navigator.of(context).push(
             MaterialPageRoute(builder: (_) => const AstrologyScreen()),
           ),
-          onTapFriend: () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const FriendScreen()),
-          ),
+          onTapFriend: null,
         ),
         const SizedBox(height: AppSpacing.xl),
         InkWell(
@@ -169,7 +167,7 @@ class _OrbitPreview extends StatelessWidget {
 
   final String nickname;
   final VoidCallback onTapMe;
-  final VoidCallback onTapFriend;
+  final VoidCallback? onTapFriend;
 
   @override
   Widget build(BuildContext context) {
@@ -240,33 +238,43 @@ class _OrbitBubble extends StatelessWidget {
 
   final double diameter;
   final String label;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
+    final isEnabled = onTap != null;
+    final bubble = Container(
+      width: diameter,
+      height: diameter,
+      decoration: BoxDecoration(
+        color: isEnabled ? AppColors.paper : AppColors.canvas,
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: isEnabled ? AppColors.inkSubtle : AppColors.line,
+          width: 1.6,
+        ),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        label,
+        style: TextStyle(
+          color: isEnabled ? AppColors.ink : AppColors.inkMuted,
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+
+    if (!isEnabled) {
+      return bubble;
+    }
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(diameter / 2),
-        child: Container(
-          width: diameter,
-          height: diameter,
-          decoration: BoxDecoration(
-            color: AppColors.paper,
-            shape: BoxShape.circle,
-            border: Border.all(color: AppColors.inkSubtle, width: 1.6),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            label,
-            style: const TextStyle(
-              color: AppColors.ink,
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
+        child: bubble,
       ),
     );
   }
