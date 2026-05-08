@@ -6,6 +6,9 @@ Stellara는 **출생 정보 기반 점성술 콘텐츠 앱**입니다.
 이 저장소는 현재 **학교 프로젝트용 Flutter 앱 프로토타입** 단계이며,  
 핵심 화면 흐름과 Prokerala 연동 골격은 존재하지만 Firebase, Cloud Functions, AI, 공유 기능은 아직 순차적으로 붙여가는 중입니다.
 
+현재는 무료 플랜과 짧은 프로젝트 기간을 고려해, **Prokerala primary key 1개 + backup key 최대 3개**를 순차 fallback 하는 임시 운영 방식을 사용합니다.  
+장기적으로는 Cloud Functions 프록시로 옮기는 것이 목표입니다.
+
 ## 한눈에 보기
 
 ### 지금 이미 있는 것
@@ -44,6 +47,8 @@ Stellara는 **출생 정보 기반 점성술 콘텐츠 앱**입니다.
    시스템 구조, API/DB 설계, 일정, 리스크
 4. [docs/TASKS.md](docs/TASKS.md)  
    실제 협업용 작업 분해
+5. [docs/NOTION_EXPORT.md](docs/NOTION_EXPORT.md)  
+   노션 공유용 통합 정리본
 
 ## 지금 SDD를 어떻게 시작하면 되나
 
@@ -91,6 +96,7 @@ PROKERALA_CLIENT_SECRET=
 ```
 
 이 모드에서는 디버그 환경에서 fixture가 있는 호출은 네트워크를 타지 않습니다.
+비개발자 검토, 화면 작업, 문서 작업은 이 모드를 기본으로 사용하면 됩니다.
 
 #### 실응답 검증 모드
 
@@ -106,6 +112,23 @@ PROKERALA_CLIENT_SECRET=...
 
 - 현재 Prokerala sandbox는 일부 날짜 제약이 있어, 다른 날짜 입력 시 fixture fallback 이 발생할 수 있습니다.
 - 실응답 검증은 필요한 시점에만 짧게 수행하는 것이 좋습니다.
+- backup key를 넣어두면 primary key에서 429가 발생했을 때 `SEOYEON → SEONWOO → DOYEON` 순서로 다음 credential 전환을 시도합니다.
+
+### 3-1. Prokerala key 운영 방식
+
+현재 앱은 아래 순서로 Prokerala credential 을 사용합니다.
+
+1. `PROKERALA_CLIENT_ID` / `PROKERALA_CLIENT_SECRET`
+2. `PROKERALA_CLIENT_ID_SEOYEON` / `PROKERALA_CLIENT_SECRET_SEOYEON`
+3. `PROKERALA_CLIENT_ID_SEONWOO` / `PROKERALA_CLIENT_SECRET_SEONWOO`
+4. `PROKERALA_CLIENT_ID_DOYEON` / `PROKERALA_CLIENT_SECRET_DOYEON`
+
+운영 원칙:
+
+- 기본은 primary key 사용
+- Prokerala API에서 429가 발생하면 다음 backup credential로 1회 전환 시도
+- backup key가 없으면 기존 credential로 `Retry-After` 기준 재시도
+- 이 방식은 **학교 프로젝트 + 무료 플랜 + 임시 운영**을 위한 완충 장치이며, 정식 운영 구조는 아닙니다
 
 ### 4. 패키지 설치
 

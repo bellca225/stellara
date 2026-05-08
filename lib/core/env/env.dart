@@ -12,6 +12,18 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
+class ProkeralaCredential {
+  const ProkeralaCredential({
+    required this.label,
+    required this.clientId,
+    required this.clientSecret,
+  });
+
+  final String label;
+  final String clientId;
+  final String clientSecret;
+}
+
 /// Prokerala / 그 외 환경 변수를 읽어오는 정적 헬퍼.
 ///
 /// 호출 전에 반드시 [Env.load] 를 한 번 실행해야 합니다.
@@ -20,6 +32,15 @@ class Env {
   // ── 내부 상수 ───────────────────────────────────────────────
   static const _kProkeralaClientId = 'PROKERALA_CLIENT_ID';
   static const _kProkeralaClientSecret = 'PROKERALA_CLIENT_SECRET';
+  static const _kProkeralaClientIdSeoyeon = 'PROKERALA_CLIENT_ID_SEOYEON';
+  static const _kProkeralaClientSecretSeoyeon =
+      'PROKERALA_CLIENT_SECRET_SEOYEON';
+  static const _kProkeralaClientIdSeonwoo = 'PROKERALA_CLIENT_ID_SEONWOO';
+  static const _kProkeralaClientSecretSeonwoo =
+      'PROKERALA_CLIENT_SECRET_SEONWOO';
+  static const _kProkeralaClientIdDoyeon = 'PROKERALA_CLIENT_ID_DOYEON';
+  static const _kProkeralaClientSecretDoyeon =
+      'PROKERALA_CLIENT_SECRET_DOYEON';
   static const _kProkeralaBaseUrl = 'PROKERALA_BASE_URL';
   static const _kProkeralaTokenUrl = 'PROKERALA_TOKEN_URL';
   static const _kUseFixtureInDebug = 'USE_FIXTURE_IN_DEBUG';
@@ -39,15 +60,11 @@ class Env {
       return;
     }
 
-    // 반드시 있어야 하는 값 검증
-    _require(_kProkeralaClientId);
-    _require(_kProkeralaClientSecret);
-  }
-
-  static void _require(String key) {
-    final value = dotenv.maybeGet(key);
-    if (value == null || value.isEmpty) {
-      throw MissingEnvException(key);
+    if (prokeralaCredentials.isEmpty) {
+      throw MissingEnvException(
+        'PROKERALA_CLIENT_ID / PROKERALA_CLIENT_SECRET '
+        '(or backup credential set)',
+      );
     }
   }
 
@@ -68,6 +85,52 @@ class Env {
   /// true 로 두면 개발 중 credit 소모를 줄이고 오프라인에서도 화면이 뜬다.
   static bool get useFixtureInDebug =>
       (dotenv.maybeGet(_kUseFixtureInDebug) ?? 'false').toLowerCase() == 'true';
+
+  static List<ProkeralaCredential> get prokeralaCredentials {
+    final credentials = <ProkeralaCredential>[];
+
+    void addCredential({
+      required String label,
+      required String clientIdKey,
+      required String clientSecretKey,
+    }) {
+      final clientId = dotenv.maybeGet(clientIdKey)?.trim() ?? '';
+      final clientSecret = dotenv.maybeGet(clientSecretKey)?.trim() ?? '';
+      if (clientId.isEmpty || clientSecret.isEmpty) {
+        return;
+      }
+      credentials.add(
+        ProkeralaCredential(
+          label: label,
+          clientId: clientId,
+          clientSecret: clientSecret,
+        ),
+      );
+    }
+
+    addCredential(
+      label: 'primary',
+      clientIdKey: _kProkeralaClientId,
+      clientSecretKey: _kProkeralaClientSecret,
+    );
+    addCredential(
+      label: 'seoyeon',
+      clientIdKey: _kProkeralaClientIdSeoyeon,
+      clientSecretKey: _kProkeralaClientSecretSeoyeon,
+    );
+    addCredential(
+      label: 'seonwoo',
+      clientIdKey: _kProkeralaClientIdSeonwoo,
+      clientSecretKey: _kProkeralaClientSecretSeonwoo,
+    );
+    addCredential(
+      label: 'doyeon',
+      clientIdKey: _kProkeralaClientIdDoyeon,
+      clientSecretKey: _kProkeralaClientSecretDoyeon,
+    );
+
+    return credentials;
+  }
 }
 
 /// .env에서 필수 키가 빠졌을 때 던지는 예외.

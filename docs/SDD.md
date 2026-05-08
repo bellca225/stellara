@@ -1,6 +1,6 @@
 # Stellara — Software Design Document (SDD)
 
-> **문서 버전**: v0.5  
+> **문서 버전**: v0.6  
 > **최초 작성**: 2026-05-08 / **최종 수정**: 2026-05-08  
 > **기준 브랜치**: `feature/week09-prokerala-api`  
 > **팀명**: 물병 안 물고기  
@@ -987,12 +987,15 @@ kDebugMode && USE_FIXTURE_IN_DEBUG=true → fixture 즉시 반환 (네트워크 
 
 - `.env`는 절대 커밋하지 않는다 (`.gitignore` 처리됨)
 - 새 키 추가 시 `.env.example`에 키 이름만 추가 후 커밋
+- Prokerala credential 은 `primary → seoyeon → seonwoo → doyeon` 순서의 backup set 을 둘 수 있다
+- backup credential 은 무료 플랜과 짧은 프로젝트 기간을 위한 임시 운영 방식이며, 장기적으로는 Cloud Functions 로 이전한다
 - Firebase 환경 변수는 `firebase functions:config:set` 으로 설정
 
 ### 10.5 개발 시 주의 사항
 
 - 개발 중 `USE_FIXTURE_IN_DEBUG=true`로 Prokerala 크레딧 절약
 - Prokerala sandbox는 1월 1일 날짜만 허용 → 다른 날짜는 fixture fallback 자동 처리
+- 실응답 검증 시 429가 발생하면 앱은 다음 backup credential 로 1회 전환을 시도한다
 - 차트 계산 결과는 `chartVersion` 해시 기반으로 Firestore 캐싱 (중복 API 호출 방지)
 - AI (GPT/Claude)로 코드 생성 시 `.env`의 실제 키값은 절대 프롬프트에 포함하지 말 것
 
@@ -1050,6 +1053,7 @@ kDebugMode && USE_FIXTURE_IN_DEBUG=true → fixture 즉시 반환 (네트워크 
 | `friendCodes` 유일성 인덱스 도입 | **높음** | 10~11주차 |
 | `chartVersion` / `chartPairVersion` 캐시 무효화 | **높음** | 10~11주차 |
 | `places-resolve` 실호출 코드 작성 | **높음** | 10주차 |
+| multi-key fallback 의존 임시 운영 해소 | 중간 | 10주차 Cloud Functions 전환 후 |
 | Synastry 점수 가중치 재조정 | 중간 | 11주차 |
 | `@visibleForTesting` 또는 parser helper 노출 + 단위 테스트 | 중간 | 10~14주차 |
 | freezed 모델 코드 생성 전환 | 중간 | 12주차 이후 |
@@ -1057,5 +1061,5 @@ kDebugMode && USE_FIXTURE_IN_DEBUG=true → fixture 즉시 반환 (네트워크 
 
 ---
 
-*최초 작성: 2026-05-08 v0.1 / 수정: 2026-05-08 v0.5*  
+*최초 작성: 2026-05-08 v0.1 / 수정: 2026-05-08 v0.6*  
 *기준 브랜치: `feature/week09-prokerala-api`*

@@ -28,6 +28,7 @@ final prokeralaDioProvider = Provider<Dio>((ref) {
   return DioClient.create(
     tokenProvider: ({bool forceRefresh = false}) =>
         tokenRepo.getToken(forceRefresh: forceRefresh),
+    rotateCredential: () => tokenRepo.rotateToNextCredential(),
   );
 });
 

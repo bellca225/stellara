@@ -25,13 +25,17 @@ import '../ui/app_alerts.dart';
 ///
 /// `forceRefresh` 가 true 이면 캐시 무시하고 새로 발급하라는 신호.
 typedef TokenProvider = Future<String> Function({bool forceRefresh});
+typedef CredentialRotator = Future<bool> Function();
 
 class DioClient {
   /// Prokerala API 호출용 Dio 인스턴스를 만든다.
   ///
   /// [tokenProvider] : 토큰을 어디에서 가져올지 주입받는다.
   ///                   테스트 시 fake로 교체하기 쉽도록 함수형으로 받는 것.
-  static Dio create({required TokenProvider tokenProvider}) {
+  static Dio create({
+    required TokenProvider tokenProvider,
+    CredentialRotator? rotateCredential,
+  }) {
     final dio = Dio(
       BaseOptions(
         baseUrl: Env.prokeralaBaseUrl,
@@ -46,7 +50,13 @@ class DioClient {
     );
 
     dio.interceptors.add(_AuthInterceptor(dio: dio, tokenProvider: tokenProvider));
-    dio.interceptors.add(_RateLimitInterceptor(dio: dio));
+    dio.interceptors.add(
+      _RateLimitInterceptor(
+        dio: dio,
+        tokenProvider: tokenProvider,
+        rotateCredential: rotateCredential,
+      ),
+    );
     if (kDebugMode) {
       dio.interceptors.add(_LoggingInterceptor());
     }
@@ -114,8 +124,14 @@ class _AuthInterceptor extends Interceptor {
 }
 
 class _RateLimitInterceptor extends Interceptor {
-  _RateLimitInterceptor({required this.dio});
+  _RateLimitInterceptor({
+    required this.dio,
+    required this.tokenProvider,
+    this.rotateCredential,
+  });
   final Dio dio;
+  final TokenProvider tokenProvider;
+  final CredentialRotator? rotateCredential;
 
   @override
   Future<void> onError(
@@ -125,6 +141,22 @@ class _RateLimitInterceptor extends Interceptor {
     final status = err.response?.statusCode;
     final alreadyRetried = err.requestOptions.extra['__rateRetried'] == true;
     if (status == 429 && !alreadyRetried) {
+      if (rotateCredential != null) {
+        try {
+          final rotated = await rotateCredential!();
+          if (rotated) {
+            final fresh = await tokenProvider(forceRefresh: true);
+            final req = err.requestOptions
+              ..headers['Authorization'] = 'Bearer $fresh'
+              ..extra['__rateRetried'] = true;
+            final res = await dio.fetch(req);
+            return handler.resolve(res);
+          }
+        } catch (_) {
+          // backup credential 전환 실패 시 기존 retry 경로로 내려간다.
+        }
+      }
+
       AppAlerts.showTokenExhaustedDialog();
       // Retry-After 헤더가 있으면 그 시간만큼, 없으면 1.5초 대기.
       final retryAfter = err.response?.headers.value('retry-after');

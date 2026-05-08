@@ -24,6 +24,7 @@
 import 'dart:async';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../../core/env/env.dart';
 
@@ -38,18 +39,31 @@ class _CachedToken {
 }
 
 class ProkeralaTokenRepository {
-  ProkeralaTokenRepository({Dio? tokenDio})
+  ProkeralaTokenRepository({
+    Dio? tokenDio,
+    List<ProkeralaCredential>? credentials,
+  })
       : _tokenDio = tokenDio ?? Dio(BaseOptions(
               connectTimeout: const Duration(seconds: 10),
               receiveTimeout: const Duration(seconds: 15),
-            ));
+            )),
+        _credentials = credentials ?? Env.prokeralaCredentials;
 
   /// 토큰 발급 자체는 우리 메인 dio 와 별개의 dio 로 한다.
   /// 메인 dio 의 AuthInterceptor 가 자기 자신을 호출하는 무한루프를 막기 위해.
   final Dio _tokenDio;
+  final List<ProkeralaCredential> _credentials;
 
   _CachedToken? _cached;
   Future<String>? _inFlight;
+  int _activeCredentialIndex = 0;
+
+  String get activeCredentialLabel {
+    if (_credentials.isEmpty) {
+      return 'none';
+    }
+    return _credentials[_activeCredentialIndex].label;
+  }
 
   /// 토큰을 가져온다.
   ///
@@ -70,13 +84,63 @@ class ProkeralaTokenRepository {
     return future;
   }
 
+  Future<bool> rotateToNextCredential() async {
+    if (_activeCredentialIndex >= _credentials.length - 1) {
+      return false;
+    }
+
+    _activeCredentialIndex += 1;
+    clear();
+
+    if (kDebugMode) {
+      // ignore: avoid_print
+      print(
+        '[ProkeralaTokenRepository] backup credential로 전환: '
+        '$activeCredentialLabel',
+      );
+    }
+    return true;
+  }
+
   Future<String> _issueToken() async {
+    if (_credentials.isEmpty) {
+      throw ProkeralaAuthException(
+        '사용 가능한 Prokerala credential 이 없습니다. '
+        '.env 또는 backup credential 설정을 확인해주세요.',
+      );
+    }
+
+    Object? lastError;
+    for (var index = _activeCredentialIndex; index < _credentials.length; index++) {
+      final credential = _credentials[index];
+      try {
+        final token = await _issueTokenForCredential(credential);
+        _activeCredentialIndex = index;
+        return token;
+      } catch (e) {
+        lastError = e;
+        if (kDebugMode) {
+          // ignore: avoid_print
+          print(
+            '[ProkeralaTokenRepository] credential(${credential.label}) '
+            '토큰 발급 실패: $e',
+          );
+        }
+      }
+    }
+
+    throw lastError is Exception
+        ? lastError
+        : ProkeralaAuthException('모든 Prokerala credential 로 토큰 발급 실패');
+  }
+
+  Future<String> _issueTokenForCredential(ProkeralaCredential credential) async {
     final response = await _tokenDio.post<Map<String, dynamic>>(
       Env.prokeralaTokenUrl,
       data: {
         'grant_type': 'client_credentials',
-        'client_id': Env.prokeralaClientId,
-        'client_secret': Env.prokeralaClientSecret,
+        'client_id': credential.clientId,
+        'client_secret': credential.clientSecret,
       },
       options: Options(
         contentType: Headers.formUrlEncodedContentType,
@@ -104,6 +168,7 @@ class ProkeralaTokenRepository {
   /// 테스트/로그아웃 시 캐시 무효화.
   void clear() {
     _cached = null;
+    _inFlight = null;
   }
 }
 

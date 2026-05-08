@@ -33,6 +33,13 @@
 
 이 문서는 **실행 문서**입니다.
 
+### `NOTION_EXPORT.md`
+
+- 다른 사람에게 공유하기 쉬운 통합 요약본
+- 노션에 한 번에 붙여넣기 좋은 버전
+
+이 문서는 **공유용 문서**입니다.
+
 ### `SDD_input_codebase_overview.md`
 
 - 코드베이스를 읽고 정리한 분석 메모
@@ -120,6 +127,7 @@ SDD 작업은 아래 순서로 시작하면 됩니다.
 예:
 
 - fixture 기본값 변경
+- Prokerala backup key 운영 방식 변경
 - Firebase 실행 준비 방식 변경
 - Flutter 실행 명령 변경
 
@@ -141,6 +149,13 @@ SDD 작업은 아래 순서로 시작하면 됩니다.
 
 5. `T25` 이후
    공유, 디자인 마감, 마이페이지 수정, 발표 준비
+
+## 현재 임시 운영 규칙
+
+- 기본 개발 모드는 `USE_FIXTURE_IN_DEBUG=true`
+- Prokerala 실응답 검증이 필요할 때만 실 credential 을 사용
+- Prokerala credential 은 `primary → seoyeon → seonwoo → doyeon` 순서로 backup fallback 가능
+- 이 backup credential 운영은 무료 플랜과 짧은 프로젝트 기간을 고려한 **임시 운영 규칙**이다
 
 ## 후반부 화려한 기능을 어떻게 다루는가
 
