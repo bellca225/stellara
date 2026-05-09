@@ -6,7 +6,7 @@
 
 ## 0. 한 줄 요약
 
-Stellara는 **현재 “프론트엔드 단독” 단계의 Flutter 앱**입니다. 자체 백엔드 서버는 아직 없으며, 외부 점성술 API(Prokerala)를 앱에서 직접 호출하는 구조의 골격까지만 구현되어 있고, DB·인증·AI 생성 등은 미구현 상태입니다. (실측: `lib/` 아래 Dart 파일 33개, Prokerala 호출 wrapper와 Riverpod 골격만 동작.)
+Stellara는 **현재 “프론트엔드 중심 + Android Firebase bootstrap 완료” 단계의 Flutter 앱**입니다. 자체 백엔드 서버는 아직 없으며, Prokerala 직접 호출 코드는 준비되어 있지만 기본 브랜치에서는 `PROKERALA_REMOTE_ENABLED=false` 로 잠가 두고 Firestore 저장과 인증을 붙여가는 상태입니다. (실측: `lib/` 아래 Dart 파일 36개, Prokerala 호출 wrapper, Riverpod 골격, Android Firebase bootstrap 동작.)
 
 ## 1. 기술 스택 (확실)
 
@@ -19,11 +19,12 @@ Stellara는 **현재 “프론트엔드 단독” 단계의 Flutter 앱**입니�
 | 모델 직렬화 | `freezed_annotation`, `json_annotation` 등록은 되어 있으나 **현재 코드에선 아직 미사용** (도메인 모델 직접 작성) |
 | HTTP | `dio ^5.7.0` + 커스텀 인터셉터 3종(Auth/RateLimit/Logging) |
 | 환경 변수 | `flutter_dotenv ^5.2.1` (`assets`에 `.env` 등록) |
-| 지오코딩 | `geocoding ^3.0.0` 패키지 등록만 되어 있음 — **실제 호출 코드는 아직 없음** (확실하지 않음: 앞으로 출생지 → 좌표 변환에 쓸 예정인 듯) |
+| 지오코딩 | `geocoding ^3.0.0` — Android/iOS 출생지 → 좌표 변환 helper 연결됨 |
+| Firebase | `firebase_core ^4.7.0`, `firebase_auth ^6.4.0`, `cloud_firestore ^6.3.0` — Android bootstrap 연결 완료 |
 | 날짜/포맷 | `intl ^0.19.0` |
 | 빌드 타깃 | `android/`, `ios/`, `macos/`, `web/` 모두 Flutter 기본 템플릿 그대로. 9주차 주 타깃은 Android 에뮬레이터(`Medium_Phone_API_36.1`)와 Chrome. |
 
-**아직 들어와 있지 않은 것 (README의 “예정 패키지” 항목)**: `kakao_flutter_sdk_user`, `firebase_core`, `cloud_firestore`, `firebase_messaging`, `flutter_secure_storage`, `lottie`, `share_plus`, `screenshot`, `go_router`, `shared_preferences`, `cached_network_image`, `flutter_local_notifications`. 즉 **인증·DB·푸시·공유·라우팅 패키지가 모두 미도입 상태**입니다.
+**아직 들어와 있지 않은 것 (README의 “예정 패키지” 항목)**: `kakao_flutter_sdk_user`, `firebase_messaging`, `flutter_secure_storage`, `lottie`, `share_plus`, `screenshot`, `go_router`, `shared_preferences`, `cached_network_image`, `flutter_local_notifications`. 즉 **푸시·공유·고급 라우팅 패키지는 아직 미도입 상태**입니다.
 
 ## 2. 폴더 구조와 역할
 
@@ -50,7 +51,7 @@ stellara/
 
 | 파일 | 역할 |
 | --- | --- |
-| `core/env/env.dart` | `.env` 키 단일 진입점. 필수 키(`PROKERALA_CLIENT_ID/SECRET`) 부재 시 `MissingEnvException` 발생 → 앱 부팅에서 친절한 에러 화면으로 바뀜. |
+| `core/env/env.dart` | `.env` 키 단일 진입점. 기본 브랜치에서는 `PROKERALA_REMOTE_ENABLED=false`, `AI_REMOTE_ENABLED=false` 를 읽어 과금 경로를 잠그고, 원격 호출을 열었는데 필수 키가 없을 때만 `MissingEnvException` 을 던진다. |
 | `core/http/dio_client.dart` | Prokerala 전용 `Dio` 인스턴스 빌더. **AuthInterceptor**(Bearer 자동 주입 + 401시 1회 토큰 강제 갱신 후 재시도), **RateLimitInterceptor**(429+`Retry-After`), **LoggingInterceptor**(디버그 한정, X-RateLimit-* 헤더 출력)을 묶어둠. |
 | `core/theme/app_theme.dart` | 흑백 단일 팔레트(`AppColors.ink/inkMuted/inkSubtle/line/paper/canvas/skeleton`) + 반경/간격 상수 + Material3 ColorScheme/TextTheme. |
 | `core/ui/app_alerts.dart` | 글로벌 `appNavigatorKey` + 토큰 소진 다이얼로그 `AppAlerts.showTokenExhaustedDialog()`. 인터셉터에서 호출. |
@@ -124,7 +125,7 @@ currentBirthInfoProvider            // StateProvider<BirthInfo>  (앱 전역 사
 | `fetchSynastry` | `GET /v2/astrology/synastry-chart` | 두 사람 profile/partner_profile. |
 | (별도) 토큰 발급 | `POST {PROKERALA_TOKEN_URL}` | `prokeralaTokenRepository`에서 client_credentials, 메모리 캐시, 만료 60초 전 자동 갱신, in-flight 중복 발급 차단. |
 
-**모든 Repository가 동일한 fallback 패턴**을 가집니다: `kDebugMode && Env.useFixtureInDebug` ⇒ fixture 즉시 반환 / 실호출 실패 ⇒ catch 후 fixture 반환. 즉 **API가 죽어도 화면은 데모 데이터로 채워져 깨지지 않습니다.**
+**모든 Repository가 동일한 fallback 패턴**을 가집니다: `PROKERALA_REMOTE_ENABLED=false` 또는 `kDebugMode && Env.useFixtureInDebug` ⇒ fixture 즉시 반환 / 실호출 실패 ⇒ catch 후 fixture 반환. 즉 **기본 브랜치에서는 과금 경로를 열지 않고도 화면이 데모 데이터로 유지됩니다.**
 
 ## 4. 데이터베이스 / 저장소 현황
 
@@ -138,9 +139,9 @@ currentBirthInfoProvider            // StateProvider<BirthInfo>  (앱 전역 사
 
 ## 5. 설정 / 환경 변수 / 빌드
 
-- `.env` 키: `PROKERALA_CLIENT_ID`, `PROKERALA_CLIENT_SECRET`, `PROKERALA_BASE_URL`(기본값 https://api.prokerala.com), `PROKERALA_TOKEN_URL`(기본값 https://api.prokerala.com/token), `USE_FIXTURE_IN_DEBUG`(기본 false).
+- `.env` 키: `PROKERALA_CLIENT_ID`, `PROKERALA_CLIENT_SECRET`, `PROKERALA_BASE_URL`(기본값 https://api.prokerala.com), `PROKERALA_TOKEN_URL`(기본값 https://api.prokerala.com/token), `PROKERALA_REMOTE_ENABLED`(기본 false), `USE_FIXTURE_IN_DEBUG`(기본 true 권장), `AI_REMOTE_ENABLED`(기본 false).
 - `.env`는 `.gitignore` 처리되어 있고, `.env.example`이 템플릿으로 커밋됨. `pubspec.yaml`의 `assets`에 `.env`를 등록해 런타임에 로드.
-- 안드로이드 패키지명: `com.example.stellara` (README 기준).
+- 안드로이드 패키지명: `com.stellara.app`.
 - 빌드 검증 명령(README 기준): `flutter analyze`, `flutter test`, `flutter build apk --debug`, `flutter build web` — 통과 확인됨.
 
 ## 6. 테스트 현황
@@ -160,18 +161,18 @@ currentBirthInfoProvider            // StateProvider<BirthInfo>  (앱 전역 사
 | 환경 변수 로딩 + 누락 시 안내 화면 | **구현됨** | `core/env/env.dart`, `main.dart` |
 | Prokerala OAuth2 토큰 발급/갱신/캐시 | **구현됨** | `prokeralaTokenRepository.dart` |
 | Prokerala 호출용 Dio 인터셉터 (Auth/Retry/Log) | **구현됨** | `core/http/dio_client.dart` |
-| 나탈 차트 fetch + JSON→도메인 매핑 + fixture fallback | **부분 구현** | `astrology_repository.dart`. 응답 키 매핑은 “문서 기반 추정”이라 첫 실호출 검증 필요(코드 주석 TODO). |
+| 나탈 차트 fetch + JSON→도메인 매핑 + fixture fallback | **부분 구현** | `astrology_repository.dart`. 원격 경로는 코드상 존재하지만 기본 브랜치에서는 잠겨 있다. 응답 키 매핑은 실응답 검증 필요 |
 | 출생 차트 360° 시각화 | **구현됨** | `natal_chart_painter.dart` (CustomPainter). |
-| Daily Horoscope fetch + fallback | **구현됨(추정 매핑)** | `horoscope_repository.dart` |
-| Synastry fetch + 4축 점수 휴리스틱 | **구현됨(휴리스틱)** | `synastry_repository.dart`. 어스펙트 가중치는 임의값이라 추후 정교화 예정. |
+| Daily Horoscope fetch + fallback | **구현됨(추정 매핑)** | `horoscope_repository.dart`. 원격 경로는 잠겨 있고 기본 동작은 fixture |
+| Synastry fetch + 4축 점수 휴리스틱 | **구현됨(휴리스틱)** | `synastry_repository.dart`. 원격 경로는 잠겨 있고 기본 동작은 fixture. 어스펙트 가중치는 임의값이라 추후 정교화 예정 |
 | 화면 프로토타입 9종 (LOGIN/ONBOARDING/MAIN/ASTROLOGY/TODAY/MATCH/FRIEND/CONTENT/MYPAGE) | **구현됨(목업 위주)** | `features/*/presentation/*.dart` |
 | 하단 4탭 네비게이션 | **구현됨** | `onboarding/app_shell.dart` |
 | 카카오 OAuth 로그인 | **미구현** | `kakao_flutter_sdk_user` 미설치, `LoginScreen`은 “데모 데이터로 시작” 버튼 1개. |
 | 회원/세션/JWT 저장 | **미구현** | `flutter_secure_storage` 미설치. |
-| Firebase / Firestore 연동 | **미구현** | 패키지/`google-services.json` 등 없음. |
+| Firebase / Firestore 연동 | **부분 구현** | Android `google-services.json`, Firebase bootstrap, anonymous auth 연결 완료. Firestore 실데이터 경로는 후속 |
 | 친구 검색·요청·즐겨찾기·랜덤 코드 | **미구현** | `friends/presentation/friend_screen.dart`만 정적 UI. data/domain 폴더 자체 없음. |
-| 출생지 주소 → 좌표 변환 | **미구현** | `geocoding` 패키지만 등록. 실제 호출 코드 없음. 입력 화면은 텍스트로만 받고 좌표는 `BirthInfo.demo()`(서울)로 폴백 — 확실하지 않음(폴백 로직 자체는 코드 주석/README 기반 추정). |
-| AI 랜덤 질문 / 성격 리포트 | **미구현** | `random_question_screen.dart`는 정적 카드, OpenAI 등 클라이언트 없음. |
+| 출생지 주소 → 좌표 변환 | **부분 구현** | Android/iOS에서 helper 연결 완료. Web은 보조 타깃 |
+| AI 랜덤 질문 / 성격 리포트 | **미구현(원격 AI 비활성화)** | `random_question_screen.dart`는 정적/local 질문 카드, 원격 AI는 기본 잠금 |
 | 결과 공유(스크린샷/SNS) | **미구현** | `SHARE-001` 화면 자체 없음. `screenshot`/`share_plus` 미설치. |
 | 푸시 알림(FCM/Local) | **미구현** | 패키지 없음. |
 | 선언적 라우팅 / 딥링크 | **미구현** | `go_router` 미설치, 현재는 `Navigator.push` 직접 호출. |
@@ -183,17 +184,17 @@ currentBirthInfoProvider            // StateProvider<BirthInfo>  (앱 전역 사
 
 1. **Prokerala 응답 키 매핑이 추정값**입니다. `prokeralaApi.fetchNatalChart` 주석과 `_parseNatalChart` 주석 모두 “첫 실호출 후 보정 필요(TODO)”로 명시. SDD에는 “응답 스키마 검증 단계 필요”로 적어두는 것이 안전합니다.
 2. **Synastry 4축 점수는 휴리스틱**(어스펙트 종류별 가중치). 점성술 일반 통념 기반 임의값이라고 코드 주석에 명시.
-3. **client_secret이 앱 바이너리에 포함**되는 구조입니다(현재 9주차 단계 결정). README와 코드 주석 모두 “공개 배포용 구조는 아님”을 전제로 봐야 하며, SDD에는 “학교 데모용 내부 빌드 한정” 운영 원칙을 명시하는 편이 안전합니다.
-4. **Prokerala 제약 메모**: 실호출 실패나 응답 차이는 fixture fallback 으로 흡수하고 있지만, `1월 1일만 허용` 같은 제한은 공식 문서로 확인된 규칙이 아니므로 사실처럼 전제하지 않는 편이 안전합니다.
+3. **client_secret이 앱 바이너리에 포함될 수 있는 구조**입니다(현재 9주차 단계 결정). 그래서 기본 브랜치에서는 `PROKERALA_REMOTE_ENABLED=false` 로 잠가 두고, README와 SDD에 “학교 데모용 내부 빌드 한정” 운영 원칙을 명시하는 편이 안전합니다.
+4. **Prokerala 제약 메모**: 실호출 실패나 응답 차이는 fixture fallback 으로 흡수하고 있으며, sandbox 응답에는 `1월 1일만 허용` 제약이 실제로 내려옵니다.
 5. **사용자 데이터 영속성 0**. 앱을 재실행하면 출생정보·친구·즐겨찾기·운세 캐시가 모두 사라집니다. SDD의 “데이터 모델/생명주기” 절에 반드시 반영 필요.
 6. **`SHARE-001` 화면 미존재**: 기획서에는 있지만 코드에는 없음 → SDD의 화면 매트릭스에서 “구현 보류” 또는 “Phase 2”로 분류 권장.
 
 ## 9. SDD에 그대로 인용해도 좋은 짧은 설명문 4개
 
-- **시스템 개요**: “Stellara는 출생 정보 기반 점성술 분석을 제공하는 Flutter 모바일/웹 앱이다. 현재 단계에서는 자체 백엔드 없이 Prokerala Astrology API를 클라이언트가 직접 호출하며, 인증·DB·AI 생성 기능은 향후 단계에서 도입할 계획이다.”
+- **시스템 개요**: “Stellara는 출생 정보 기반 점성술 분석을 제공하는 Flutter 모바일/웹 앱이다. 현재 단계에서는 자체 백엔드 없이 Firebase Spark와 fixture 중심 흐름으로 동작하며, Prokerala 원격 호출은 실응답 검증 시간에만 잠깐 연다.”
 - **아키텍처 스타일**: “기능별(feature-first) 폴더링 + 레이어드(`application`/`data`/`domain`/`fixtures`/`presentation`) 구조이며, 의존 방향은 `presentation → application → data → domain`으로 단방향이다. 횡단 관심사(테마, HTTP, env, 알림)는 `lib/core` 아래에 모인다.”
 - **상태 관리**: “Riverpod 2의 `Provider`/`FutureProvider`/`StateProvider`만 사용하며, 코드 생성 어노테이션(`@riverpod`)은 도입 보류 상태이다. 화면이 `myNatalChartProvider`/`todayHoroscopeProvider`/`synastryProvider`를 watch하면 Repository → Prokerala API 호출이 트리거된다.”
-- **회복 탄력성**: “모든 외부 API 호출은 ‘fixture fallback’ 패턴을 갖는다 — 디버그 모드에서 `USE_FIXTURE_IN_DEBUG=true`이면 네트워크를 타지 않고 데모 응답을 반환하며, 실호출이 실패해도 사용자는 빈 화면 대신 데모 차트를 본다.”
+- **회복 탄력성**: “모든 외부 API 호출은 ‘fixture fallback’ 패턴을 갖는다 — `PROKERALA_REMOTE_ENABLED=false` 이거나 디버그 모드에서 `USE_FIXTURE_IN_DEBUG=true`이면 네트워크를 타지 않고 데모 응답을 반환하며, 실호출이 실패해도 사용자는 빈 화면 대신 데모 차트를 본다.”
 
 ## 10. 분석 시 확인하지 못해 “확실하지 않음”으로 둔 것
 

@@ -12,7 +12,7 @@ class HoroscopeRepository {
   final ProkeralaApi _api;
 
   Future<Horoscope> getDaily({required String signSlug, DateTime? date}) async {
-    if (kDebugMode && Env.useFixtureInDebug) {
+    if (Env.shouldUseFixtureForProkerala) {
       await Future<void>.delayed(const Duration(milliseconds: 250));
       return demoHoroscope(signSlug, date);
     }

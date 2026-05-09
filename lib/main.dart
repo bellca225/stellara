@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app.dart';
 import 'core/env/env.dart';
+import 'core/firebase/firebase_bootstrap.dart';
 
 Future<void> main() async {
   // dotenv 가 비동기 I/O 를 하므로 Flutter binding 이 먼저 깨어나 있어야 한다.
@@ -25,6 +26,15 @@ Future<void> main() async {
     runApp(_EnvErrorApp(message: e.toString()));
     return;
   }
+
+  debugPrint(
+    '[RuntimePolicy] prokeralaRemote=${Env.prokeralaRemoteEnabled} '
+    'fixtureDebug=${Env.useFixtureInDebug} '
+    'aiRemote=${Env.aiRemoteEnabled}',
+  );
+
+  final firebaseStatus = await FirebaseBootstrap.initialize();
+  debugPrint(firebaseStatus.toLogLine());
 
   runApp(const ProviderScope(child: StellaraApp()));
 }

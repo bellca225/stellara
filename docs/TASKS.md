@@ -1,6 +1,6 @@
 # Stellara — 개발 작업 분해
 
-> 기준 문서: `docs/SDD.md` v0.9, `docs/MVP.md`  
+> 기준 문서: `docs/SDD.md` v1.0, `docs/MVP.md`  
 > 목적: 협업자가 바로 가져갈 수 있는 이슈 단위로 개발 작업을 분해한다.
 >
 > **2026-05-09 변경**: T16 / T18 / T27 의 Cloud Functions 경로를 제거하고 Firestore `runTransaction`(클라이언트) 으로 단일화. T16.5 (Firestore Security Rules 초안) 신설. 이유와 단점은 `docs/SDD.md` 7.4 마지막 박스 참고.
@@ -10,7 +10,7 @@
 ## T01. Prokerala 실응답 수집 및 fixture 갱신
 - 작업명: Prokerala 실응답 수집 및 fixture 갱신
 - 목적: 현재 추정 기반인 응답 계약을 실제 응답 기준으로 고정한다.
-- 구현 범위: `natal-chart`, `daily`, `synastry` 실응답을 1회씩 확보하고, 현재 fixture 데이터와 문서의 리스크 메모를 갱신한다.
+- 구현 범위: `PROKERALA_REMOTE_ENABLED=true` 를 짧게 연 상태에서 `natal-chart`, `daily`, `synastry` 실응답을 1회씩 확보하고, 현재 fixture 데이터와 문서의 리스크 메모를 갱신한다.
 - 수정 예상 파일: `docs/SDD.md`, `docs/MVP.md`, `docs/SDD_input_codebase_overview.md`, `lib/features/astrology/fixtures/natal_chart_fixture.dart`, `lib/features/horoscope/fixtures/horoscope_fixture.dart`, `lib/features/compatibility/fixtures/synastry_fixture.dart`
 - 완료 기준: 세 API의 raw 응답 샘플이 확보되고, fixture가 실제 응답 형태와 어긋나지 않게 정리되어 있다.
 - 선행 작업: 없음
@@ -46,16 +46,16 @@
 ## T05. Flutter Firebase bootstrap
 - 작업명: Flutter Firebase bootstrap
 - 목적: 앱에서 Firestore 기반 저장 흐름을 시작할 수 있는 최소 환경을 만든다.
-- 구현 범위: `firebase_core`, `cloud_firestore`, `flutter_secure_storage` 의존성 추가, Firebase 초기화, 플랫폼 설정 반영.
-- 수정 예상 파일: `pubspec.yaml`, `lib/main.dart`, `android/app/build.gradle.kts`, `android/build.gradle.kts`, `android/app/google-services.json`, `ios/Runner/GoogleService-Info.plist`
-- 완료 기준: 앱이 Firebase 초기화에 성공하고, 런타임 에러 없이 실행된다.
+- 구현 범위: `firebase_core`, `firebase_auth`, `cloud_firestore` 의존성 추가, Android `google-services.json` 반영, Android package name `com.stellara.app` 정렬, Android 전용 Firebase 초기화 + anonymous auth 연결.
+- 수정 예상 파일: `pubspec.yaml`, `lib/main.dart`, `lib/core/firebase/firebase_bootstrap.dart`, `android/app/build.gradle.kts`, `android/settings.gradle.kts`, `android/app/google-services.json`
+- 완료 기준: Android 앱 실행 시 Firebase bootstrap 과 anonymous auth 가 성공하고, 런타임 에러 없이 실행된다.
 - 선행 작업: 없음
 - 담당 가능 역할: 공통
 
 ## T06. 무료 플랜 운영 규칙 문서화
 - 작업명: 무료 플랜 운영 규칙 문서화
 - 목적: Spark-only 전제를 팀이 같은 기준으로 이해하도록 한다.
-- 구현 범위: direct Prokerala 호출 허용 범위, multi-key fallback, fixture 기본 전략, 공개 배포 금지 원칙을 README/SDD/MVP에 반영한다.
+- 구현 범위: `PROKERALA_REMOTE_ENABLED=false` 기본 잠금, 실응답 검증 시의 임시 해제 절차, multi-key fallback, fixture 기본 전략, Spark 유지/Blaze 금지, 원격 AI 기본 비활성화, 공개 배포 금지 원칙을 README/SDD/MVP에 반영한다.
 - 수정 예상 파일: `README.md`, `docs/SDD.md`, `docs/MVP.md`, `docs/README.md`
 - 완료 기준: 팀원이 무료 플랜 기준 현재 운영 방식과 제한 사항을 문서만 보고 이해할 수 있다.
 - 선행 작업: 없음
@@ -233,19 +233,19 @@
 
 ## T22. AI provider / env / fallback 정책 정리
 - 작업명: AI provider / env / fallback 정책 정리
-- 목적: GPT/Claude 연결 시 팀이 같은 기준으로 키, provider, fallback 흐름을 이해하도록 한다.
-- 구현 범위: `.env.example` 키 이름 확정, `자동/GPT/Claude` UX 원칙, `OpenAI → Anthropic → local fallback` 기본 순서, `primary → seoyeon → seonwoo → doyeon` backup 규칙을 문서에 반영한다.
+- 목적: 무과금 운영 기준에서 원격 AI를 잠근 상태로 팀이 같은 기준을 이해하도록 한다.
+- 구현 범위: `.env.example` 키 이름 확정, `AI_REMOTE_ENABLED=false` 기본값, local question set 우선 정책, 추후 원격 AI 승인 절차, `primary → seoyeon → seonwoo → doyeon` backup 규칙(미사용 상태 포함), `PROKERALA_REMOTE_ENABLED=false` 와 같은 무과금 잠금 패턴을 문서에 반영한다.
 - 수정 예상 파일: `.env.example`, `README.md`, `docs/SDD.md`, `docs/MVP.md`, `docs/TASKS.md`
-- 완료 기준: 팀원이 문서만 보고 AI 질문의 키 관리 방식과 사용자 노출 정책을 이해할 수 있다.
+- 완료 기준: 팀원이 문서만 보고 AI 질문이 현재는 local only 임을 이해하고, 원격 AI를 언제 어떻게 열 수 있는지 알 수 있다.
 - 선행 작업: 없음
 - 담당 가능 역할: 공통
 
 ## T23. CONTENT-001 실데이터 연동
 - 작업명: 랜덤 질문 화면 실데이터 연동
-- 목적: 정적 카드 UI를 실제 AI 질문 호출 화면으로 바꾸되, 메인 UX는 단순하게 유지한다.
-- 구현 범위: `자동(추천) / GPT / Claude` 선택 UI, OpenAI/Anthropic client adapter, provider별 key fallback, local fallback 질문 세트, 질문 3개 표시, 사용자 직접 질문 1개 입력, 재생성 버튼 상태 처리.
+- 목적: 정적 카드 UI를 local question engine 화면으로 바꾸고, 원격 AI는 잠근 상태를 유지한다.
+- 구현 범위: local question set 관리, 질문 3개 표시, 사용자 직접 질문 1개 입력, 재생성 버튼 상태 처리, `AI_REMOTE_ENABLED=false` 일 때 원격 AI 버튼/경로 비활성화.
 - 수정 예상 파일: `lib/features/content/presentation/random_question_screen.dart`, `lib/features/content/application/question_providers.dart`, `lib/features/content/data/question_repository.dart`
-- 완료 기준: 화면에서 AI 질문 3개가 생성되어 보이고, 실패 시 local fallback 으로 비어 있지 않으며, 사용자에게는 provider 수준의 선택지만 노출된다.
+- 완료 기준: 화면에서 local 질문 3개가 생성되어 보이고, 원격 AI는 비활성화 상태가 UI에 드러난다.
 - 선행 작업: `T22`
 - 담당 가능 역할: 공통
 

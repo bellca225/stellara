@@ -1,6 +1,6 @@
 # Stellara — Software Design Document (SDD)
 
-> **문서 버전**: v0.9  
+> **문서 버전**: v1.0  
 > **최초 작성**: 2026-05-08 / **최종 수정**: 2026-05-09  
 > **기준 브랜치**: `feature/week09-prokerala-api`  
 > **팀명**: 물병 안 물고기  
@@ -35,11 +35,12 @@ Stellara는 사용자의 출생 정보(생년월일, 출생 시간, 출생지)�
 
 ### 1.2 현재 개발 단계 (9주차 기준)
 
-현재 단계는 **"프론트엔드 중심 + Spark 연동 준비"** 단계이다. 자체 백엔드 서버는 아직 없으며, 외부 점성술 API(Prokerala)를 클라이언트에서 직접 호출하는 구조를 유지한 채 Firestore 저장 흐름을 붙여가는 상태다.
+현재 단계는 **"프론트엔드 중심 + Android Firebase bootstrap 완료 + Spark 실데이터 연동 진행 중"** 단계이다. 자체 백엔드 서버는 아직 없으며, Prokerala 직접 호출 코드는 준비되어 있지만 **기본 브랜치에서는 원격 호출을 잠그고 fixture 중심으로 동작**하는 상태다.
 
-- `lib/` 아래 Dart 파일 35개 (실측 — 2026-05-08 기준)
+- `lib/` 아래 Dart 파일 36개 (실측 — 2026-05-09 기준)
 - 화면 프로토타입 9종 구현 완료 (목업 위주)
 - Prokerala API 호출 wrapper 및 Riverpod 상태 관리 골격 동작 확인
+- Android Firebase bootstrap + anonymous auth 연결
 - Android/iOS 기준 출생지 → 좌표 변환 helper 연결 시작
 
 ### 1.3 빌드 타깃
@@ -66,7 +67,7 @@ Stellara는 사용자의 출생 정보(생년월일, 출생 시간, 출생지)�
 | 오늘의 운세 | Prokerala Daily Horoscope + 캐시 | 부분 구현 | 12주차 캐시 |
 | **궁합 분석 (Synastry)** | 두 사용자 나탈 차트 비교, 4축 점수 및 설명 제공 | 화면 + API 부분 구현 (점수 휴리스틱) | **11주차 실데이터 연결** |
 | **친구 추가 및 소셜 연결** | 랜덤 코드 검색, 친구 요청·수락, 즐겨찾기 3명 | 정적 UI만 존재 | **11주차** |
-| **AI 랜덤 질문** | `자동/GPT/Claude` provider 선택 + 질문 3개 + 사용자 질문 1개, 실패 시 local fallback | 정적 카드 UI | **12주차** |
+| **AI 랜덤 질문** | local question set 3개 + 사용자 질문 1개. 원격 AI는 별도 승인 전까지 비활성화 | 정적 카드 UI | **12주차** |
 | **SNS 공유 이미지 생성** | 운세·궁합 결과를 이미지 카드로 만들어 공유 | 폴더만 존재, 미구현 | **13주차** |
 
 ### 2.2 선택 기능 (추가 구현 — 일정 여유 시)
@@ -113,6 +114,9 @@ Stellara는 사용자의 출생 정보(생년월일, 출생 시간, 출생지)�
 | 환경 변수 | flutter_dotenv | ^5.2.1 |
 | 날짜/포맷 | intl | ^0.19.0 |
 | 지오코딩 | geocoding | ^3.0.0 (Android/iOS 호출 경로 연결됨) |
+| Firebase 초기화 | firebase_core | ^4.7.0 |
+| Firebase 인증 | firebase_auth | ^6.4.0 |
+| Firestore SDK | cloud_firestore | ^6.3.0 |
 | 모델 어노테이션 | freezed_annotation, json_annotation | 등록만, 코드 생성 미사용 |
 | 코드 생성 (dev) | build_runner, freezed, json_serializable, riverpod_generator | - |
 | Riverpod 어노테이션 | riverpod_annotation | ^2.3.5 |
@@ -123,8 +127,6 @@ Stellara는 사용자의 출생 정보(생년월일, 출생 시간, 출생지)�
 
 | 패키지 | 용도 | 도입 예정 |
 |--------|------|-----------|
-| firebase_core | Firebase 초기화 | **10주차** |
-| cloud_firestore | 사용자·차트·친구·운세 저장 | **10주차** |
 | flutter_secure_storage | 민감 정보 저장 보조 | 10주차 이후 선택 |
 | firebase_messaging | FCM 푸시 알림 | 12주차 선택 |
 | shared_preferences | 운세 캐시, 앱 설정 | 12주차 |
@@ -153,9 +155,10 @@ Stellara는 사용자의 출생 정보(생년월일, 출생 시간, 출생지)�
 | 서버 프록시 확장성 | ⚠️ Blaze 필요 | ✅ Edge Functions | ✅ Functions | ⚠️ 별도 운영 필요 |
 | 운영 복잡도 | 낮음 | 낮음 | 낮음 | 중간 |
 
-### 4.2 결정: Firebase Firestore (Spark) + 클라이언트 직접 연동
+### 4.2 결정: Firebase Firestore (Spark) + fixture-first 앱 동작
 
-**현재 MVP는 `Firebase Firestore (Spark)` + `클라이언트 직접 Prokerala 호출` 구조로 진행한다.**
+**현재 MVP는 `Firebase Firestore (Spark)` + `fixture-first 앱 동작` 구조로 진행한다.**  
+Prokerala 직접 호출 코드는 유지하되, **기본 브랜치에서는 `PROKERALA_REMOTE_ENABLED=false`** 로 잠가 두고 실응답 검증 시간에만 잠깐 연다.
 
 **선택 이유:**
 1. **무료 플랜 유지**: Firestore는 Spark 무료 한도 안에서 MVP를 진행할 수 있다
@@ -169,10 +172,10 @@ Stellara는 사용자의 출생 정보(생년월일, 출생 시간, 출생지)�
 | 항목 | 현재 판단 | 비고 |
 |------|-----------|------|
 | Firestore | **즉시 사용 가능** | Spark 기준 저장 1 GiB, 읽기 50K/일, 쓰기 20K/일 |
-| Firebase Auth | 사용 가능 | MVP에서는 우선 필수 아님 |
+| Firebase Auth | **Android bootstrap 완료** | 앱 시작 시 anonymous auth 시도 |
 | Cloud Functions | **MVP 기본 경로 제외** | Firebase 공식 문서상 배포는 Blaze 업그레이드 전제가 필요 |
-| Prokerala | 사용 가능 | free plan 5,000 credits/month, 5 req/min 기준으로 운영 |
-| AI 외부 LLM | **조건부 사용 가능** | ChatGPT/Claude 앱 구독과 별개로 API key 필요. 내부 데모 빌드에서는 direct call 가능, 공개 배포는 금지 |
+| Prokerala | **기본 비활성화** | `PROKERALA_REMOTE_ENABLED=false` 유지. 실응답 검증 창에서만 잠깐 사용 |
+| AI 외부 LLM | **기본 비활성화** | 무과금 운영을 위해 `AI_REMOTE_ENABLED=false` 유지. owner 승인 전까지 direct call 금지 |
 
 ### 4.4 현재 운영 구조
 
@@ -182,17 +185,22 @@ Stellara는 사용자의 출생 정보(생년월일, 출생 시간, 출생지)�
 [Flutter App]
     │
     ├── Firebase Firestore   (사용자·차트·친구·운세 캐시 저장)
+    ├── Firebase Anonymous Auth (Android bootstrap 완료)
     ├── geocoding plugin     (Android/iOS 출생지 → 좌표 변환)
-    ├── OpenAI / Anthropic   (AI 질문 direct call, 내부 데모용)
-    ├── local question set   (AI 실패 시 fallback 질문 세트)
+    ├── local question set   (현재 기본 질문 세트)
+    ├── fixture data         (차트/운세/궁합 기본 데이터)
     │
     └── Prokerala API direct call
-         (primary + backup credential fallback)
+         (코드는 존재하지만 기본 브랜치에서는 잠금)
 ```
 
 운영 원칙:
 - `USE_FIXTURE_IN_DEBUG=true` 를 기본으로 사용한다
-- 실응답 검증이 필요할 때만 direct Prokerala 호출을 켠다
+- Firebase 프로젝트는 **Spark 유지**를 기본 원칙으로 하고, owner 승인 없이 Blaze 로 올리지 않는다
+- `PROKERALA_REMOTE_ENABLED=false` 를 기본값으로 유지한다
+- 실응답 검증이 필요할 때만 owner 확인 후 direct Prokerala 호출을 잠깐 켠다
+- 검증 창이 끝나면 다시 `PROKERALA_REMOTE_ENABLED=false` 로 돌린다
+- `AI_REMOTE_ENABLED=false` 를 기본값으로 유지하고, 랜덤 질문은 local question set 만 사용한다
 - APK/IPA를 공개 배포하지 않고 팀 내부 데모 범위에서만 사용한다
 - `client_secret` 이 앱 안에 존재하므로 장기 운영 구조로 간주하지 않는다
 
@@ -215,7 +223,8 @@ Stellara는 사용자의 출생 정보(생년월일, 출생 시간, 출생지)�
 
 ### 4.7 인증 전략: Firebase Anonymous Auth
 
-Firestore Security Rules 가 동작하려면 `request.auth.uid` 가 채워져 있어야 한다. 카카오 OAuth 도입 전까지는 **Firebase Anonymous Auth** 를 사용한다.
+Firestore Security Rules 가 동작하려면 `request.auth.uid` 가 채워져 있어야 한다. 카카오 OAuth 도입 전까지는 **Firebase Anonymous Auth** 를 사용한다.  
+현재 브랜치에서는 **Android에서만** 앱 시작 시 `Firebase.initializeApp()` 이후 anonymous sign-in 을 시도한다.
 
 | 항목 | 값 |
 |------|-----|
@@ -225,7 +234,7 @@ Firestore Security Rules 가 동작하려면 `request.auth.uid` 가 채워져 �
 | 카카오 전환 | 추후 `linkWithCredential` 로 anonymous → kakao 변환 시 uid 유지 가능 |
 
 운영 원칙:
-- 앱 첫 실행 시 anonymous sign-in 자동 수행
+- Android 앱 첫 실행 시 anonymous sign-in 자동 수행
 - `users/{uid}` 의 `uid` 는 anonymous uid 그대로 사용
 - 시딩한 테스트 사용자는 콘솔에서 직접 `users/{anonymousUid}` 형태로 입력하거나, 첫 앱 실행 시 자동 생성되도록 클라이언트에서 처리
 - 앱 데이터 초기화(reinstall) 시 anonymous uid 가 바뀌므로 데모용 디바이스는 가능한 한 재설치하지 않는다
@@ -387,7 +396,7 @@ main.dart → Env.load() → ProviderScope → StellaraApp
 
 ### 5.6 데이터 캐시 계층 (토큰 절약 정책)
 
-> Prokerala 무료 플랜(5,000 credits / month) + OpenAI/Anthropic 유료 호출이 모두 클라이언트 직접 호출 구조라, **"이미 받은 데이터를 재요청하지 않는다"** 원칙이 비용·일정 모두에 직결된다.
+> Prokerala 무료 플랜(5,000 credits / month) + OpenAI/Anthropic 유료 호출은 모두 잠재적 비용 경로이므로, 기본 브랜치에서는 **원격 호출 자체를 잠그고** "이미 받은 데이터를 재요청하지 않는다" 원칙을 유지한다.
 
 #### 5.6.1 캐시 계층
 
@@ -420,7 +429,7 @@ main.dart → Env.load() → ProviderScope → StellaraApp
 
 #### 5.6.4 운영 원칙
 
-- 개발 중에는 `USE_FIXTURE_IN_DEBUG=true` 를 기본으로 둔다 (L0 가 가장 강한 절약)
+- 개발 중에는 `PROKERALA_REMOTE_ENABLED=false` + `USE_FIXTURE_IN_DEBUG=true` 를 기본으로 둔다 (L0 가 가장 강한 절약)
 - L2 도입 전까지는 L1 만 동작 → 앱 재시작마다 재호출이 발생할 수 있음을 인지하고, 가능하면 L0 모드를 유지
 - L3 (Firestore) 는 T05/T09 완료 후 의미 있음. Spark 무료 한도(읽기 50K/일) 안에서 충분
 - fixture 와 실응답의 응답 모양이 어긋나면 캐시 일관성이 깨질 수 있으므로, T01 실응답 캡처 후 fixture 갱신을 **L2 도입보다 우선** 처리한다
@@ -462,7 +471,7 @@ main.dart → Env.load() → ProviderScope → StellaraApp
 
 #### ASTROLOGY-001 — 나탈 차트
 - `NatalChart` → `natal_chart_painter.dart` (CustomPainter) 360° 시각화
-- API: 현재 direct Prokerala 호출, Blaze 전환 시 프록시 이전 가능
+- API: direct Prokerala 호출 코드는 존재하지만 기본 브랜치에서는 잠겨 있다. Blaze 전환 시 프록시 이전 가능
 - Fixture fallback 패턴 유지
 
 #### MATCH-001 — 궁합 결과
@@ -470,11 +479,10 @@ main.dart → Env.load() → ProviderScope → StellaraApp
 - ⚠️ 어스펙트 가중치 임의값 (코드 주석 명시) → 11주차 실데이터 연결 시 정교화
 
 #### CONTENT-001 — 랜덤 질문
-- 메인 화면에는 `자동(추천) / GPT / Claude` 정도의 provider 선택만 노출한다
-- raw model id (`gpt-5-mini`, `claude-3-5-haiku-latest` 등)는 메인 화면에 직접 노출하지 않고 `.env` 또는 개발자 전용 설정에서 관리한다
-- 기본 추천 흐름은 `OpenAI → Anthropic → local fallback`
-- 같은 provider 안에서는 `primary → seoyeon → seonwoo → doyeon` 순서의 backup key 를 둘 수 있다
-- **12주차**: 외부 LLM 또는 local fallback 기반 질문 3개 생성
+- 현재 브랜치에서는 **원격 AI 호출을 비활성화**하고 local question set 만 사용한다
+- `AI_REMOTE_ENABLED=true` 전환 전까지 OpenAI / Anthropic key 는 읽지 않는다
+- provider / raw model id 선택 UI는 비용 승인 후 별도 검토한다
+- **12주차**: local question set 3개 생성 + 사용자 직접 질문 1개 입력
 - 사용자 직접 질문 1개 입력 기능
 
 #### SHARE-001 — 결과 공유
@@ -494,7 +502,7 @@ main.dart → Env.load() → ProviderScope → StellaraApp
 
 ### 7.2 [실구현] 현재 존재하는 외부 API 목록
 
-> 현재 자체 백엔드 API는 없고, 앱이 Prokerala를 직접 호출한다. 아래 목록은 `lib/features/astrology/data/prokerala_api.dart` 와 각 Repository 실구현 기준이다.
+> 현재 자체 백엔드 API는 없고, Prokerala 직접 호출 코드는 앱 안에 존재한다. 다만 기본 브랜치에서는 `PROKERALA_REMOTE_ENABLED=false` 로 잠겨 있으며, 아래 목록은 **실구현 코드 기준** API 계약을 정리한 것이다.
 
 Base URL: `https://api.prokerala.com`  
 인증: OAuth2 `client_credentials` → Bearer Token
@@ -522,7 +530,7 @@ Base URL: `https://api.prokerala.com`
 | `AstrologyRepository.getNatalChart(BirthInfo birth)` | `BirthInfo` | `Future<NatalChart>` | 실패 시 fixture fallback |
 | `HoroscopeRepository.getDaily({required String signSlug, DateTime? date})` | `signSlug`, `date` | `Future<Horoscope>` | 실패 시 fixture fallback |
 | `SynastryRepository.compare({required BirthInfo me, required BirthInfo partner})` | `BirthInfo` 2개 | `Future<SynastryResult>` | 실패 시 fixture fallback |
-| `QuestionRepository.generate({required String providerPreference, BirthInfo? birthInfo, String? userPrompt})` | `providerPreference`, `birthInfo`, `userPrompt` | `Future<List<QuestionItem>>` | **[제안]** `auto → openai → anthropic → local` 순서 |
+| `QuestionRepository.generate({required String providerPreference, BirthInfo? birthInfo, String? userPrompt})` | `providerPreference`, `birthInfo`, `userPrompt` | `Future<List<QuestionItem>>` | **[제안]** 현재는 `local` 전용, 비용 승인 후에만 원격 provider 검토 |
 
 ### 7.4 [선택 / Blaze 전환 시] Cloud Functions API 초안
 
@@ -545,7 +553,7 @@ Base URL: `https://api.prokerala.com`
 ### 7.5 [제안] 요청/응답 형식 초안
 
 > 아래 형식은 Blaze 전환 후 서버 프록시를 붙일 경우를 대비한 초안이다.  
-> 현재 무료 플랜 경로에서는 Firestore SDK와 direct Prokerala 호출을 사용한다.
+> 현재 무료 플랜 경로에서는 Firestore SDK와 fixture-first 흐름을 사용한다. Prokerala direct 호출은 실응답 검증 시간에만 잠깐 연다.
 
 #### `places-resolve` [제안]
 
@@ -1033,7 +1041,7 @@ kDebugMode && USE_FIXTURE_IN_DEBUG=true → fixture 즉시 반환 (네트워크 
 | Firestore 연결 실패 | 로컬 캐시 우선, 오프라인 안내 배너 |
 | Web에서 출생지 자동 좌표 변환 미지원/불안정 | Android/iOS 입력 권장 안내 |
 | 출생지 좌표 변환 실패 (Android/iOS) | 더 구체적인 출생지 입력 요청 |
-| JWT 만료 (Auth 도입 후) | 자동 갱신 → 실패 시 로그인 화면 이동. 9주차 시점에는 Firebase Auth 미도입이라 해당 없음 |
+| JWT 만료 (OAuth 도입 후) | 자동 갱신 → 실패 시 로그인 화면 이동. 현재는 Android anonymous auth 만 사용하므로 해당 없음 |
 
 ### 9.4 주요 리스크
 
@@ -1047,8 +1055,8 @@ kDebugMode && USE_FIXTURE_IN_DEBUG=true → fixture 즉시 반환 (네트워크 
 | `chartVersion` 없는 캐시 재사용 | 중간 | `charts` / `synastryCaches` 에 버전 문자열 도입 |
 | Synastry 점수 가중치 임의값 | 중간 | 11주차 실데이터 연결 시 가중치/설명문 재조정 |
 | 사용자 데이터 영속성 없음 (현재) | 중간 | 10주차 Firestore 연결 + Provider stream 교체 |
-| AI API key 의 클라이언트 직접 보관 | 높음 | 내부 데모 빌드 한정 + `.env` 관리 + 공개 배포 금지 + 추후 프록시 전환 검토 |
-| 외부 LLM 응답 변동성/비용 | 중간 | 메인 화면은 provider 수준만 노출, 기본은 `OpenAI → Anthropic → local fallback`, 짧은 프롬프트/짧은 출력 유지 |
+| AI API key 의 클라이언트 직접 보관 | 낮음 | 기본 브랜치에서 원격 AI 비활성화. key 미사용 유지 + owner 승인 전 direct call 금지 |
+| 외부 LLM 응답 변동성/비용 | 낮음 | 현재 local question set 만 사용. 원격 AI는 별도 승인 후 검토 |
 | SHARE-001 미구현 | 낮음 | 13주차 계획, 핵심 흐름 안정 후 구현 |
 
 ---
@@ -1088,26 +1096,30 @@ PR / 머지 정책 (2026-05-09 결정):
 - `flutter analyze`, `flutter test` 통과 후 커밋
 - Provider 이름: `{기능}Provider` 규칙
 - API 키 및 secret은 코드에 직접 포함 금지 (`.env` 또는 Firebase 환경 변수)
+- `google-services.json` / `GoogleService-Info.plist` 는 로컬 파일로만 관리하고 커밋하지 않는다
 
 ### 10.4 환경 변수 관리
 
 - `.env`는 절대 커밋하지 않는다 (`.gitignore` 처리됨)
 - 새 키 추가 시 `.env.example`에 키 이름만 추가 후 커밋
+- `PROKERALA_REMOTE_ENABLED=false` 를 기본값으로 유지하고, 실응답 검증이 필요할 때만 잠깐 `true` 로 전환한다
 - Prokerala credential 은 `primary → seoyeon → seonwoo → doyeon` 순서의 backup set 을 둘 수 있다
-- OpenAI / Anthropic API key 도 `.env` 에서만 관리하고, 메인 화면에는 실제 key 나 raw model id 를 노출하지 않는다
-- AI provider 기본 흐름은 `OpenAI → Anthropic → local fallback` 을 권장한다
-- provider 내부 backup key 도 `primary → seoyeon → seonwoo → doyeon` 규칙을 동일하게 적용할 수 있다
+- OpenAI / Anthropic API key 도 `.env` 에서만 관리하되, 기본 브랜치에서는 `AI_REMOTE_ENABLED=false` 로 잠근다
+- 원격 AI는 owner 승인 + 예산 확정 + 문서 갱신 전까지 켜지지 않는다
+- provider 내부 backup key 도 `primary → seoyeon → seonwoo → doyeon` 규칙을 동일하게 적용할 수 있으나, 현재는 비활성화 상태로 유지한다
 - backup credential 은 무료 플랜과 짧은 프로젝트 기간을 위한 임시 운영 방식이며, 공개 배포용 운영 구조로 간주하지 않는다
 - Blaze 전환 후 서버 프록시를 도입할 경우에만 `functions/` 환경 변수/Secret Manager 규칙을 별도 정의한다
 
 ### 10.5 개발 시 주의 사항
 
-- 개발 중 `USE_FIXTURE_IN_DEBUG=true`로 Prokerala 크레딧 절약
+- 개발 중 `PROKERALA_REMOTE_ENABLED=false` + `USE_FIXTURE_IN_DEBUG=true` 로 Prokerala 크레딧/과금 경로 차단
+- 실응답 검증이 필요할 때만 `PROKERALA_REMOTE_ENABLED=true` 로 짧게 연다
 - 실응답 검증 시 429가 발생하면 앱은 다음 backup credential 로 1회 전환을 시도한다
 - 차트 계산 결과의 Firestore 캐싱은 `chartVersion` 규칙 확정 후 붙인다
 - Android/iOS 출생지 입력은 실제 좌표 변환을 시도하고, Web은 정확도 보장이 약하므로 보조 타깃으로 본다
 - AI (GPT/Claude)로 코드 생성 시 `.env`의 실제 키값은 절대 프롬프트에 포함하지 말 것
-- AI 질문 기능을 앱에 연결할 때도 내부 데모 빌드에서는 `.env` 를 사용하고, 공개 배포 전에는 direct key 포함 빌드를 만들지 않는다
+- 기본 브랜치에서는 원격 AI를 켜지 않는다. local question set 만으로 발표/시연 흐름을 유지한다
+- Firebase 프로젝트는 Spark 플랜 유지가 기본이며, owner 승인 없이 Blaze 업그레이드를 시도하지 않는다
 
 ### 10.6 자원 소유자 / 계정 표
 
@@ -1117,9 +1129,9 @@ PR / 머지 정책 (2026-05-09 결정):
 |------|----------------|-----------|------------------|------|
 | Firebase 프로젝트 | 나영 (`nywoo0225@gmail.com`) | 무료 (Spark) | 서연 / 선우 / 도연 Editor 초대 | 콘솔 region 권고: `asia-northeast3` (서울). 4명 모두 Google 계정 보유 확인됨 |
 | Firestore Security Rules | 나영 (1차 작성) | - | 리뷰: 공통 | 11주차 T16.5 결과 반영 |
-| Prokerala primary credential | 나영 | 무료 플랜 | 11주차 후반 ~ 12주차에 seoyeon / seonwoo / doyeon backup 등록 예정 | **운영 모델 (i) 단일 `.env` 공유**. 4명 키를 한 `.env` 에 모아 primary → seoyeon → seonwoo → doyeon 순서 자동 fallback. 9~10주차는 primary 1개로 fixture 모드 위주 운영 |
-| OpenAI API key | 나영 | 나영 결제 카드 (이미 등록됨) | - | 키 `.env` 등록 완료(2026-05-09). **단, 등록 직후 채팅 노출로 인해 즉시 회전 권고** — `platform.openai.com` 에서 Revoke 후 새 키로 교체. usage limit 설정 권고 |
-| Anthropic API key | **추후 결정** (12주차 진입 시점 재검토) | - | - | 사용자가 결정을 미룸. 12주차 시작 시점에 결제 카드 등록 + 키 발급 여부 다시 판단. 그때까지는 OpenAI primary 단독 + local fallback |
+| Prokerala credential | 나영 | 무료 플랜 | 11주차 후반 ~ 12주차에 seoyeon / seonwoo / doyeon backup 등록 예정 | 기본 브랜치에서는 `PROKERALA_REMOTE_ENABLED=false` 로 미사용 유지. 실응답 검증 시에만 단일 `.env` 에서 primary → seoyeon → seonwoo → doyeon 순서 fallback 사용 |
+| OpenAI API key | **사용 안 함 (기본 브랜치)** | 없음 | - | `AI_REMOTE_ENABLED=false` 유지. owner 승인 + 예산 확정 전까지 발급/등록/사용 금지 |
+| Anthropic API key | **사용 안 함 (기본 브랜치)** | 없음 | - | `AI_REMOTE_ENABLED=false` 유지. owner 승인 + 예산 확정 전까지 발급/등록/사용 금지 |
 | GitHub 저장소 | 나영 | - | 팀원 4명 push 권한 | 정책 (b): feature 브랜치 자유, `main` 만 보호. PR 머지는 owner 가 처리 |
 
 운영 원칙:
@@ -1128,6 +1140,7 @@ PR / 머지 정책 (2026-05-09 결정):
 - 비용이 발생하는 자원은 owner 가 바뀌면 README 와 이 표를 동시에 갱신한다
 - backup credential 의 실 보유자가 바뀌면 `.env.example` 의 라벨도 함께 정리한다
 - Firebase Editor 초대는 Google 계정이 필요하다. 한 명이라도 Gmail 미보유 시 owner 가 대신 처리하는 구조로 운영한다
+- Spark → Blaze 업그레이드, 원격 AI key 발급/사용은 모두 owner 승인 + 문서 갱신이 선행되어야 한다
 
 ---
 
@@ -1140,7 +1153,7 @@ PR / 머지 정책 (2026-05-09 결정):
 | **9주차** | 5/2~5/8 | Prokerala API + Riverpod 골격 + 흑백 UI | OAuth2 토큰 매니저, 화면 9종 프로토타입 |
 | **10주차** | 5/9~5/15 | **응답 계약 검증 + Firestore 저장소 확정 + 좌표 정확도 개선** | Prokerala raw 응답 저장, parser 보정, Android/iOS geocoding, `users/charts/friendCodes` 스키마, 출생정보 Firestore 저장 |
 | **11주차** | 5/16~5/22 | **친구 관계 트랜잭션 + Synastry 캐시 + 즐겨찾기 연결** | `friendRequests`, `friendships`, `synastryCaches`, 친구 코드 검색/수락, MAIN-001 즐겨찾기, MATCH-001 실데이터 연결 |
-| **12주차** | 5/23~5/29 | 운세 캐시 고도화 + 질문 엔진 + 후반부 디자인 선행 준비 | `dailyFortunes` 최종화, SharedPreferences 보조 캐시, `자동/GPT/Claude` 질문 흐름, local fallback, 공유 레이아웃 초안, 컬러/모션 토큰 정리, FCM (선택) |
+| **12주차** | 5/23~5/29 | 운세 캐시 고도화 + 질문 엔진 + 후반부 디자인 선행 준비 | `dailyFortunes` 최종화, SharedPreferences 보조 캐시, local question flow, 공유 레이아웃 초안, 컬러/모션 토큰 정리, FCM (선택) |
 | **13주차** | 5/30~6/5 | 공유 화면 + 전체 디자인 마감 + 카카오(선택) | SHARE-001 구현, Lottie 애니메이션 적용, 디자인 폴리시 반영, 카카오 OAuth (여유 시) |
 | **14주차** | 6/6~ [추후 확인 필요] | 테스트·버그픽스·발표 준비 | 매핑 테스트 보강, README 최종화, 시연 영상, 회귀 점검 |
 
@@ -1157,9 +1170,9 @@ PR / 머지 정책 (2026-05-09 결정):
 
 ### 11.2 10주차 상세 작업 순서
 
-1. `firebase_core`, `cloud_firestore` 패키지 추가
-2. Firebase 프로젝트 연결 + Android/iOS 설정 파일 반영
-3. 무료 플랜 운영 규칙 문서화 (`README`, `SDD`, `MVP`)
+1. `firebase_core`, `firebase_auth`, `cloud_firestore` 패키지 추가
+2. Firebase 프로젝트 연결 + Android 패키지명(`com.stellara.app`) 정렬 + `google-services.json` 반영
+3. anonymous auth bootstrap 연결 + 무료 플랜 운영 규칙 문서화 (`README`, `SDD`, `MVP`)
 4. Android/iOS geocoding helper 정리 + 온보딩 연결
 5. Prokerala 첫 실응답을 fixture/raw snapshot 으로 저장하고 parser 보정
 6. `users`, `charts`, `friendCodes` 문서 구조 확정 + 팀원 4명 시딩
@@ -1191,8 +1204,9 @@ PR / 머지 정책 (2026-05-09 결정):
 
 ---
 
-*최초 작성: 2026-05-08 v0.1 / 수정: 2026-05-09 v0.9*  
+*최초 작성: 2026-05-08 v0.1 / 수정: 2026-05-09 v1.0*  
 *v0.9 변경: 11주차 친구 트랜잭션 = Firestore `runTransaction` 으로 단일화, 10.6 자원 소유자 표 신설, BirthInfo Firestore 매핑 규칙 명시, 의존성 표 보강, 폴더 구조 실측 정정, JWT 항목에 (Auth 도입 후) prefix 추가*  
-*v0.9.1 추가 (2026-05-09): 4.7 Firebase Anonymous Auth 도입 결정, 4.8 Firestore Security Rules 운영 절차, 10.6 표에 Q2/Q3 결정 반영(단일 .env 모델, OpenAI 등록 + Anthropic 보류), `firestore.rules` 파일 신규 작성*  
+*v0.9.1 추가 (2026-05-09): 4.7 Firebase Anonymous Auth 도입 결정, 4.8 Firestore Security Rules 운영 절차, 10.6 표에 Q2/Q3 결정 반영(단일 .env 모델), `firestore.rules` 파일 신규 작성*  
 *v0.9.2 추가 (2026-05-09): 5.6 데이터 캐시 계층 (토큰 절약 정책) 신설 — L0/L1/L2/L3 4계층 정의 + 키 규칙 + TTL + 운영 원칙. TASKS T13.5 (SharedPreferences 디스크 캐시) 신설*  
+*v1.0 추가 (2026-05-09): Android Firebase bootstrap + anonymous auth 반영, Android 패키지명 `com.stellara.app` 정렬, Prokerala/AI 원격 호출 기본 비활성화 정책과 Spark/Blaze 승인 규칙 문서화*  
 *기준 브랜치: `feature/week09-prokerala-api`*

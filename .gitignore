@@ -43,6 +43,8 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+/android/app/google-services.json
+/ios/Runner/GoogleService-Info.plist
 
 # Environment variables (Prokerala client_id/secret 등 민감정보 — 절대 커밋 금지)
 .env

@@ -4,10 +4,11 @@ Stellara는 **출생 정보 기반 점성술 콘텐츠 앱**입니다.
 사용자의 생년월일, 출생 시간, 출생지를 바탕으로 나탈 차트, 오늘의 운세, 친구 궁합, AI 질문, 결과 공유를 제공하는 것을 목표로 합니다.
 
 이 저장소는 현재 **학교 프로젝트용 Flutter 앱 프로토타입** 단계이며,  
-핵심 화면 흐름과 Prokerala 연동 골격은 존재하지만 Firebase/Firestore 연동, AI, 공유 기능은 아직 순차적으로 붙여가는 중입니다.
+핵심 화면 흐름과 Prokerala 연동 골격은 존재하며, Android 기준 Firebase bootstrap도 연결되었습니다.  
+다만 Firestore 실데이터 흐름, 공유 기능, 원격 AI 호출은 아직 순차적으로 붙여가는 중입니다.
 
-현재는 무료 플랜과 짧은 프로젝트 기간을 고려해, **Prokerala primary key 1개 + backup key 최대 3개**를 순차 fallback 하는 임시 운영 방식을 사용합니다.  
-`Cloud Functions` 프록시는 **Blaze 업그레이드가 가능할 때의 후속 선택지**로 남겨둡니다.
+현재는 무료 플랜과 짧은 프로젝트 기간을 고려해, **Spark-only Firebase + fixture-first 앱 빌드**를 기본으로 사용합니다.  
+`Cloud Functions`, Prokerala 원격 실호출, 원격 AI direct call, 그 외 결제가 열릴 수 있는 경로는 **기본 브랜치에서 비활성화**하고, `Blaze` 업그레이드는 명시적 승인 전까지 금지합니다.
 
 ## 한눈에 보기
 
@@ -17,15 +18,16 @@ Stellara는 **출생 정보 기반 점성술 콘텐츠 앱**입니다.
 - Riverpod 상태 관리 골격
 - Prokerala 직접 호출용 wrapper
 - 나탈 차트/운세/궁합용 fixture fallback
+- Android Firebase bootstrap + anonymous auth
 - 로그인, 온보딩, 홈, 차트, 궁합, 친구, 랜덤 질문, 마이페이지 화면 프로토타입
 - Android/Web 실행 검증
 
 ### 아직 없는 것
 
-- Firebase 연동
+- Firestore 실데이터 저장/조회 연동
 - Blaze 기반 서버 프록시
 - 카카오 로그인
-- AI 질문 실연동
+- 원격 AI 질문 실연동
 - 공유 화면 구현
 - 후반부 컬러 디자인 / 애니메이션 마감
 
@@ -81,7 +83,8 @@ cp .env.example .env
 ```
 
 `.env` 파일은 **항상 필요**합니다.  
-다만 이제는 **디버그 + fixture 모드**에서는 Prokerala 키를 비워 둔 상태로도 앱을 띄울 수 있습니다.
+다만 이제는 **디버그 + fixture 모드**에서는 Prokerala 키를 비워 둔 상태로도 앱을 띄울 수 있습니다.  
+원격 AI도 기본값이 `off` 이므로, 무료 운영 기준에서는 AI key 없이 유지하는 것을 권장합니다.
 
 ### 3. 개발 모드 선택
 
@@ -90,9 +93,11 @@ cp .env.example .env
 UI 작업, 문서 작업, 화면 흐름 확인, 비개발자 검토 때 권장합니다.
 
 ```env
+PROKERALA_REMOTE_ENABLED=false
 USE_FIXTURE_IN_DEBUG=true
 PROKERALA_CLIENT_ID=
 PROKERALA_CLIENT_SECRET=
+AI_REMOTE_ENABLED=false
 ```
 
 이 모드에서는 디버그 환경에서 fixture가 있는 호출은 네트워크를 타지 않습니다.
@@ -103,6 +108,7 @@ PROKERALA_CLIENT_SECRET=
 Prokerala 실제 응답을 확인하거나 parser를 보정할 때 사용합니다.
 
 ```env
+PROKERALA_REMOTE_ENABLED=true
 USE_FIXTURE_IN_DEBUG=false
 PROKERALA_CLIENT_ID=...
 PROKERALA_CLIENT_SECRET=...
@@ -110,13 +116,15 @@ PROKERALA_CLIENT_SECRET=...
 
 주의:
 
+- 실응답 검증은 owner 확인 후 짧은 검증 시간에만 사용하고, 끝나면 다시 `PROKERALA_REMOTE_ENABLED=false` 로 돌립니다.
 - 실응답이 기대와 다르거나 네트워크/크레딧 제약이 있으면 fixture fallback 이 발생할 수 있습니다.
 - 실응답 검증은 필요한 시점에만 짧게 수행하는 것이 좋습니다.
 - backup key를 넣어두면 primary key에서 429가 발생했을 때 `SEOYEON → SEONWOO → DOYEON` 순서로 다음 credential 전환을 시도합니다.
 
 ### 3-1. Prokerala key 운영 방식
 
-현재 앱은 아래 순서로 Prokerala credential 을 사용합니다.
+현재 앱은 **원격 Prokerala 호출을 기본적으로 막아둔 상태**이며,  
+실응답 검증을 위해 `PROKERALA_REMOTE_ENABLED=true` 로 열었을 때만 아래 순서로 credential 을 사용합니다.
 
 1. `PROKERALA_CLIENT_ID` / `PROKERALA_CLIENT_SECRET`
 2. `PROKERALA_CLIENT_ID_SEOYEON` / `PROKERALA_CLIENT_SECRET_SEOYEON`
@@ -125,7 +133,10 @@ PROKERALA_CLIENT_SECRET=...
 
 운영 원칙:
 
-- 기본은 primary key 사용
+- 기본 브랜치에서는 `PROKERALA_REMOTE_ENABLED=false` 로 유지해 key를 사용하지 않는다
+- 실응답 검증이 필요할 때만 owner가 잠깐 `PROKERALA_REMOTE_ENABLED=true` 로 전환한다
+- 검증 창이 끝나면 다시 `false` 로 돌린다
+- 원격 호출을 연 상태에서는 primary key를 먼저 사용한다
 - Prokerala API에서 429가 발생하면 다음 backup credential로 1회 전환 시도
 - backup key가 없으면 기존 credential로 `Retry-After` 기준 재시도
 - 이 방식은 **학교 프로젝트 + 무료 플랜 + 임시 운영**을 위한 완충 장치이며, 정식 운영 구조는 아닙니다
@@ -133,20 +144,28 @@ PROKERALA_CLIENT_SECRET=...
 ### 3-2. 무료 플랜 운영 원칙
 
 - Firebase는 우선 `Firestore` 중심으로만 사용하고, `Cloud Functions` 는 MVP 기본 경로에서 제외합니다
-- Prokerala는 당분간 클라이언트 직접 호출을 유지하되, **학교 데모용 내부 빌드**로만 사용합니다
+- Firebase 프로젝트는 **Spark 플랜 유지**를 기본 원칙으로 하며, owner 승인 없이 Blaze 로 올리지 않습니다
+- Prokerala 원격 호출은 기본 브랜치에서 **비활성화**하고, 화면/시연은 fixture 데이터로 유지합니다
+- 실응답 검증이 필요할 때만 `PROKERALA_REMOTE_ENABLED=true` 로 잠깐 열고, 끝나면 다시 닫습니다
 - `client_secret` 이 앱 안에 있으므로 공개 배포용 APK/IPA 기준으로는 안전한 구조가 아닙니다
-- AI 질문은 **학교 데모용 내부 빌드에 한해 GPT/Claude direct call** 을 허용하고, 실패 시 local fallback 으로 화면이 비지 않게 유지합니다
+- 원격 AI 호출은 기본 브랜치에서 **비활성화**하고, `CONTENT-001` 은 local question set 만 사용합니다
+- OpenAI / Anthropic key 는 `.env` 에 넣더라도 `AI_REMOTE_ENABLED=true` 로 바꾸기 전까지 사용되지 않습니다
 - `LoginScreen` 의 `데모 데이터로 둘러보기` 버튼은 최종 마감 직전까지 유지하고, 마지막 정리 단계에서 제거합니다
 - **토큰 절약 원칙**: 이미 받은 데이터는 재요청하지 않습니다. 캐시 계층은 `docs/SDD.md` 5.6 참고 — L0(fixture) → L1(메모리) → L2(디스크, T13.5 도입 후) → L3(Firestore, T12+ 도입 후) → 실호출 순으로 fallback. 개발 중에는 `USE_FIXTURE_IN_DEBUG=true` 가 가장 강한 절약입니다 (실응답 검증 시에만 false)
 
 ### 3-3. AI 질문 운영 방식
 
-- 메인 사용자 화면에는 raw model id 대신 `자동(추천) / GPT / Claude` 정도의 **provider 선택만 노출**하는 것을 권장합니다
-- `자동(추천)` 의 기본 흐름은 `OpenAI → Anthropic → local fallback` 순서로 둡니다
-- 같은 provider 안에서는 `primary → seoyeon → seonwoo → doyeon` 순서의 backup key 를 둘 수 있습니다
-- 실제 model id (`gpt-5-mini`, `claude-3-5-haiku-latest` 등)는 메인 화면이 아니라 `.env` 또는 개발자 전용 설정에서 관리하는 편이 UX와 협업에 유리합니다
-- 앱 연동에는 ChatGPT / Claude 대화형 앱 구독이 아니라 **각 서비스의 API key** 가 필요합니다
-- 이 방식도 Prokerala 와 마찬가지로 **학교 프로젝트용 내부 데모 빌드 한정 임시 운영 방식**입니다
+- 현재 기본값은 `AI_REMOTE_ENABLED=false` 이며, 앱은 local question set 만 사용합니다
+- 메인 화면에는 당분간 raw model id 나 provider 선택을 노출하지 않습니다
+- GPT / Claude direct call 은 owner 승인 + 예산 확정 + 문서 갱신 전까지 금지합니다
+- 앱 연동에는 ChatGPT / Claude 대화형 앱 구독이 아니라 **각 서비스의 API key** 가 필요하지만, 현재 브랜치에서는 읽지 않도록 잠가두었습니다
+
+### 3-4. Firebase Android bootstrap 상태
+
+- 현재 Android 패키지명은 `com.stellara.app` 입니다
+- `google-services.json` 은 각 개발자 로컬의 `android/app/google-services.json` 에만 둡니다
+- 앱 시작 시 Android에서만 `Firebase.initializeApp()` 과 `signInAnonymously()` 를 시도합니다
+- Web / iOS / macOS 는 아직 Firebase 설정을 연결하지 않았으므로 bootstrap 을 건너뜁니다
 
 ### 4. 패키지 설치
 
@@ -198,6 +217,7 @@ flutter build web
 추가 메모:
 
 - Android/Web 기준으로는 바로 개발 시작 가능
+- Android 에서는 Firebase bootstrap + anonymous auth 로그가 출력되는 상태
 - iOS/macOS는 Xcode/CocoaPods 미설치 상태에서는 바로 개발 불가
 
 ## 저장소 구조
@@ -238,11 +258,12 @@ stellara/
 
 아래 항목은 아직 최종 고정 전입니다.
 
-- Firebase Auth 전략
+- Firebase Auth 전략 (Android bootstrap은 완료, 실 사용자 흐름은 후속)
 - 친구 코드 생성 규칙
 - `chartVersion` / `chartPairVersion` 규칙
 - Web에서의 출생지 좌표 변환 보완 방식
 - 카카오 로그인 포함 시점
 - 공개 배포 전 AI / Prokerala secret 프록시 이전 시점
+- Spark → Blaze 업그레이드 승인 조건
 
 이 항목들은 `docs/SDD.md` 와 `docs/TASKS.md` 기준으로 순차 확정합니다.

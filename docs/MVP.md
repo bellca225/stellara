@@ -1,6 +1,6 @@
 # Stellara — MVP 기능 범위 정의
 
-> **작성 기준**: SDD v0.8 + 코드베이스 실측 (2026-05-08)  
+> **작성 기준**: SDD v1.0 + 코드베이스 실측 (2026-05-09)  
 > **목표**: 14주차 발표까지 1차 완성 가능한 범위로 제한  
 > **원칙**: 기능보다 동작하는 흐름 우선 / 나중에 합류하는 팀원도 이해할 수 있게 작성
 
@@ -28,7 +28,7 @@ MVP(Minimum Viable Product)는 **"4명의 팀원이 실제로 앱을 통해 서�
 | M4 | 친구 추가 (랜덤 코드 기반) | FRIEND-001 | 코드 검색 → 요청 전송 → 수락 → `friendships` 컬렉션 생성 |
 | M5 | 즐겨찾기 친구 3명 설정 | MAIN-001 | `favoriteIds` 업데이트 → 홈 화면에 즐겨찾기 친구 행성 표시 |
 | M6 | 궁합 분석 결과 조회 | MATCH-001 | Synastry API(또는 fixture) → 4축 점수(감정/대화/연애/총점) + 설명 표시 |
-| M7 | AI 랜덤 질문 3개 생성 | CONTENT-001 | `자동/GPT/Claude` provider 선택 + 질문 3개 화면 표시 + 사용자 질문 1개 입력 + 실패 시 local fallback |
+| M7 | 랜덤 질문 3개 생성 | CONTENT-001 | local question set 3개 화면 표시 + 사용자 질문 1개 입력. 원격 AI는 기본 비활성화 |
 | M8 | 결과 공유 (이미지 캡처 + SNS) | SHARE-001 | `screenshot` → 이미지 생성 → `share_plus` → SNS 공유 성공 |
 | M9 | 마이페이지 (출생 정보 수정) | MYPAGE-001 | 출생정보 수정 → Firestore 업데이트 → 차트 재계산 트리거 |
 
@@ -44,7 +44,7 @@ MVP(Minimum Viable Product)는 **"4명의 팀원이 실제로 앱을 통해 서�
 | S2 | Lottie 우주 애니메이션 | MAIN-001, ASTROLOGY-001 | 시각적 완성도 향상. 13주차에 추가 |
 | S3 | 카카오 OAuth 로그인 | LOGIN-001 | 데모 완성도 향상. 시간 여유 시 13주차 |
 | S4 | 푸시 알림 (FCM) | - | 운세 도착, 친구 요청 수락 알림. 12주차 선택 구현 |
-| S5 | AI 성격 리포트 (장문) | MYPAGE-001 또는 ASTROLOGY-001 | 외부 LLM 기반 장문 분석. 예산 또는 프록시 준비 후 검토 |
+| S5 | AI 성격 리포트 (장문) | MYPAGE-001 또는 ASTROLOGY-001 | 외부 LLM 기반 장문 분석. 비용 승인 및 프록시 준비 후 검토 |
 | S6 | 전체 컬러 디자인 적용 | 전체 | 현재 흑백 → 색상 테마 13주차 복원 |
 
 ---
@@ -79,7 +79,7 @@ MVP(Minimum Viable Product)는 **"4명의 팀원이 실제로 앱을 통해 서�
 |----------|------|------|
 | **P0** | Prokerala 실응답 검증 + parser/fixture 보정 | 나탈/운세/궁합이 모두 추정 응답 키 위에 올라가 있으므로 가장 먼저 안정화 필요 |
 | **P0** | Firebase 프로젝트 설정 + `users` 컬렉션 시딩 | 모든 기능의 전제 조건 |
-| **P0** | 무료 플랜 운영 규칙 고정 + 공개 배포 금지 원칙 명시 | direct call 구조를 학교 데모 범위 안에서만 안전하게 운영하기 위한 전제 |
+| **P0** | 무료 플랜 운영 규칙 고정 + 공개 배포 금지 원칙 명시 | Prokerala/AI 원격 호출 기본 잠금, Spark 유지, 공개 배포 금지 원칙을 먼저 고정해야 한다 |
 | **P0** | 출생지 좌표 변환 + `BirthInfo` 저장 규칙 확정 | 현재 서울/부산 폴백이라 차트 정확도가 보장되지 않음 |
 | **P0** | 출생 정보 입력 → Firestore 저장 (M1) | 앱의 모든 데이터 기반 |
 | **P1** | `friendCodes` 인덱스 + `chartVersion` 캐시 규칙 | 친구 검색/궁합 캐시가 중복 없이 돌아가기 위한 기반 |
@@ -87,7 +87,7 @@ MVP(Minimum Viable Product)는 **"4명의 팀원이 실제로 앱을 통해 서�
 | **P1** | 오늘의 운세 조회 (M3) | 일상 재방문 유도의 핵심 |
 | **P1** | 친구 추가 + 즐겨찾기 (M4, M5) | 소셜 기능의 기반 |
 | **P1** | 궁합 분석 결과 (M6) | 친구 기능과 결합되어 핵심 가치 제공 |
-| **P2** | AI 랜덤 질문 (M7) | 필수 기능이지만 다른 P1 완료 후 구현 |
+| **P2** | 랜덤 질문 (M7) | local question set 기준으로 구현하고, 원격 AI는 별도 승인 전까지 잠금 |
 | **P2** | 결과 공유 (M8) | 바이럴 요소. 구현은 후반부에 두되 12주차 후반부터 레이아웃/자산 선행 준비 |
 | **P2** | 마이페이지 출생정보 수정 (M9) | 데이터 정확도 향상 |
 | **P3** | 운세 캐시 (S1) | 크레딧 절약 |
@@ -104,15 +104,17 @@ MVP(Minimum Viable Product)는 **"4명의 팀원이 실제로 앱을 통해 서�
 
 ```
 Step 0.  Prokerala 첫 실응답 확보
+         → `PROKERALA_REMOTE_ENABLED=true` 를 짧게 열고 검증
          → natal / horoscope / synastry raw JSON 저장
          → fixture 갱신 + parser 키 보정
 
 Step 1.  Firebase 프로젝트 생성
-         → google-services.json 설정 (Android/iOS)
-         → firebase_core, cloud_firestore, flutter_secure_storage pubspec에 추가
+         → Android `google-services.json` 설정
+         → firebase_core, firebase_auth, cloud_firestore pubspec에 추가
+         → Android package name `com.stellara.app` 정렬
 
 Step 2.  Spark-only 운영 규칙 정리
-         → Prokerala direct call 유지 범위 문서화
+         → `PROKERALA_REMOTE_ENABLED=false` 기본 유지 문서화
          → multi-key fallback / fixture 기본 전략 고정
          → 공개 배포 금지 원칙 명시
 
@@ -169,10 +171,9 @@ Step 10. MATCH-001 실 Synastry 데이터 연결
 
 ```
 Step 11. CONTENT-001 질문 엔진 추가
-         - `자동(추천) / GPT / Claude` provider 선택 UI 추가
-         - 기본 흐름은 `OpenAI → Anthropic → local fallback`
-         - raw model id 는 메인 화면 대신 `.env` 또는 개발자 설정에서 관리
-         - AI 질문 3개 + 사용자 입력 1개 화면 표시
+         - local question set 3개 + 사용자 입력 1개 화면 표시
+         - `AI_REMOTE_ENABLED=false` 기본 유지
+         - GPT / Claude direct call 은 owner 승인 + 예산 확정 전까지 잠금
 
 Step 12. TODAY-001 운세 캐시 (SharedPreferences)
          - 당일 동일 별자리 재호출 방지
@@ -229,7 +230,7 @@ Step 22. 발표 자료 준비
 
 ### 앱 이해를 위한 3줄 요약
 
-Stellara는 **출생 정보(생년월일·시간·장소) → Prokerala API → 나탈 차트·운세·궁합** 흐름으로 동작하는 Flutter 앱이다. 모든 점성술 계산은 외부 API에 위임하고, 앱은 시각화·소셜 기능을 담당한다. 현재 MVP는 **Firebase Firestore(Spark) + 클라이언트 직접 호출** 기준으로 진행되며, 서버 프록시는 후속 선택지로 남겨둔다.
+Stellara는 **출생 정보(생년월일·시간·장소) → 차트/운세/궁합 결과 표시** 흐름으로 동작하는 Flutter 앱이다. 점성술 실연산 경로는 Prokerala 연동 코드가 준비되어 있지만, 현재 기본 브랜치에서는 **Firebase Firestore(Spark) + fixture-first 동작**을 기준으로 진행하며, Prokerala 원격 호출은 실응답 검증 시간에만 잠깐 연다.
 
 ### 코드 진입점
 
@@ -245,19 +246,19 @@ docs/MVP.md       → 이 문서
 
 ### 꼭 알아야 할 패턴
 
-1. **Fixture Fallback**: 모든 API Repository는 실호출 실패 시 `fixtures/` 더미 데이터를 반환한다. 개발 중에는 `USE_FIXTURE_IN_DEBUG=true`로 설정해 Prokerala 크레딧을 절약한다.
+1. **Fixture Fallback**: 모든 API Repository는 실호출 실패 시 `fixtures/` 더미 데이터를 반환한다. 기본 브랜치에서는 `PROKERALA_REMOTE_ENABLED=false` 와 `USE_FIXTURE_IN_DEBUG=true` 조합으로 Prokerala 크레딧을 쓰지 않는 흐름을 기본으로 유지한다.
 
 2. **Provider 의존**: Riverpod의 모든 Provider는 `astrology_providers.dart`가 DI 루트이다. 화면은 `myNatalChartProvider`, `todayHoroscopeProvider`, `synastryProvider`를 `watch`하여 자동으로 API 호출을 트리거한다.
 
 3. **레이어드 구조**: 각 feature 폴더는 `presentation → application → data → domain` 단방향 의존으로 구성된다. 새 기능 추가 시 이 구조를 따른다.
 
-4. **Prokerala 제약 메모**: 현재 문서의 fallback은 실제 네트워크 실패나 응답 형태 차이를 흡수하기 위한 장치다. `1월 1일만 허용` 같은 제한은 공식 문서로 확인된 규칙이 아니므로, 사실처럼 전제하지 않는다.
+4. **Prokerala 제약 메모**: 현재 문서의 fallback은 실제 네트워크 실패나 응답 형태 차이를 흡수하기 위한 장치다. sandbox 응답에는 `1월 1일만 허용` 제약이 실제로 내려오므로, 실응답 검증은 owner 확인 후 짧게 수행하고 끝나면 다시 원격 호출을 잠근다.
 
 5. **DB 시딩**: 카카오 로그인이 없는 동안 `LoginScreen`의 현재 데모 진입 흐름을 유지하고, Firestore에는 테스트 사용자를 직접 시딩한다. `데모 데이터로 둘러보기` 버튼은 최종 정리 직전까지 살려둔다.
 
 6. **후반부 연출 작업 운영 방식**: 공유 화면, 애니메이션, 컬러 테마 같은 화려한 요소는 후반부 구현 대상으로 두되, 12주차 후반부터 레이아웃/디자인 토큰/자산 검토를 미리 시작해 13주차 과밀을 피한다.
 
-7. **AI 질문 UX 원칙**: 메인 화면에는 `자동/GPT/Claude` 정도의 provider 수준만 노출하고, `gpt-5-mini`, `claude-3-5-haiku-latest` 같은 raw model id 는 `.env` 또는 개발자 전용 설정에서 관리한다.
+7. **AI 질문 운영 원칙**: 현재 브랜치에서는 원격 AI를 켜지 않고 local question set 만 사용한다. 원격 AI는 owner 승인 + 예산 확정 + 문서 갱신 후에만 검토한다.
 
 ---
 
@@ -265,7 +266,7 @@ docs/MVP.md       → 이 문서
 
 ### 10주차 완료 조건
 
-- [ ] Firebase 프로젝트 연결 (google-services.json 존재)
+- [ ] Firebase 프로젝트 연결 (Android `google-services.json` 존재 + anonymous auth 로그 확인)
 - [ ] `users` 컬렉션 + 팀원 4명 테스트 데이터 시딩 완료
 - [ ] Android/iOS에서 출생지 입력 → 좌표 변환 동작 확인
 - [ ] 온보딩 입력 → Firestore 저장 동작 확인
@@ -280,7 +281,7 @@ docs/MVP.md       → 이 문서
 
 ### 12주차 완료 조건
 
-- [ ] CONTENT-001에서 AI 질문 3개 생성 확인
+- [ ] CONTENT-001에서 local 질문 3개 생성 확인
 - [ ] TODAY-001 운세 당일 캐시 동작 확인
 - [ ] SHARE-001 레이아웃 초안 + 디자인 토큰 초안 확정
 

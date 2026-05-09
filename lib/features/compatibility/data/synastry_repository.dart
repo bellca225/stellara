@@ -22,7 +22,7 @@ class SynastryRepository {
     required BirthInfo me,
     required BirthInfo partner,
   }) async {
-    if (kDebugMode && Env.useFixtureInDebug) {
+    if (Env.shouldUseFixtureForProkerala) {
       await Future<void>.delayed(const Duration(milliseconds: 400));
       return demoSynastry();
     }

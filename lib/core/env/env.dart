@@ -43,20 +43,24 @@ class Env {
       'PROKERALA_CLIENT_SECRET_DOYEON';
   static const _kProkeralaBaseUrl = 'PROKERALA_BASE_URL';
   static const _kProkeralaTokenUrl = 'PROKERALA_TOKEN_URL';
+  static const _kProkeralaRemoteEnabled = 'PROKERALA_REMOTE_ENABLED';
   static const _kUseFixtureInDebug = 'USE_FIXTURE_IN_DEBUG';
+  static const _kAiRemoteEnabled = 'AI_REMOTE_ENABLED';
 
   /// .env 파일을 메모리에 로드한다. 앱 시작 시 한 번 호출.
   ///
   /// 파일이 없거나 키가 비어있으면 [MissingEnvException] 을 던진다.
-  /// 단, 디버그 + fixture 우선 모드에서는 Prokerala 실호출을 하지 않으므로
+  /// 단, 기본 브랜치에서는 Prokerala 원격 호출을 잠그고,
+  /// 디버그 + fixture 우선 모드에서도 실호출을 하지 않으므로
   /// client id/secret 없이도 앱을 띄울 수 있게 예외를 완화한다.
   /// 이렇게 하면 비개발자/디자인 작업자도 API 키 없이 화면 작업을 시작할 수 있다.
   static Future<void> load({String fileName = '.env'}) async {
     await dotenv.load(fileName: fileName);
 
-    // 디버그 + fixture 우선 모드에서는 네트워크 호출 전 단계에서 대부분 종료되므로
-    // Prokerala 키를 강제하지 않는다. 릴리즈/실호출 모드에서는 기존처럼 필수다.
-    if (kDebugMode && useFixtureInDebug) {
+    // 기본 브랜치에서 원격 호출을 잠근 상태이거나,
+    // 디버그 + fixture 우선 모드에서는 네트워크 호출 전 단계에서 종료되므로
+    // Prokerala 키를 강제하지 않는다.
+    if (!prokeralaRemoteEnabled || (kDebugMode && useFixtureInDebug)) {
       return;
     }
 
@@ -81,10 +85,24 @@ class Env {
   static String get prokeralaTokenUrl =>
       dotenv.maybeGet(_kProkeralaTokenUrl) ?? 'https://api.prokerala.com/token';
 
+  /// 무료 플랜/무과금 보호를 위해 기본 브랜치에서는 Prokerala 원격 호출을 막는다.
+  static bool get prokeralaRemoteEnabled =>
+      (dotenv.maybeGet(_kProkeralaRemoteEnabled) ?? 'false').toLowerCase() ==
+      'true';
+
   /// 디버그 모드에서 fixture(녹화된 응답)를 우선 사용할지 여부.
   /// true 로 두면 개발 중 credit 소모를 줄이고 오프라인에서도 화면이 뜬다.
   static bool get useFixtureInDebug =>
       (dotenv.maybeGet(_kUseFixtureInDebug) ?? 'false').toLowerCase() == 'true';
+
+  /// 현재 빌드/환경 정책상 Prokerala 네트워크를 타면 안 되는지 여부.
+  static bool get shouldUseFixtureForProkerala =>
+      !prokeralaRemoteEnabled || (kDebugMode && useFixtureInDebug);
+
+  /// 학교 프로젝트 무료 운영 정책:
+  /// 기본 브랜치에서는 원격 AI 호출을 막고 local question set 만 사용한다.
+  static bool get aiRemoteEnabled =>
+      (dotenv.maybeGet(_kAiRemoteEnabled) ?? 'false').toLowerCase() == 'true';
 
   static List<ProkeralaCredential> get prokeralaCredentials {
     final credentials = <ProkeralaCredential>[];

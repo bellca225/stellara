@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/env/env.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/panel.dart';
 
@@ -35,6 +36,16 @@ class RandomQuestionScreen extends StatelessWidget {
                 height: 1.5,
               ),
             ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              Env.aiRemoteEnabled
+                  ? '원격 AI 호출이 허용된 빌드입니다.'
+                  : '현재 빌드에서는 무료 플랜 보호를 위해 원격 AI 호출을 막고, 로컬 질문 세트만 사용합니다.',
+              style: const TextStyle(
+                color: AppColors.inkMuted,
+                height: 1.5,
+              ),
+            ),
             const SizedBox(height: AppSpacing.xl),
             const _QuestionCard(
               badge: '질문 1',
@@ -57,8 +68,12 @@ class RandomQuestionScreen extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.xl),
             OutlinedButton(
-              onPressed: () {},
-              child: const Text('질문 생성 연결 예정'),
+              onPressed: Env.aiRemoteEnabled ? () {} : null,
+              child: Text(
+                Env.aiRemoteEnabled
+                    ? '질문 생성 연결 예정'
+                    : '원격 AI 비활성화 (무과금 보호)',
+              ),
             ),
           ],
         ),

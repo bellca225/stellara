@@ -153,12 +153,15 @@ SDD 작업은 아래 순서로 시작하면 됩니다.
 ## 현재 임시 운영 규칙
 
 - 기본 개발 모드는 `USE_FIXTURE_IN_DEBUG=true`
+- 기본 브랜치에서는 `PROKERALA_REMOTE_ENABLED=false` 로 유지하고, Prokerala 원격 호출을 잠근다
 - Prokerala 실응답 검증이 필요할 때만 실 credential 을 사용
+- 실응답 검증 창이 끝나면 다시 `PROKERALA_REMOTE_ENABLED=false` 로 돌린다
 - Prokerala credential 은 `primary → seoyeon → seonwoo → doyeon` 순서로 backup fallback 가능
 - 이 backup credential 운영은 무료 플랜과 짧은 프로젝트 기간을 고려한 **임시 운영 규칙**이다
 - MVP 기본 경로는 `Spark-only` 이며 `Cloud Functions` 는 포함하지 않는다
-- AI 질문은 메인 화면에서 `자동(추천) / GPT / Claude` 수준만 노출하고, 실제 model id 는 `.env` 에서 관리한다
-- AI provider 기본 흐름은 `OpenAI → Anthropic → local fallback` 순서를 권장한다
+- Firebase 프로젝트는 owner 승인 없이 Blaze 로 올리지 않는다
+- AI 원격 호출은 `AI_REMOTE_ENABLED=false` 가 기본값이며, 현재 브랜치에서는 local question set 만 사용한다
+- OpenAI / Anthropic key 는 `.env` 에 있더라도 `AI_REMOTE_ENABLED=true` 전환 전까지 사용하지 않는다
 - `데모 데이터로 둘러보기` 버튼은 최종 마감 직전까지 유지한다
 - 출생지 좌표 자동 변환은 현재 Android/iOS에서 우선 지원하고, Web은 보조 타깃으로 본다
 

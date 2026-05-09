@@ -4,6 +4,7 @@
 //
 // 흐름:
 //   화면(Provider) → AstrologyRepository.getNatalChart(BirthInfo)
+//     ├─ PROKERALA_REMOTE_ENABLED=false 이면 fixture 반환 (무과금 보호)
 //     ├─ debug + USE_FIXTURE_IN_DEBUG=true 이면 fixture 반환 (credit 절약)
 //     ├─ 그렇지 않으면 ProkeralaApi.fetchNatalChart 호출
 //     └─ 응답 JSON → NatalChart 매핑. 매핑 실패 시 fixture 로 graceful fallback
@@ -23,8 +24,8 @@ class AstrologyRepository {
   final ProkeralaApi _api;
 
   Future<NatalChart> getNatalChart(BirthInfo birth) async {
-    // 디버그 + fixture 사용 옵션이면 네트워크 타지 않는다.
-    if (kDebugMode && Env.useFixtureInDebug) {
+    // 기본 브랜치 정책상 원격 호출을 막거나, 디버그 + fixture 옵션이면 네트워크를 타지 않는다.
+    if (Env.shouldUseFixtureForProkerala) {
       // 마치 네트워크 호출처럼 보이도록 약간의 지연을 준다(스켈레톤 UI 검증용).
       await Future<void>.delayed(const Duration(milliseconds: 350));
       return demoNatalChart();
