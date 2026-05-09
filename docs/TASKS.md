@@ -82,6 +82,9 @@
 - 완료 기준: Android/iOS 기준 온보딩에서 입력한 출생지가 실제 좌표로 저장되고, 서울 고정값이 기본 경로에서 제거된다.
 - 선행 작업: `T07`
 - 담당 가능 역할: FE
+- ✅ **2026-05-09 완료** (브랜치: `feature/week10-place-resolver`).
+  변경 요약: `_submit()` 이 `resolver.resolveDetailed()` 의 sealed 결과를 사용. 지원 플랫폼에서는 4가지 사유(emptyQuery / notFound / platformError / unsupportedPlatform) 별로 사용자 안내 문구 분기. 미지원 플랫폼(Web)은 폴백 좌표 + 입력값 그대로 사용해 진입 허용. `_placeErrorMessageFor()` helper 추가.
+  서울 폴백 잔존: 미지원 플랫폼(Web) 진입 시에만 fallback 으로 사용. Android/iOS 정상 경로에서는 fallback 사용 안 함.
 
 ## T09. Firestore 스키마 초안 반영 및 시딩 데이터 준비
 - 작업명: Firestore 스키마 초안 반영 및 시딩 데이터 준비

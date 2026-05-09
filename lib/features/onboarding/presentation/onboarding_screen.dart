@@ -90,26 +90,42 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         timeParts[1],
       );
       final placeQuery = _placeC.text.trim();
-      final supportsPlaceResolution = _placeResolver.supportsForwardGeocoding;
-      final resolvedPlace = await _placeResolver.resolve(placeQuery);
-
-      if (supportsPlaceResolution && resolvedPlace == null) {
-        setState(() => _error =
-            '출생지를 찾지 못했어요. 예: 서울특별시 강남구 역삼동처럼 더 구체적으로 입력해 주세요.');
-        return;
-      }
-
       final fallbackBirth = widget.initialBirthInfo ?? BirthInfo.demo();
+
+      // T08: PlaceResolver.resolveDetailed() 의 sealed 결과를 사유별로 분기.
+      // - 지원 플랫폼(Android/iOS): 실패 사유에 따라 다른 안내 문구로 block
+      // - 미지원 플랫폼(Web 등): 입력값 그대로 + 폴백 좌표로 진입 허용
+      double latitude;
+      double longitude;
+      String? placeName;
+
+      if (_placeResolver.supportsForwardGeocoding) {
+        final result = await _placeResolver.resolveDetailed(placeQuery);
+        switch (result) {
+          case PlaceResolutionSuccess(:final place):
+            latitude = place.latitude;
+            longitude = place.longitude;
+            placeName = place.placeName;
+          case PlaceResolutionFailure(:final kind):
+            setState(() => _error = _placeErrorMessageFor(kind));
+            return;
+        }
+      } else {
+        // 미지원 플랫폼: 폴백 좌표 + 사용자가 입력한 placeName 그대로 사용
+        latitude = fallbackBirth.latitude;
+        longitude = fallbackBirth.longitude;
+        placeName = placeQuery.isEmpty ? fallbackBirth.placeName : placeQuery;
+      }
 
       final birth = BirthInfo(
         nickname: _nicknameC.text.trim().isEmpty
             ? '익명의 행성'
             : _nicknameC.text.trim(),
         dateTime: dt,
-        latitude: resolvedPlace?.latitude ?? fallbackBirth.latitude,
-        longitude: resolvedPlace?.longitude ?? fallbackBirth.longitude,
+        latitude: latitude,
+        longitude: longitude,
         utcOffset: '+09:00',
-        placeName: placeQuery.isEmpty ? fallbackBirth.placeName : placeQuery,
+        placeName: placeName,
       );
 
       ref.read(currentBirthInfoProvider.notifier).state = birth;
@@ -235,4 +251,21 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   String _pad(int value) => value.toString().padLeft(2, '0');
+
+  /// T08: 좌표 변환 실패 사유에 따라 사용자 안내 문구를 분기.
+  ///
+  /// `unsupportedPlatform` 은 호출자(`_submit`) 가 별도 분기로 처리하므로
+  /// 여기서는 도달하지 않지만, exhaustive switch 를 위해 함께 둔다.
+  String _placeErrorMessageFor(PlaceResolutionFailureKind kind) {
+    switch (kind) {
+      case PlaceResolutionFailureKind.emptyQuery:
+        return '출생지를 입력해주세요. 예: 서울특별시 강남구 역삼동';
+      case PlaceResolutionFailureKind.notFound:
+        return '출생지를 찾지 못했어요. 예: "서울특별시 강남구 역삼동" 처럼 더 구체적으로 입력해주세요.';
+      case PlaceResolutionFailureKind.platformError:
+        return '주소 변환 중 일시적 오류가 발생했어요. 잠시 후 다시 시도해주세요.';
+      case PlaceResolutionFailureKind.unsupportedPlatform:
+        return '현재 환경에서는 출생지 자동 변환을 사용할 수 없어요. Android/iOS 에서 입력해주세요.';
+    }
+  }
 }
