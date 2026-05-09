@@ -23,7 +23,21 @@ class FirebaseBootstrap {
   static bool get _supportsCurrentPlatform =>
       !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
+  static FirebaseBootstrapStatus? _lastStatus;
+
+  /// 마지막 [initialize] 결과. T09 의 user provider 가 가드용으로 사용.
+  static FirebaseBootstrapStatus? get lastStatus => _lastStatus;
+
+  /// `stage == 'ready'` 일 때만 true. FirebaseAuth/Firestore 접근 가드용.
+  static bool get isReady => _lastStatus?.stage == 'ready';
+
   static Future<FirebaseBootstrapStatus> initialize() async {
+    final status = await _runInitialize();
+    _lastStatus = status;
+    return status;
+  }
+
+  static Future<FirebaseBootstrapStatus> _runInitialize() async {
     if (!_supportsCurrentPlatform) {
       return const FirebaseBootstrapStatus(
         stage: 'skipped',

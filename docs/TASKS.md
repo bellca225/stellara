@@ -94,6 +94,14 @@
 - 완료 기준: 팀원이 Firebase Console 기준으로 같은 구조의 테스트 데이터를 수동 생성할 수 있다.
 - 선행 작업: `T05`
 - 담당 가능 역할: 공통
+- ✅ **2026-05-09 완료** (브랜치: `feature/week10-place-resolver`).
+  변경 요약: `lib/features/users/` 신규 모듈 (domain/UserProfile, data/UserRepository, application/user_providers). UserProfile 은 SDD 8.3 schema 그대로 + toFirestore/fromFirestore (BirthInfo.dateTime ↔ dateTimeLocal 매핑). UserRepository: get/watch/create/upsertBirthInfo/updateFavorites. Providers: firestoreProvider/userRepositoryProvider/currentUserIdProvider/currentUserProfileProvider — 모두 `FirebaseBootstrap.isReady` 가드 통과 후 동작. `firebase_bootstrap.dart` 에 `isReady` getter 노출. `test/user_profile_test.dart` 신규 (4 케이스: 정상 round-trip, 신규 사용자, 손상 birthInfo, 누락 timestamp).
+
+  **시딩 절차** (4명 데모 사용자, 11주차 진입 전 처리):
+  1. 안드로이드 에뮬레이터에서 앱 1회 실행 → anonymous sign-in → users/{uid} 문서 자동 생성 또는 (T11 적용 후) 온보딩 입력 → upsertBirthInfo
+  2. 실 사용자 4명 (나영/서연/선우/도연) 각자 자기 디바이스에서 동일 절차
+  3. 또는 Firebase Console → Firestore → users 컬렉션 → 4개 문서 수동 생성 (UserProfile.toFirestore() 결과를 참고해 동일 키 입력)
+  4. friendCode 는 T16 트랜잭션이 발급할 예정이라 현 단계에서는 비워둠 (`null`)
 
 ## T10. 개발 모드 로그인 진입
 - 작업명: 개발 모드 로그인 진입

@@ -327,6 +327,7 @@ stellara/
 │       ├── friends/            # FRIEND-001
 │       ├── content/            # CONTENT-001
 │       ├── profile/            # MYPAGE-001
+│       ├── users/              # T09: users/{uid} 도메인 (UserProfile + UserRepository + Provider)
 │       └── share/              # SHARE-001 [13주차 신규 생성 예정, 현재 폴더 미생성]
 ├── functions/                  # [선택 / Blaze 전환 시] 서버 프록시 영역. 현재 폴더 미생성
 ├── test/
