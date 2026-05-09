@@ -8,6 +8,7 @@
 
 import 'package:flutter/foundation.dart';
 
+import '../../../core/cache/disk_cache.dart';
 import '../../../core/env/env.dart';
 import '../../astrology/data/prokerala_api.dart';
 import '../../astrology/domain/birth_info.dart';
@@ -15,20 +16,39 @@ import '../domain/synastry_result.dart';
 import '../fixtures/synastry_fixture.dart';
 
 class SynastryRepository {
-  SynastryRepository(this._api);
+  SynastryRepository(this._api, this._cache);
   final ProkeralaApi _api;
+  final DiskCache _cache;
 
   Future<SynastryResult> compare({
     required BirthInfo me,
     required BirthInfo partner,
   }) async {
+    // L0: fixture (디스크 저장 안 함).
     if (Env.shouldUseFixtureForProkerala) {
       await Future<void>.delayed(const Duration(milliseconds: 400));
       return demoSynastry();
     }
+
+    // L2: 디스크. 두 차트 버전 조합이 키. 어느 한 쪽이라도 birthInfo 가 바뀌면 cache miss.
+    final cacheKey = CacheKeys.synastry(me.chartVersion, partner.chartVersion);
+    final cached = _cache.getJson(cacheKey);
+    if (cached != null) {
+      try {
+        return SynastryResult.fromJson(cached);
+      } catch (e) {
+        if (kDebugMode) {
+          // ignore: avoid_print
+          print('[SynastryRepository] L2 디코드 실패 → 실호출 fallback: $e');
+        }
+      }
+    }
+
     try {
       final json = await _api.fetchSynastry(me: me, partner: partner);
-      return _scoreFromJson(json);
+      final result = _scoreFromJson(json);
+      await _cache.putJson(cacheKey, result.toJson(), source: 'live');
+      return result;
     } catch (e) {
       if (kDebugMode) {
         // ignore: avoid_print

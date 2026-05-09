@@ -2,12 +2,16 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/cache/disk_cache.dart';
 import '../../astrology/application/astrology_providers.dart';
 import '../data/horoscope_repository.dart';
 import '../domain/horoscope.dart';
 
 final horoscopeRepositoryProvider = Provider<HoroscopeRepository>(
-  (ref) => HoroscopeRepository(ref.watch(prokeralaApiProvider)),
+  (ref) => HoroscopeRepository(
+    ref.watch(prokeralaApiProvider),
+    ref.watch(diskCacheProvider),
+  ),
 );
 
 /// 사용자가 선택한 별자리 (TODAY-001 화면 위쪽 picker).

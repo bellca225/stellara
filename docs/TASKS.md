@@ -163,6 +163,8 @@
   3. fixture 모드(`USE_FIXTURE_IN_DEBUG=true`)에서는 디스크 캐시 미저장
 - 선행 작업: 없음 (T05/T09/T11 와 무관, 단독 가능). T01 실응답 캡처가 있으면 fixture 일관성이 더 좋아지지만 강제 아님.
 - 담당 가능 역할: 공통
+- ✅ **2026-05-09 완료** (브랜치: `feature/week10-place-resolver`).
+  변경 요약: `BirthInfo.chartVersion` getter 추가, `lib/core/cache/disk_cache.dart` 신규 (DiskCache + CacheKeys), `sharedPreferencesProvider` / `diskCacheProvider`, NatalChart/Planet/HouseCusp/Aspect/Horoscope/SynastryResult 에 toJson/fromJson 추가, 3개 Repository 에 L2 lookup + 실호출 후 putJson 부착, `main.dart` 에 SharedPreferences 부트스트랩, `test/disk_cache_test.dart` 신규 (10 케이스). `source=fixture` 는 디스크 저장 스킵 가드 적용.
 
 ## Phase 2 — 친구 / 궁합 / 홈 실데이터 연결
 

@@ -13,6 +13,7 @@
 
 import 'package:flutter/foundation.dart';
 
+import '../../../core/cache/disk_cache.dart';
 import '../../../core/env/env.dart';
 import '../domain/birth_info.dart';
 import '../domain/natal_chart.dart';
@@ -20,19 +21,40 @@ import '../fixtures/natal_chart_fixture.dart';
 import 'prokerala_api.dart';
 
 class AstrologyRepository {
-  AstrologyRepository(this._api);
+  AstrologyRepository(this._api, this._cache);
   final ProkeralaApi _api;
+  final DiskCache _cache;
 
   Future<NatalChart> getNatalChart(BirthInfo birth) async {
     // 기본 브랜치 정책상 원격 호출을 막거나, 디버그 + fixture 옵션이면 네트워크를 타지 않는다.
+    // L0 (fixture) 가 가장 강한 토큰 절약. 디스크에 저장하지 않는다.
     if (Env.shouldUseFixtureForProkerala) {
       // 마치 네트워크 호출처럼 보이도록 약간의 지연을 준다(스켈레톤 UI 검증용).
       await Future<void>.delayed(const Duration(milliseconds: 350));
       return demoNatalChart();
     }
+
+    // L2 (디스크) 조회. chartVersion 이 같으면 무조건 hit (영구 TTL).
+    final cacheKey = CacheKeys.natal(birth.chartVersion);
+    final cached = _cache.getJson(cacheKey);
+    if (cached != null) {
+      try {
+        return NatalChart.fromJson(cached);
+      } catch (e) {
+        // 캐시 스키마가 변하거나 손상된 경우 — 무시하고 실호출로 fallback.
+        if (kDebugMode) {
+          // ignore: avoid_print
+          print('[AstrologyRepository] L2 디코드 실패 → 실호출 fallback: $e');
+        }
+      }
+    }
+
     try {
       final json = await _api.fetchNatalChart(birth);
-      return _parseNatalChart(json);
+      final chart = _parseNatalChart(json);
+      // 실응답만 디스크에 저장 (fixture 는 운영 원칙에 따라 미저장).
+      await _cache.putJson(cacheKey, chart.toJson(), source: 'live');
+      return chart;
     } catch (e, st) {
       if (kDebugMode) {
         // ignore: avoid_print

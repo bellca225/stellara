@@ -1127,7 +1127,7 @@ PR / 머지 정책 (2026-05-09 결정):
 
 | 자원 | 소유자 (Owner) | 청구 책임 | 백업 권한 보유자 | 비고 |
 |------|----------------|-----------|------------------|------|
-| Firebase 프로젝트 | 나영 (`nywoo0225@gmail.com`) | 무료 (Spark) | 서연 / 선우 / 도연 Editor 초대 | 콘솔 region 권고: `asia-northeast3` (서울). 4명 모두 Google 계정 보유 확인됨 |
+| Firebase 프로젝트 | 나영 (`nywoo0225@gmail.com`) | 무료 (Spark) | **팀원 3명 Editor 초대는 후순위 보류** (11주차 진입 전 처리) | 콘솔 region: `asia-northeast3` (서울). 4명 모두 Google 계정 보유 확인됨. 2026-05-09 결정: 10주차에는 owner 단독 운영, 11주차 친구 기능 진입 전 초대 |
 | Firestore Security Rules | 나영 (1차 작성) | - | 리뷰: 공통 | 11주차 T16.5 결과 반영 |
 | Prokerala credential | 나영 | 무료 플랜 | 11주차 후반 ~ 12주차에 seoyeon / seonwoo / doyeon backup 등록 예정 | 기본 브랜치에서는 `PROKERALA_REMOTE_ENABLED=false` 로 미사용 유지. 실응답 검증 시에만 단일 `.env` 에서 primary → seoyeon → seonwoo → doyeon 순서 fallback 사용 |
 | OpenAI API key | **사용 안 함 (기본 브랜치)** | 없음 | - | `AI_REMOTE_ENABLED=false` 유지. owner 승인 + 예산 확정 전까지 발급/등록/사용 금지 |

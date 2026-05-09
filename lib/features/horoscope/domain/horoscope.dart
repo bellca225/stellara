@@ -28,4 +28,25 @@ class Horoscope {
 
   /// 'Calm', 'Energetic' 등 — 화면에서 chip 으로 표기.
   final String mood;
+
+  /// 디스크 캐시(L2) 직렬화. `lib/core/cache/disk_cache.dart` 가 사용.
+  Map<String, dynamic> toJson() => {
+        'signSlug': signSlug,
+        'signName': signName,
+        'date': date.toIso8601String(),
+        'summary': summary,
+        'luckyColor': luckyColor,
+        'luckyNumber': luckyNumber,
+        'mood': mood,
+      };
+
+  factory Horoscope.fromJson(Map<String, dynamic> json) => Horoscope(
+        signSlug: json['signSlug'] as String,
+        signName: json['signName'] as String,
+        date: DateTime.parse(json['date'] as String),
+        summary: json['summary'] as String,
+        luckyColor: json['luckyColor'] as String,
+        luckyNumber: (json['luckyNumber'] as num).toInt(),
+        mood: json['mood'] as String,
+      );
 }

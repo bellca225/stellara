@@ -19,4 +19,21 @@ class SynastryResult {
 
   /// 궁합 요약 한 단락.
   final String summary;
+
+  /// 디스크 캐시(L2) 직렬화. `lib/core/cache/disk_cache.dart` 가 사용.
+  Map<String, dynamic> toJson() => {
+        'totalScore': totalScore,
+        'emotionScore': emotionScore,
+        'communicationScore': communicationScore,
+        'romanceScore': romanceScore,
+        'summary': summary,
+      };
+
+  factory SynastryResult.fromJson(Map<String, dynamic> json) => SynastryResult(
+        totalScore: (json['totalScore'] as num).toInt(),
+        emotionScore: (json['emotionScore'] as num).toInt(),
+        communicationScore: (json['communicationScore'] as num).toInt(),
+        romanceScore: (json['romanceScore'] as num).toInt(),
+        summary: json['summary'] as String,
+      );
 }

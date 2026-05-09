@@ -59,6 +59,17 @@ class BirthInfo {
         placeName: '서울특별시',
       );
 
+  /// 차트 캐시 키. SDD 5.6.2 정의를 그대로 따름:
+  ///   `${dateTimeLocal}_${lat}_${lng}_${utcOffset}`
+  ///
+  /// 어느 한 필드라도 바뀌면 새 키가 되어 자동으로 캐시 miss → 재호출.
+  String get chartVersion {
+    String pad(int n) => n.toString().padLeft(2, '0');
+    final dt = '${dateTime.year}-${pad(dateTime.month)}-${pad(dateTime.day)}'
+        'T${pad(dateTime.hour)}:${pad(dateTime.minute)}:${pad(dateTime.second)}';
+    return '${dt}_${latitude}_${longitude}_$utcOffset';
+  }
+
   @override
   String toString() =>
       'BirthInfo(nickname=$nickname, dt=$dateTime, lat=$latitude, lng=$longitude, '

@@ -9,8 +9,10 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
+import 'core/cache/disk_cache.dart';
 import 'core/env/env.dart';
 import 'core/firebase/firebase_bootstrap.dart';
 
@@ -36,7 +38,17 @@ Future<void> main() async {
   final firebaseStatus = await FirebaseBootstrap.initialize();
   debugPrint(firebaseStatus.toLogLine());
 
-  runApp(const ProviderScope(child: StellaraApp()));
+  // SDD 5.6 L2 디스크 캐시 부트스트랩.
+  // SharedPreferences 는 비동기 init 이라 main 에서 한 번 await 한 뒤
+  // ProviderScope override 로 주입한다 (이후 Provider 는 sync 로 접근 가능).
+  final prefs = await SharedPreferences.getInstance();
+
+  runApp(
+    ProviderScope(
+      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      child: const StellaraApp(),
+    ),
+  );
 }
 
 class _EnvErrorApp extends StatelessWidget {

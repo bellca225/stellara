@@ -11,6 +11,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/cache/disk_cache.dart';
 import '../../../core/http/dio_client.dart';
 import '../data/astrology_repository.dart';
 import '../data/prokerala_api.dart';
@@ -39,7 +40,10 @@ final prokeralaApiProvider = Provider<ProkeralaApi>(
 
 // ── 도메인 Repository ───────────────────────────────────────────
 final astrologyRepositoryProvider = Provider<AstrologyRepository>(
-  (ref) => AstrologyRepository(ref.watch(prokeralaApiProvider)),
+  (ref) => AstrologyRepository(
+    ref.watch(prokeralaApiProvider),
+    ref.watch(diskCacheProvider),
+  ),
 );
 
 // ── "현재 사용자의 출생 정보" — 10주차에 Firestore 와 연결 ────────

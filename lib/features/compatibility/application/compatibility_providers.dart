@@ -2,13 +2,17 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/cache/disk_cache.dart';
 import '../../astrology/application/astrology_providers.dart';
 import '../../astrology/domain/birth_info.dart';
 import '../data/synastry_repository.dart';
 import '../domain/synastry_result.dart';
 
 final synastryRepositoryProvider = Provider<SynastryRepository>(
-  (ref) => SynastryRepository(ref.watch(prokeralaApiProvider)),
+  (ref) => SynastryRepository(
+    ref.watch(prokeralaApiProvider),
+    ref.watch(diskCacheProvider),
+  ),
 );
 
 /// 두 사람의 출생정보를 묶은 record (Dart 3.0+).
