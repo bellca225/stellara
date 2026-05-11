@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "953752413303",
+    "project_id": "stellara-a4136",
+    "storage_bucket": "stellara-a4136.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:953752413303:android:65ebf153fa0c57c66f1272",
+        "android_client_info": {
+          "package_name": "com.example.stellara"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "953752413303-1sv0l1nijhjm8kh274qg5hu3b3a4eo88.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDwo3iWifxOKMjwhq9GIArFXvPSnQzzW9s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "953752413303-1sv0l1nijhjm8kh274qg5hu3b3a4eo88.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
