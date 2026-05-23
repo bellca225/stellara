@@ -38,6 +38,10 @@ dependencies:
 
   # 날짜/시간 포맷 (UTC offset, ISO 변환 등).
   intl: ^0.19.0
+  firebase_core: ^4.9.0
+  cloud_firestore: ^6.4.1
+  firebase_auth: ^6.5.1
+  flutter_secure_storage: ^10.3.0
 
 dev_dependencies:
   flutter_test:

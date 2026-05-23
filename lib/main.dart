@@ -7,6 +7,8 @@
 // 2. ProviderScope 로 Riverpod 활성화.
 // 3. 기존 1782줄 통합 위젯은 features/* 로 모두 분리. 이 파일은 부트스트랩만 담당.
 
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -16,6 +18,19 @@ import 'core/env/env.dart';
 Future<void> main() async {
   // dotenv 가 비동기 I/O 를 하므로 Flutter binding 이 먼저 깨어나 있어야 한다.
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: kIsWeb
+        ? const FirebaseOptions(
+            apiKey: "AIzaSyCt6qMAKhTdBZ6o6CKoAFu7owgvPYAd0kA",
+            authDomain: "stellara-a4136.firebaseapp.com",
+            projectId: "stellara-a4136",
+            storageBucket: "stellara-a4136.firebasestorage.app",
+            messagingSenderId: "953752413303",
+            appId: "1:953752413303:web:8cb8540aa3b6485f6f1272",
+            measurementId: "G-Y23C9EWV5Z",
+          )
+        : null,
+  );
 
   try {
     await Env.load();
