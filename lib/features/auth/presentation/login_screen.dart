@@ -1,21 +1,16 @@
-// lib/features/auth/presentation/login_screen.dart
-//
-// LOGIN-001 — 흑백 로그인 진입.
-// 9주차에서는 Kakao OAuth 미연동 상태이므로,
-// "데모 데이터로 시작하기" 버튼 한 개만 노출.
-// Kakao 연동은 10주차에 추가.
-
 import 'package:flutter/material.dart';
-
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/panel.dart';
+import '../application/auth_providers.dart';
+import '../domain/app_user.dart';
 import '../../onboarding/presentation/onboarding_screen.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends ConsumerWidget {
   const LoginScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       body: SafeArea(
         child: ListView(
@@ -51,10 +46,8 @@ class LoginScreen extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.xxl),
             ElevatedButton(
-              onPressed: () => Navigator.of(context).pushReplacement(
-                MaterialPageRoute(builder: (_) => const OnboardingScreen()),
-              ),
-              child: const Text('시작하기'),
+              onPressed: () => _devLogin(context, ref, 'demo-doyeon'),
+              child: const Text('개발 모드 진입 (demo-doyeon)'),
             ),
             const SizedBox(height: AppSpacing.sm),
             OutlinedButton(
@@ -67,5 +60,26 @@ class LoginScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _devLogin(BuildContext context, WidgetRef ref, String uid) async {
+    final repo = ref.read(authRepositoryProvider);
+    final user = await repo.getUser(uid);
+    if (user != null) {
+      ref.read(currentUserProvider.notifier).state = user;
+    } else {
+      ref.read(currentUserProvider.notifier).state = AppUser(
+        uid: uid,
+        nickname: '김도연',
+        friendCode: 'DOY001',
+        profileCompleted: false,
+        authProvider: 'dev',
+      );
+    }
+    if (context.mounted) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const OnboardingScreen()),
+      );
+    }
   }
 }

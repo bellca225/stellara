@@ -46,8 +46,13 @@ class _MatchScreenState extends ConsumerState<MatchScreen> {
     try {
       final dateParts = _dateC.text.split('-').map(int.parse).toList();
       final timeParts = _timeC.text.split(':').map(int.parse).toList();
-      dt = DateTime(dateParts[0], dateParts[1], dateParts[2],
-          timeParts[0], timeParts[1]);
+      dt = DateTime(
+        dateParts[0],
+        dateParts[1],
+        dateParts[2],
+        timeParts[0],
+        timeParts[1],
+      );
     } catch (_) {
       dt = DateTime(1996, 8, 21, 9, 15);
     }
@@ -89,13 +94,15 @@ class _MatchScreenState extends ConsumerState<MatchScreen> {
                   const SizedBox(height: 8),
                   KeyValueRow(label: '닉네임', value: me.nickname),
                   KeyValueRow(
-                      label: '생년월일',
-                      value:
-                          '${me.dateTime.year}-${_pad(me.dateTime.month)}-${_pad(me.dateTime.day)}'),
+                    label: '생년월일',
+                    value:
+                        '${me.dateTime.year}-${_pad(me.dateTime.month)}-${_pad(me.dateTime.day)}',
+                  ),
                   KeyValueRow(
-                      label: '시간',
-                      value:
-                          '${_pad(me.dateTime.hour)}:${_pad(me.dateTime.minute)} ${me.utcOffset}'),
+                    label: '시간',
+                    value:
+                        '${_pad(me.dateTime.hour)}:${_pad(me.dateTime.minute)} ${me.utcOffset}',
+                  ),
                   KeyValueRow(label: '출생지', value: me.placeName ?? '-'),
                 ],
               ),
@@ -117,8 +124,9 @@ class _MatchScreenState extends ConsumerState<MatchScreen> {
                   const SizedBox(height: 8),
                   TextField(
                     controller: _dateC,
-                    decoration:
-                        const InputDecoration(labelText: '생년월일 (YYYY-MM-DD)'),
+                    decoration: const InputDecoration(
+                      labelText: '생년월일 (YYYY-MM-DD)',
+                    ),
                   ),
                   const SizedBox(height: 8),
                   TextField(
@@ -145,19 +153,20 @@ class _MatchScreenState extends ConsumerState<MatchScreen> {
             if (result != null)
               result.when(
                 loading: () => const Panel(
-                    child: Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(24),
-                    child: SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: AppColors.ink,
+                  child: Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(24),
+                      child: SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.ink,
+                        ),
                       ),
                     ),
                   ),
-                )),
+                ),
                 error: (e, _) => Panel(child: Text('궁합 계산 실패: $e')),
                 data: (r) => Panel(
                   child: Column(
@@ -197,10 +206,7 @@ class _ScoreBig extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        Text(
-          '$score',
-          style: Theme.of(context).textTheme.displaySmall,
-        ),
+        Text('$score', style: Theme.of(context).textTheme.displaySmall),
         const SizedBox(width: 4),
         const Padding(
           padding: EdgeInsets.only(bottom: 6),
@@ -240,11 +246,13 @@ class _ScoreBar extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              Text('$value%',
-                  style: const TextStyle(
-                    color: AppColors.ink,
-                    fontWeight: FontWeight.w700,
-                  )),
+              Text(
+                '$value%',
+                style: const TextStyle(
+                  color: AppColors.ink,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 6),
@@ -254,8 +262,7 @@ class _ScoreBar extends StatelessWidget {
               value: value / 100.0,
               minHeight: 8,
               backgroundColor: AppColors.line,
-              valueColor:
-                  const AlwaysStoppedAnimation<Color>(AppColors.ink),
+              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.ink),
             ),
           ),
         ],

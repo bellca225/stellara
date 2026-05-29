@@ -1,13 +1,29 @@
 import 'package:flutter/material.dart';
-
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/panel.dart';
+import '../application/question_providers.dart';
 
-class RandomQuestionScreen extends StatelessWidget {
+class RandomQuestionScreen extends ConsumerStatefulWidget {
   const RandomQuestionScreen({super.key});
 
   @override
+  ConsumerState<RandomQuestionScreen> createState() => _RandomQuestionScreenState();
+}
+
+class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final questionSet = ref.watch(questionSetProvider);
+
     return Scaffold(
       body: SafeArea(
         child: ListView(
@@ -18,47 +34,61 @@ class RandomQuestionScreen extends StatelessWidget {
             AppSpacing.xxl,
           ),
           children: [
-            const ScreenCodeChip(
-              code: 'CONTENT-001',
-              label: '랜덤 질문',
-            ),
+            const ScreenCodeChip(code: 'CONTENT-001', label: '랜덤 질문'),
             const SizedBox(height: AppSpacing.xl),
-            Text(
-              '랜덤 질문',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
+            Text('랜덤 질문', style: Theme.of(context).textTheme.headlineMedium),
             const SizedBox(height: AppSpacing.sm),
             const Text(
-              '이 화면은 나중에 AI가 질문을 만들어 주는 자리예요. 지금은 화면 흐름과 배치만 먼저 잡아두었습니다.',
-              style: TextStyle(
-                color: AppColors.inkMuted,
-                height: 1.5,
+              'AI가 오늘의 별자리를 바탕으로 질문을 만들어드려요.',
+              style: TextStyle(color: AppColors.inkMuted, height: 1.5),
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            questionSet.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => const Text('질문을 불러오지 못했어요.'),
+              data: (qs) => Column(
+                children: [
+                  ...qs.aiQuestions.asMap().entries.map(
+                    (e) => Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                      child: _QuestionCard(
+                        badge: '질문 ${e.key + 1}',
+                        question: e.value.text,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Panel(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '직접 만든 질문',
+                    style: TextStyle(
+                      color: AppColors.inkMuted,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  TextField(
+                    controller: _controller,
+                    decoration: const InputDecoration(
+                      hintText: '내가 스스로에게 묻고 싶은 질문을 적어보세요.',
+                      border: InputBorder.none,
+                    ),
+                    maxLines: 2,
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: AppSpacing.xl),
-            const _QuestionCard(
-              badge: '질문 1',
-              question: '요즘 내가 가장 오래 붙잡고 있는 감정은 무엇일까요?',
-            ),
-            const SizedBox(height: AppSpacing.md),
-            const _QuestionCard(
-              badge: '질문 2',
-              question: '친해지고 싶은 사람에게 먼저 건네고 싶은 말은 무엇인가요?',
-            ),
-            const SizedBox(height: AppSpacing.md),
-            const _QuestionCard(
-              badge: '질문 3',
-              question: '이번 주의 나를 가장 잘 설명하는 장면은 어떤 모습인가요?',
-            ),
-            const SizedBox(height: AppSpacing.md),
-            const _QuestionCard(
-              badge: '직접 만든 질문',
-              question: '내가 스스로에게 묻고 싶은 질문을 여기에 적게 됩니다.',
-            ),
-            const SizedBox(height: AppSpacing.xl),
             OutlinedButton(
-              onPressed: () {},
-              child: const Text('질문 생성 연결 예정'),
+              onPressed: () => ref.refresh(questionSetProvider),
+              child: const Text('질문 다시 생성'),
             ),
           ],
         ),
@@ -68,10 +98,7 @@ class RandomQuestionScreen extends StatelessWidget {
 }
 
 class _QuestionCard extends StatelessWidget {
-  const _QuestionCard({
-    required this.badge,
-    required this.question,
-  });
+  const _QuestionCard({required this.badge, required this.question});
 
   final String badge;
   final String question;
@@ -91,10 +118,7 @@ class _QuestionCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
-          Text(
-            question,
-            style: Theme.of(context).textTheme.bodyLarge,
-          ),
+          Text(question, style: Theme.of(context).textTheme.bodyLarge),
         ],
       ),
     );
