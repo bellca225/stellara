@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/panel.dart';
@@ -48,7 +49,15 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
 
     final repo = ref.read(friendRepositoryProvider);
 
-    final friends = await repo.getFriends(user.uid, []);
+    // Firestore에서 favoriteIds 가져오기
+    final userDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .get();
+    final favoriteIds = List<String>.from(
+      userDoc.data()?['favoriteIds'] as List? ?? [],
+    );
+    final friends = await repo.getFriends(user.uid, favoriteIds);
     final requests = await repo.getReceivedRequests(user.uid);
 
     if (mounted) {
@@ -92,10 +101,7 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
     });
   }
 
-  Future<void> _sendRequest(
-    String toUid,
-    String toNickname,
-  ) async {
+  Future<void> _sendRequest(String toUid, String toNickname) async {
     final user = ref.read(currentUserProvider);
 
     if (user == null) {
@@ -114,11 +120,9 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('친구 요청을 보냈어요!'),
-      ),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('친구 요청을 보냈어요!')));
 
     setState(() {
       _searchResult = null;
@@ -126,9 +130,7 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
     });
   }
 
-  Future<void> _acceptRequest(
-    FriendRequest request,
-  ) async {
+  Future<void> _acceptRequest(FriendRequest request) async {
     final user = ref.read(currentUserProvider);
 
     if (user == null) {
@@ -146,9 +148,7 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
     await _loadData();
   }
 
-  Future<void> _toggleFavorite(
-    Friend friend,
-  ) async {
+  Future<void> _toggleFavorite(Friend friend) async {
     final user = ref.read(currentUserProvider);
 
     if (user == null) {
@@ -166,21 +166,16 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
       favoriteIds.remove(friend.uid);
     } else {
       if (favoriteIds.length >= 3) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('즐겨찾기는 최대 3명까지 가능해요.'),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('즐겨찾기는 최대 3명까지 가능해요.')));
         return;
       }
 
       favoriteIds.add(friend.uid);
     }
 
-    await repo.updateFavorites(
-      user.uid,
-      favoriteIds,
-    );
+    await repo.updateFavorites(user.uid, favoriteIds);
 
     await _loadData();
   }
@@ -197,17 +192,11 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
             AppSpacing.xxl,
           ),
           children: [
-            const ScreenCodeChip(
-              code: 'FRIEND-001',
-              label: '친구 관리',
-            ),
+            const ScreenCodeChip(code: 'FRIEND-001', label: '친구 관리'),
 
             const SizedBox(height: AppSpacing.lg),
 
-            Text(
-              '친구 관리',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
+            Text('친구 관리', style: Theme.of(context).textTheme.titleLarge),
 
             const SizedBox(height: AppSpacing.lg),
 
@@ -218,9 +207,7 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
                 children: [
                   const Text(
                     '친구 코드로 검색',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.w700),
                   ),
 
                   const SizedBox(height: 8),
@@ -232,9 +219,7 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
                           controller: _searchController,
                           decoration: const InputDecoration(
                             hintText: '예: DOY001',
-                            prefixIcon: Icon(
-                              Icons.search_rounded,
-                            ),
+                            prefixIcon: Icon(Icons.search_rounded),
                           ),
                         ),
                       ),
@@ -244,9 +229,7 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
                       SizedBox(
                         width: 72,
                         child: ElevatedButton(
-                          onPressed: _isSearching
-                              ? null
-                              : _search,
+                          onPressed: _isSearching ? null : _search,
                           child: _isSearching
                               ? const SizedBox(
                                   width: 16,
@@ -266,9 +249,7 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
 
                     Text(
                       _searchError!,
-                      style: const TextStyle(
-                        color: Colors.red,
-                      ),
+                      style: const TextStyle(color: Colors.red),
                     ),
                   ],
 
@@ -278,16 +259,12 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
                     Builder(
                       builder: (_) {
                         final nickname =
-                            _searchResult!['nickname']
-                                    as String? ??
-                                '?';
+                            _searchResult!['nickname'] as String? ?? '?';
 
                         return Row(
                           children: [
                             _InitialBadge(
-                              initial: nickname.isNotEmpty
-                                  ? nickname[0]
-                                  : '?',
+                              initial: nickname.isNotEmpty ? nickname[0] : '?',
                             ),
 
                             const SizedBox(width: 12),
@@ -305,8 +282,7 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
                               width: 72,
                               child: ElevatedButton(
                                 onPressed: () => _sendRequest(
-                                  _searchResult!['uid']
-                                      as String,
+                                  _searchResult!['uid'] as String,
                                   nickname,
                                 ),
                                 child: const Text('요청'),
@@ -327,8 +303,7 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
             Row(
               children: [
                 _TabChip(
-                  label:
-                      '전체 친구 (${_friends.length})',
+                  label: '전체 친구 (${_friends.length})',
                   isSelected: _showFriends,
                   onTap: () {
                     setState(() {
@@ -340,8 +315,7 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
                 const SizedBox(width: 8),
 
                 _TabChip(
-                  label:
-                      '받은 요청 (${_requests.length})',
+                  label: '받은 요청 (${_requests.length})',
                   isSelected: !_showFriends,
                   onTap: () {
                     setState(() {
@@ -357,9 +331,7 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
             if (_loading)
               const Padding(
                 padding: EdgeInsets.all(24),
-                child: Center(
-                  child: CircularProgressIndicator(),
-                ),
+                child: Center(child: CircularProgressIndicator()),
               )
             else if (_showFriends)
               _friends.isEmpty
@@ -377,24 +349,14 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
                   : Panel(
                       child: Column(
                         children: [
-                          for (
-                            var i = 0;
-                            i < _friends.length;
-                            i++
-                          ) ...[
+                          for (var i = 0; i < _friends.length; i++) ...[
                             _FriendRow(
                               friend: _friends[i],
-                              onFavorite: () =>
-                                  _toggleFavorite(
-                                _friends[i],
-                              ),
+                              onFavorite: () => _toggleFavorite(_friends[i]),
                             ),
 
-                            if (i !=
-                                _friends.length - 1)
-                              const Divider(
-                                height: 24,
-                              ),
+                            if (i != _friends.length - 1)
+                              const Divider(height: 24),
                           ],
                         ],
                       ),
@@ -404,34 +366,20 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
                   ? const Panel(
                       child: Padding(
                         padding: EdgeInsets.all(24),
-                        child: Center(
-                          child: Text(
-                            '받은 친구 요청이 없어요.',
-                          ),
-                        ),
+                        child: Center(child: Text('받은 친구 요청이 없어요.')),
                       ),
                     )
                   : Panel(
                       child: Column(
                         children: [
-                          for (
-                            var i = 0;
-                            i < _requests.length;
-                            i++
-                          ) ...[
+                          for (var i = 0; i < _requests.length; i++) ...[
                             _RequestRow(
                               request: _requests[i],
-                              onAccept: () =>
-                                  _acceptRequest(
-                                _requests[i],
-                              ),
+                              onAccept: () => _acceptRequest(_requests[i]),
                             ),
 
-                            if (i !=
-                                _requests.length - 1)
-                              const Divider(
-                                height: 24,
-                              ),
+                            if (i != _requests.length - 1)
+                              const Divider(height: 24),
                           ],
                         ],
                       ),
@@ -444,10 +392,7 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
 }
 
 class _FriendRow extends StatelessWidget {
-  const _FriendRow({
-    required this.friend,
-    required this.onFavorite,
-  });
+  const _FriendRow({required this.friend, required this.onFavorite});
 
   final Friend friend;
   final VoidCallback onFavorite;
@@ -456,30 +401,22 @@ class _FriendRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        _InitialBadge(
-          initial: friend.initial,
-        ),
+        _InitialBadge(initial: friend.initial),
 
         const SizedBox(width: 12),
 
         Expanded(
           child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 friend.nickname,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w800,
-                ),
+                style: const TextStyle(fontWeight: FontWeight.w800),
               ),
 
               Text(
                 friend.friendCode,
-                style: const TextStyle(
-                  color: AppColors.inkMuted,
-                  fontSize: 13,
-                ),
+                style: const TextStyle(color: AppColors.inkMuted, fontSize: 13),
               ),
             ],
           ),
@@ -488,9 +425,7 @@ class _FriendRow extends StatelessWidget {
         IconButton(
           onPressed: onFavorite,
           icon: Icon(
-            friend.isFavorite
-                ? Icons.star_rounded
-                : Icons.star_outline_rounded,
+            friend.isFavorite ? Icons.star_rounded : Icons.star_outline_rounded,
             color: friend.isFavorite
                 ? const Color(0xFFFFB020)
                 : AppColors.inkSubtle,
@@ -502,10 +437,7 @@ class _FriendRow extends StatelessWidget {
 }
 
 class _RequestRow extends StatelessWidget {
-  const _RequestRow({
-    required this.request,
-    required this.onAccept,
-  });
+  const _RequestRow({required this.request, required this.onAccept});
 
   final FriendRequest request;
   final VoidCallback onAccept;
@@ -514,27 +446,20 @@ class _RequestRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        _InitialBadge(
-          initial: request.initial,
-        ),
+        _InitialBadge(initial: request.initial),
 
         const SizedBox(width: 12),
 
         Expanded(
           child: Text(
             request.fromNickname,
-            style: const TextStyle(
-              fontWeight: FontWeight.w800,
-            ),
+            style: const TextStyle(fontWeight: FontWeight.w800),
           ),
         ),
 
         SizedBox(
           width: 72,
-          child: ElevatedButton(
-            onPressed: onAccept,
-            child: const Text('수락'),
-          ),
+          child: ElevatedButton(onPressed: onAccept, child: const Text('수락')),
         ),
       ],
     );
@@ -555,35 +480,20 @@ class _TabChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      borderRadius:
-          BorderRadius.circular(999),
+      borderRadius: BorderRadius.circular(999),
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(
-          milliseconds: 180,
-        ),
-        padding:
-            const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 10,
-        ),
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected
-              ? AppColors.ink
-              : AppColors.paper,
-          borderRadius:
-              BorderRadius.circular(999),
-          border: Border.all(
-            color: AppColors.ink,
-            width: 1.2,
-          ),
+          color: isSelected ? AppColors.ink : AppColors.paper,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: AppColors.ink, width: 1.2),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected
-                ? AppColors.paper
-                : AppColors.ink,
+            color: isSelected ? AppColors.paper : AppColors.ink,
             fontSize: 14,
             fontWeight: FontWeight.w700,
           ),
@@ -594,9 +504,7 @@ class _TabChip extends StatelessWidget {
 }
 
 class _InitialBadge extends StatelessWidget {
-  const _InitialBadge({
-    required this.initial,
-  });
+  const _InitialBadge({required this.initial});
 
   final String initial;
 
@@ -608,18 +516,9 @@ class _InitialBadge extends StatelessWidget {
       alignment: Alignment.center,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(
-          color: AppColors.line,
-          width: 1.6,
-        ),
+        border: Border.all(color: AppColors.line, width: 1.6),
       ),
-      child: Text(
-        initial,
-        style: const TextStyle(
-          fontWeight: FontWeight.w700,
-        ),
-      ),
+      child: Text(initial, style: const TextStyle(fontWeight: FontWeight.w700)),
     );
   }
 }
-
