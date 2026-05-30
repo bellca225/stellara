@@ -62,8 +62,7 @@ class _EnvErrorApp extends StatelessWidget {
               children: [
                 const Text(
                   '환경 설정이 누락되었어요',
-                  style:
-                      TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 12),
                 Text(message),
