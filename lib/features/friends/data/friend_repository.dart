@@ -89,13 +89,15 @@ class FriendRepository {
         final userDoc = await _db.collection('users').doc(friendUid).get();
         if (!userDoc.exists) continue;
         final data = userDoc.data()!;
-        friends.add(Friend(
-          uid: friendUid,
-          nickname: data['nickname'] as String? ?? '',
-          friendCode: data['friendCode'] as String? ?? '',
-          sign: data['sign'] as String? ?? '',
-          isFavorite: favoriteIds.contains(friendUid),
-        ));
+        friends.add(
+          Friend(
+            uid: friendUid,
+            nickname: data['nickname'] as String? ?? '',
+            friendCode: data['friendCode'] as String? ?? '',
+            sign: data['sign'] as String? ?? '',
+            isFavorite: favoriteIds.contains(friendUid),
+          ),
+        );
       }
       return friends;
     } catch (e) {
@@ -105,8 +107,6 @@ class FriendRepository {
 
   // 즐겨찾기 업데이트
   Future<void> updateFavorites(String uid, List<String> favoriteIds) async {
-    await _db.collection('users').doc(uid).update({
-      'favoriteIds': favoriteIds,
-    });
+    await _db.collection('users').doc(uid).update({'favoriteIds': favoriteIds});
   }
 }

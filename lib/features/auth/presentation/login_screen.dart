@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/panel.dart';
 import '../application/auth_providers.dart';
+import '../data/auth_repository.dart';
 import '../domain/app_user.dart';
 import '../../onboarding/presentation/onboarding_screen.dart';
+import '../../onboarding/app_shell.dart';
 
 class LoginScreen extends ConsumerWidget {
   const LoginScreen({super.key});
@@ -15,14 +17,17 @@ class LoginScreen extends ConsumerWidget {
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(
-              AppSpacing.lg, AppSpacing.xxl, AppSpacing.lg, AppSpacing.xxl),
+            AppSpacing.lg,
+            AppSpacing.xxl,
+            AppSpacing.lg,
+            AppSpacing.xxl,
+          ),
           children: [
-            const ScreenCodeChip(code: 'LOGIN-001', label: '카카오 로그인 (10주차 예정)'),
+            const ScreenCodeChip(code: 'LOGIN-001', label: '로그인'),
             const SizedBox(height: AppSpacing.xxl),
             const Text(
               'Stellara',
               style: TextStyle(
-                color: AppColors.ink,
                 fontSize: 36,
                 fontWeight: FontWeight.w900,
                 letterSpacing: -1,
@@ -32,7 +37,6 @@ class LoginScreen extends ConsumerWidget {
             const Text(
               '내 별자리 차트로\n관계와 하루를 읽어요',
               style: TextStyle(
-                color: AppColors.ink,
                 fontSize: 22,
                 fontWeight: FontWeight.w800,
                 height: 1.2,
@@ -44,16 +48,15 @@ class LoginScreen extends ConsumerWidget {
               style: TextStyle(color: AppColors.inkMuted, height: 1.5),
             ),
             const SizedBox(height: AppSpacing.xxl),
-            ElevatedButton(
-              onPressed: () => _devLogin(context, ref, 'demo-doyeon'),
-              child: const Text('개발 모드 진입 (demo-doyeon)'),
+            ElevatedButton.icon(
+              onPressed: () => _googleLogin(context, ref),
+              icon: const Icon(Icons.login),
+              label: const Text('Google로 시작하기'),
             ),
             const SizedBox(height: AppSpacing.sm),
             OutlinedButton(
-              onPressed: () => Navigator.of(context).pushReplacement(
-                MaterialPageRoute(builder: (_) => const OnboardingScreen()),
-              ),
-              child: const Text('데모 데이터로 둘러보기'),
+              onPressed: () => _devLogin(context, ref, 'demo-doyeon'),
+              child: const Text('개발 모드 진입 (demo-doyeon)'),
             ),
           ],
         ),
@@ -61,20 +64,41 @@ class LoginScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _devLogin(BuildContext context, WidgetRef ref, String uid) async {
-    final repo = ref.read(authRepositoryProvider);
-    final user = await repo.getUser(uid);
+  Future<void> _googleLogin(BuildContext context, WidgetRef ref) async {
+    final repo = AuthRepository();
+    final user = await repo.signInWithGoogle();
     if (user != null) {
       ref.read(currentUserProvider.notifier).state = user;
-    } else {
-      ref.read(currentUserProvider.notifier).state = AppUser(
-        uid: uid,
-        nickname: '김도연',
-        friendCode: 'DOY001',
-        profileCompleted: false,
-        authProvider: 'dev',
-      );
+      if (context.mounted) {
+        if (!user.profileCompleted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const OnboardingScreen()),
+          );
+        } else {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const AppShell()),
+          );
+        }
+      }
     }
+  }
+
+  Future<void> _devLogin(
+    BuildContext context,
+    WidgetRef ref,
+    String uid,
+  ) async {
+    final repo = AuthRepository();
+    final user =
+        await repo.getUser(uid) ??
+        AppUser(
+          uid: uid,
+          nickname: '김도연',
+          friendCode: 'DOY001',
+          profileCompleted: false,
+          authProvider: 'dev',
+        );
+    ref.read(currentUserProvider.notifier).state = user;
     if (context.mounted) {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => const OnboardingScreen()),
