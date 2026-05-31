@@ -1,27 +1,73 @@
 name: stellara
-description: "A Flutter starter app for Stellara."
+description: "Stellara — 출생 정보 기반 점성술 앱 (Flutter)."
 publish_to: 'none'
 
 version: 1.0.0+1
 
 environment:
+  # Flutter 3.24+ / Dart 3.5+ 지원. 기존 ^3.11.1 유지.
   sdk: ^3.11.1
 
 dependencies:
   flutter:
     sdk: flutter
+
   cupertino_icons: ^1.0.8
 
-  # Firebase
-  firebase_core: ^3.13.0
-  cloud_firestore: ^5.6.6
-  firebase_auth: ^5.5.2
-  flutter_secure_storage: ^9.2.4
+  # ── 9주차에서 추가한 패키지 ──────────────────────────────
+  #
+  # 상태 관리(Riverpod 2). 기획서 5.2 절과 일치.
+  # @riverpod 코드 생성 어노테이션은 riverpod_annotation에서 제공.
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.3.5
+
+  # 불변 데이터 모델 (freezed) — Riverpod와 함께 쓰는 표준 패턴.
+  # 어노테이션 패키지는 dependencies에 두고, 코드 생성기는 dev_dependencies에 둔다.
+  freezed_annotation: ^2.4.4
+  json_annotation: ^4.9.0
+
+  # HTTP 클라이언트. dio 인터셉터로 Bearer 토큰 자동 주입/재시도/로깅 처리.
+  dio: ^5.7.0
+
+  # 환경 변수 로더. Prokerala client_id/secret을 .env에서 읽어옴.
+  flutter_dotenv: ^5.2.1
+
+  # 출생지 → 위경도 변환.
+  # Android/iOS helper 연결 완료, Web은 보조 타깃으로 운영.
+  geocoding: ^3.0.0
+
+  # 날짜/시간 포맷 (UTC offset, ISO 변환 등).
+  intl: ^0.19.0
+  firebase_core: ^4.9.0
+  firebase_auth: ^6.5.1
+  cloud_firestore: ^6.4.1
+
+  # 디스크 캐시 (T13.5 — SDD 5.6 L2 계층).
+  # natal/daily/synastry 결과를 앱 재시작 후에도 유지해 Prokerala credit 절약.
+  shared_preferences: ^2.3.2
+
+  # Anonymous Auth refreshToken 저장 → 재설치 후 UID 변경 감지.
+  flutter_secure_storage: ^9.2.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
 
+  # build_runner 와 그 친구들. freezed/json_serializable/riverpod_generator 가
+  # 모두 build_runner를 통해 코드 생성을 수행한다.
+  build_runner: ^2.4.13
+  freezed: ^2.5.2
+  json_serializable: ^6.8.0
+  riverpod_generator: ^2.4.3
+  custom_lint: ^0.7.3
+  riverpod_lint: ^2.3.13
+
 flutter:
   uses-material-design: true
+
+  # .env 파일을 asset으로 등록해야 flutter_dotenv가 런타임에 읽을 수 있다.
+  # 실제 secret이 들어있는 .env 자체는 .gitignore에 들어있고,
+  # 형식만 남긴 .env.example을 함께 커밋한다.
+  assets:
+    - .env

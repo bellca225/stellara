@@ -1,0 +1,134 @@
+// Stellara Firestore Security Rules
+//
+// 작성: 2026-05-09 (TASKS.md T16.5 초안)
+// 전제: Firebase Anonymous Auth 사용 (10주차 T05 진입 시 도입)
+//        - 클라이언트에서 FirebaseAuth.instance.signInAnonymously() 1회 호출
+//        - 그 결과 request.auth.uid 가 채워진 상태에서만 Firestore 접근 허용
+//        - 카카오 OAuth 도입 시 anonymous → kakao link 로 uid 유지 가능
+//
+// 설계 원칙 (학교 프로젝트 적정 수준)
+//   1) 인증 안 된 요청은 모두 차단
+//   2) 본인 데이터(users/charts/dailyFortunes)는 본인만 쓰기, 인증된 사용자라면 read 가능
+//      → 친구 검색/궁합 계산 시 다른 사용자 정보 일부를 read 해야 하므로 read 는 느슨하게 둠
+//   3) friendCodes 는 발급된 본인 코드만 본인이 쓰기, 검색은 인증된 사용자라면 read 가능
+//   4) friendRequests 는 from/to 당사자만, friendships 는 멤버만
+//   5) synastryCaches 는 pairKey 멤버만
+//   6) favoriteIds 최대 3명 강제
+//   7) update/delete 는 명시적으로 막을 수 있는 것은 막아둠 (잘못된 client 재시도 방어)
+//
+// 적용 방법
+//   firebase deploy --only firestore:rules
+//   또는 Firebase Console → Firestore → 규칙 탭에서 본 파일 내용 붙여넣기 후 게시
+//
+// 검증 방법
+//   firebase emulators:start --only firestore
+//   또는 Console "규칙 플레이그라운드" 에서 시나리오별 read/write 시뮬레이션
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── 헬퍼 ──────────────────────────────────────────────────────
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+    function favoritesOk(data) {
+      return !('favoriteIds' in data) || data.favoriteIds.size() <= 3;
+    }
+
+    // ── users: 사용자 프로필 + 출생정보 ───────────────────────────
+    // read 는 인증된 사용자 전체 허용 (친구 검색/궁합에서 닉네임/birthInfo 일부 필요)
+    // write 는 본인만, favoriteIds 는 최대 3명
+    match /users/{uid} {
+      allow read: if isSignedIn();
+      allow create: if isOwner(uid)
+        && request.resource.data.uid == uid
+        && favoritesOk(request.resource.data);
+      allow update: if isOwner(uid)
+        && request.resource.data.uid == uid
+        && favoritesOk(request.resource.data);
+      allow delete: if false;
+    }
+
+    // ── friendCodes: 친구 코드 인덱스 ─────────────────────────────
+    // 본인 uid 가 박힌 문서만 본인이 쓰기. 검색은 인증된 사용자라면 read OK
+    match /friendCodes/{code} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.uid == request.auth.uid;
+      allow update: if isSignedIn()
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.uid == request.auth.uid;
+      allow delete: if isSignedIn()
+        && resource.data.uid == request.auth.uid;
+    }
+
+    // ── charts: 나탈 차트 캐시 ────────────────────────────────────
+    // 친구 차트도 화면에 표시하므로 read 는 인증된 사용자 허용
+    // 쓰기는 본인 차트만
+    match /charts/{uid} {
+      allow read: if isSignedIn();
+      allow create, update: if isOwner(uid);
+      allow delete: if false;
+    }
+
+    // ── dailyFortunes: 운세 캐시 ─────────────────────────────────
+    // 문서 ID 형태: {uid}_{signSlug}_{yyyyMMdd}. 본인 운세만 쓰고 읽음
+    match /dailyFortunes/{docId} {
+      allow read: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow delete: if false;
+    }
+
+    // ── friendRequests: 친구 요청 ────────────────────────────────
+    // from / to 당사자만 read. 생성은 본인이 fromUid 일 때, 상태는 'pending' 으로 시작
+    // 수락/거절은 toUid 만, 취소는 fromUid 가 pending 일 때만
+    match /friendRequests/{requestId} {
+      allow read: if isSignedIn()
+        && (resource.data.fromUid == request.auth.uid
+            || resource.data.toUid == request.auth.uid);
+      allow create: if isSignedIn()
+        && request.resource.data.fromUid == request.auth.uid
+        && request.resource.data.status == 'pending';
+      allow update: if isSignedIn()
+        && resource.data.toUid == request.auth.uid
+        && request.resource.data.status in ['accepted', 'rejected'];
+      allow delete: if isSignedIn()
+        && resource.data.fromUid == request.auth.uid
+        && resource.data.status == 'pending';
+    }
+
+    // ── friendships: 수락된 친구 관계 ────────────────────────────
+    // 문서 ID 자체가 pairKey 라 중복 friendship 자연 차단
+    // create 시 본인이 uids 에 포함돼야 함. 멤버만 read/delete, update 는 차단
+    match /friendships/{pairKey} {
+      allow read: if isSignedIn()
+        && request.auth.uid in resource.data.uids;
+      allow create: if isSignedIn()
+        && request.auth.uid in request.resource.data.uids
+        && request.resource.data.uids.size() == 2;
+      allow update: if false;
+      allow delete: if isSignedIn()
+        && request.auth.uid in resource.data.uids;
+    }
+
+    // ── synastryCaches: 궁합 캐시 ────────────────────────────────
+    // 문서 ID: {pairKey}|{chartPairVersion}. 멤버만 read, 갱신은 새 문서로
+    match /synastryCaches/{docId} {
+      allow read: if isSignedIn()
+        && request.auth.uid in resource.data.userIds;
+      allow create: if isSignedIn()
+        && request.auth.uid in request.resource.data.userIds
+        && request.resource.data.userIds.size() == 2;
+      allow update, delete: if false;
+    }
+
+    // ── 그 외 문서/컬렉션 ────────────────────────────────────────
+    // 명시되지 않은 모든 경로는 기본 거부 (rules_version='2' 기본 동작)
+  }
+}
