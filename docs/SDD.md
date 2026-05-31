@@ -221,23 +221,32 @@ Prokerala 직접 호출 코드는 유지하되, **기본 브랜치에서는 `PRO
 3. 실제 출생 정보는 `BirthInfo.demo()` 서울 기본값 또는 온보딩 입력값 활용
 4. 카카오 OAuth는 13주차 이후 연결
 
-### 4.7 인증 전략: Firebase Anonymous Auth
+### 4.7 인증 전략: Firebase Anonymous Auth + flutter_secure_storage
 
-Firestore Security Rules 가 동작하려면 `request.auth.uid` 가 채워져 있어야 한다. 카카오 OAuth 도입 전까지는 **Firebase Anonymous Auth** 를 사용한다.  
-현재 브랜치에서는 **Android에서만** 앱 시작 시 `Firebase.initializeApp()` 이후 anonymous sign-in 을 시도한다.
+Firestore Security Rules 가 동작하려면 `request.auth.uid` 가 채워져 있어야 한다. **Firebase Anonymous Auth** 를 사용하며, `flutter_secure_storage` 로 재설치 후 UID 변경을 감지한다.
 
 | 항목 | 값 |
 |------|-----|
-| 도입 시점 | 10주차 T05 (Firebase bootstrap) 와 함께 |
+| 도입 시점 | 10주차 T05 (Firebase bootstrap) — Android/Web/iOS 공통 |
 | 비용 | Spark 플랜 무료 |
-| 코드 변경 | `FirebaseAuth.instance.signInAnonymously()` 1회 호출 (앱 시작 시) |
+| 재설치 감지 | `flutter_secure_storage`에 마지막 UID 저장. 재설치 후 UID 변경 시 사용자에게 안내 |
 | 카카오 전환 | 추후 `linkWithCredential` 로 anonymous → kakao 변환 시 uid 유지 가능 |
+| Web 지원 | `FIREBASE_WEB_*` 환경변수 (`.env`) 기반으로 Web도 동일 Anonymous Auth |
 
 운영 원칙:
-- Android 앱 첫 실행 시 anonymous sign-in 자동 수행
+- 앱 시작: `_AuthGate` → Firebase.currentUser 확인 → 없으면 `signInAnonymously()`
+- `flutter_secure_storage`에 마지막 UID 저장. 재설치 후 UID 달라지면 경고 스낵바 표시
 - `users/{uid}` 의 `uid` 는 anonymous uid 그대로 사용
-- 시딩한 테스트 사용자는 콘솔에서 직접 `users/{anonymousUid}` 형태로 입력하거나, 첫 앱 실행 시 자동 생성되도록 클라이언트에서 처리
-- 앱 데이터 초기화(reinstall) 시 anonymous uid 가 바뀌므로 데모용 디바이스는 가능한 한 재설치하지 않는다
+- `AuthRepository.devLogin(uid)` 로 Firestore 시딩 사용자 직접 진입 가능 (개발/데모용)
+- 데모용 디바이스 재설치 시 경고 뜨고 새 계정으로 시작 (이전 친구 관계 초기화 안내)
+
+#### 플랫폼별 Firebase 초기화
+
+| 플랫폼 | 초기화 방식 |
+|--------|------------|
+| Android | `google-services.json` 자동 (기존 방식 유지) |
+| iOS/macOS | `GoogleService-Info.plist` 자동 |
+| Web (flutter run -d chrome) | `.env`의 `FIREBASE_WEB_*` 환경변수 |
 
 ### 4.8 Firestore Security Rules
 
@@ -995,7 +1004,7 @@ synastryCaches/{pairKey}|{chartPairVersion}
 권장 트랜잭션 위치:
 
 - 친구 코드 발급/재발급: `friendCodes` + `users.friendCode` 동시 갱신
-- 친구 요청 수락: `friendRequests.status` 변경 + `friendships/{pairKey}` 생성
+- 친구 요청 수락: `runTransaction` — `friendRequests.status=accepted` + `friendships/{pairKey}` 원자적 생성 (batch 아님)
 - 출생정보 수정: `users.birthInfo` 변경 + `users.activeChartVersion` 갱신 + `charts/{uid}` stale 처리
 
 ### 8.6 초기 데이터 시딩 방법 (10주차)
