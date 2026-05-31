@@ -14,17 +14,17 @@ class RandomQuestionScreen extends ConsumerStatefulWidget {
 
 class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
   String? _selectedFriendName;
-  String _question = '김민수와 함께 여행 가면?';
+  String _question = '김민수는 어떤 행동 패턴?';
   String _answer =
-      '함께 여행을 가면 즉흥적이고 모험적인 여정이 될 것입니다. 계획에 없던 장소를 발견하여 잊지 못할 추억을 만들 수 있습니다.';
+      '어떤 행동 패턴은 매우 능동적이고 진취적인 성향을 가집니다. 새로운 아이디어를 탐색하여 더욱 나은 미래를 만들어 나갑니다.';
   bool _showAnswer = true;
 
   final _questions = [
-    '함께 가장 해보고 싶은 여행지는?',
-    '서로에게 가장 고마운 순간은?',
-    '10년 후 우리는 어떤 모습일까?',
-    '함께하면 가장 즐거운 활동은?',
-    '서로의 가장 닮은 점은 무엇일까?',
+    '어떤 매력 포인트가 있을까?',
+    '지금으로부터 얼마나 가까울까?',
+    '10년 후의 모습은 어떨까?',
+    '어떤 분야에서 재능이 있을까?',
+    '지금 가장 바라는 것은 무엇일까?',
   ];
 
   void _newQuestion() {
@@ -47,8 +47,7 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
                 children: [
-                  const ScreenCodeChip(code: 'CONTENT-001', label: '랜덤 질문'),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 8),
                   const Text(
                     '랜덤 질문',
                     style: TextStyle(
@@ -60,12 +59,11 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
                   ),
                   const SizedBox(height: 4),
                   const Text(
-                    '친구를 선택하고 점성술 질문을 받아보세요',
+                    '친구를 선택하고 함께하는 질문을 탐색해보세요',
                     style: TextStyle(color: AppColors.inkMuted, fontSize: 14),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 24),
-                  // 친구 선택
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
@@ -90,7 +88,7 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
                           Icons.keyboard_arrow_down,
                           color: AppColors.inkMuted,
                         ),
-                        items: ['김민수', '박서연', '이지원', '최유나']
+                        items: ['김민수', '이지은', '박서준', '최유진']
                             .map(
                               (name) => DropdownMenuItem(
                                 value: name,
@@ -104,7 +102,6 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  // 질문 카드
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(20),
@@ -115,7 +112,7 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
                     ),
                     child: Text(
                       _selectedFriendName != null
-                          ? '$_selectedFriendName와 $_question'
+                          ? '$_selectedFriendName는 $_question'
                           : _question,
                       style: const TextStyle(
                         color: Colors.white,
@@ -126,7 +123,6 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  // 점성술 답변
                   if (_showAnswer)
                     Container(
                       padding: const EdgeInsets.all(16),
@@ -147,7 +143,7 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
                               ),
                               const SizedBox(width: 6),
                               Text(
-                                '점성술 답변',
+                                '별자리 해석',
                                 style: TextStyle(
                                   color: AppColors.primaryLight,
                                   fontSize: 13,
@@ -169,7 +165,6 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
                       ),
                     ),
                   const SizedBox(height: 24),
-                  // 버튼들
                   Row(
                     children: [
                       Expanded(

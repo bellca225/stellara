@@ -28,9 +28,7 @@ class MyPageScreen extends ConsumerWidget {
             AppSpacing.xxl,
           ),
           children: [
-            const ScreenCodeChip(code: 'MYPAGE-001', label: '마이페이지'),
-            const SizedBox(height: AppSpacing.xl),
-            // 프로필 아바타
+            const SizedBox(height: AppSpacing.sm),
             Center(
               child: Container(
                 width: 108,
@@ -70,17 +68,16 @@ class MyPageScreen extends ConsumerWidget {
                   ),
                 ),
                 loading: () => const Text(
-                  '차트 정보를 불러오는 중',
+                  '로딩 중...',
                   style: TextStyle(color: AppColors.inkMuted),
                 ),
                 error: (_, __) => const Text(
-                  '별자리 정보를 준비 중이에요',
+                  '정보를 불러오지 못했습니다',
                   style: TextStyle(color: AppColors.inkMuted),
                 ),
               ),
             ),
             const SizedBox(height: AppSpacing.xl),
-            // 친구 코드
             Panel(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -111,7 +108,7 @@ class MyPageScreen extends ConsumerWidget {
                         onPressed: () {
                           Clipboard.setData(ClipboardData(text: friendCode));
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('친구 코드가 복사됐어요!')),
+                            const SnackBar(content: Text('친구 코드가 복사되었습니다')),
                           );
                         },
                         icon: const Icon(
@@ -122,14 +119,13 @@ class MyPageScreen extends ConsumerWidget {
                     ],
                   ),
                   const Text(
-                    '친구에게 이 코드를 공유해 연결할 수 있어요.',
+                    '친구에게 이 코드를 공유하고 함께 별자리를 탐색해보세요',
                     style: TextStyle(color: AppColors.inkMuted, height: 1.45),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: AppSpacing.lg),
-            // 출생 정보
             Panel(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -162,11 +158,11 @@ class MyPageScreen extends ConsumerWidget {
                         );
                         if (changed == true && context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('출생 정보가 변경되었어요.')),
+                            const SnackBar(content: Text('출생 정보가 수정되었습니다')),
                           );
                         }
                       },
-                      child: const Text('출생 정보 수정'),
+                      child: const Text('출생 정보 설정'),
                     ),
                   ),
                 ],
