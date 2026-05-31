@@ -1,8 +1,8 @@
 # Stellara — Software Design Document (SDD)
 
-> **문서 버전**: v1.0  
-> **최초 작성**: 2026-05-08 / **최종 수정**: 2026-05-09  
-> **기준 브랜치**: `feature/week09-prokerala-api`  
+> **문서 버전**: v1.2  
+> **최초 작성**: 2026-05-08 / **최종 수정**: 2026-05-31  
+> **기준 브랜치**: `feature/week10-place-resolver` (→ main 머지 예정)  
 > **팀명**: 물병 안 물고기  
 > **팀원**: 우나영, 김도연, 배서연, 이선우  
 >
@@ -33,15 +33,19 @@
 
 Stellara는 사용자의 출생 정보(생년월일, 출생 시간, 출생지)를 기반으로 점성술 해석을 시각적 UI로 제공하는 Flutter 모바일 앱이다. 나탈 차트 분석, 오늘의 운세, 친구 궁합 비교, AI 랜덤 질문, 결과 공유 등의 기능을 통해 점성술 콘텐츠를 소셜하게 즐길 수 있는 서비스를 목표로 한다.
 
-### 1.2 현재 개발 단계 (9주차 기준)
+### 1.2 현재 개발 단계 (14주차 기준)
 
-현재 단계는 **"프론트엔드 중심 + Android Firebase bootstrap 완료 + Spark 실데이터 연동 진행 중"** 단계이다. 자체 백엔드 서버는 아직 없으며, Prokerala 직접 호출 코드는 준비되어 있지만 **기본 브랜치에서는 원격 호출을 잠그고 fixture 중심으로 동작**하는 상태다.
+현재 단계는 **"인증·멤버·친구 기능 Firestore 연동 완료 + 최종 버그픽스·발표 준비"** 단계이다.
 
-- `lib/` 아래 Dart 파일 36개 (실측 — 2026-05-09 기준)
-- 화면 프로토타입 9종 구현 완료 (목업 위주)
-- Prokerala API 호출 wrapper 및 Riverpod 상태 관리 골격 동작 확인
-- Android Firebase bootstrap + anonymous auth 연결
-- Android/iOS 기준 출생지 → 좌표 변환 helper 연결 시작
+- `lib/` 아래 Dart 파일 40개+ (실측 — 2026-05-31 기준)
+- 화면 10종 구현 (LOGIN·ONBOARDING·MAIN·ASTROLOGY·TODAY·MATCH·FRIEND·CONTENT·MYPAGE·SHARE)
+- Firebase Anonymous Auth + flutter_secure_storage 재설치 감지 완료
+- `_AuthGate` 라우팅 — Firebase 세션 기반 자동 분기
+- Firestore 멤버 테이블(`users`, `charts`, `friendCodes`, `friendRequests`, `friendships`) 스키마 확정
+- 친구 기능(FRIEND-001): 코드 검색·요청·수락(runTransaction)·즐겨찾기 구현 (도연 공동 작업)
+- Android/iOS Geocoding + Web Nominatim fallback 연결 완료
+- SharedPreferences 디스크 캐시(L2) 적용
+- Firebase 프로젝트 `stellara-11878`(나영 소유)로 팀 통일 완료
 
 ### 1.3 빌드 타깃
 
@@ -114,9 +118,10 @@ Stellara는 사용자의 출생 정보(생년월일, 출생 시간, 출생지)�
 | 환경 변수 | flutter_dotenv | ^5.2.1 |
 | 날짜/포맷 | intl | ^0.19.0 |
 | 지오코딩 | geocoding | ^3.0.0 (Android/iOS 호출 경로 연결됨) |
-| Firebase 초기화 | firebase_core | ^4.7.0 |
-| Firebase 인증 | firebase_auth | ^6.4.0 |
-| Firestore SDK | cloud_firestore | ^6.3.0 |
+| Firebase 초기화 | firebase_core | ^4.9.0 |
+| Firebase 인증 | firebase_auth | ^6.5.1 |
+| Firestore SDK | cloud_firestore | ^6.4.1 |
+| Flutter Secure Storage | flutter_secure_storage | ^9.2.2 | Anonymous UID 재설치 감지, iOS Keychain / Android Keystore 저장 |
 | 모델 어노테이션 | freezed_annotation, json_annotation | 등록만, 코드 생성 미사용 |
 | 코드 생성 (dev) | build_runner, freezed, json_serializable, riverpod_generator | - |
 | Riverpod 어노테이션 | riverpod_annotation | ^2.3.5 |
@@ -175,7 +180,7 @@ Prokerala 직접 호출 코드는 유지하되, **기본 브랜치에서는 `PRO
 | Firebase Auth | **Android bootstrap 완료** | 앱 시작 시 anonymous auth 시도 |
 | Cloud Functions | **MVP 기본 경로 제외** | Firebase 공식 문서상 배포는 Blaze 업그레이드 전제가 필요 |
 | Prokerala | **기본 비활성화** | `PROKERALA_REMOTE_ENABLED=false` 유지. 실응답 검증 창에서만 잠깐 사용 |
-| AI 외부 LLM | **기본 비활성화** | 무과금 운영을 위해 `AI_REMOTE_ENABLED=false` 유지. owner 승인 전까지 direct call 금지 |
+| AI 외부 LLM | **기본 비활성화** | 무과금 운영을 위해 `AI_REMOTE_ENABLED=false` 유지. 모델: 랜덤질문 `gpt-4o-mini`, AI리포트 `gpt-4o`, Claude 대체 가능. owner 승인 전까지 direct call 금지 |
 
 ### 4.4 현재 운영 구조
 
@@ -328,12 +333,20 @@ stellara/
 │   │   └── widgets/panel.dart
 │   └── features/               # 도메인별 모듈
 │       ├── auth/               # LOGIN-001
+│       │   ├── domain/app_user.dart         # 경량 로그인 사용자 모델
+│       │   ├── data/auth_repository.dart    # signInOrRestore + SecureStorage UID 감지
+│       │   ├── application/auth_providers.dart  # currentUserProvider
+│       │   └── presentation/login_screen.dart   # Anonymous Auth 시작 화면
 │       ├── onboarding/         # ONBOARDING-001, NAV-001
 │       ├── home/               # MAIN-001
 │       ├── astrology/          # ASTROLOGY-001
 │       ├── horoscope/          # TODAY-001
 │       ├── compatibility/      # MATCH-001
 │       ├── friends/            # FRIEND-001
+│       │   ├── domain/friend.dart           # Friend, FriendRequest 모델 (SDD 스키마 정합)
+│       │   ├── data/friend_repository.dart  # 코드검색·요청·수락(runTransaction)·즐겨찾기
+│       │   ├── application/friend_providers.dart
+│       │   └── presentation/friend_screen.dart   # 도연 공동 작업 실구현
 │       ├── content/            # CONTENT-001
 │       ├── profile/            # MYPAGE-001
 │       ├── users/              # T09: users/{uid} 도메인 (UserProfile + UserRepository + Provider)
@@ -391,17 +404,20 @@ currentBirthInfoProvider  // StateProvider<BirthInfo>
 ### 5.5 화면 진입 흐름 (실측)
 
 ```
-main.dart → Env.load() → ProviderScope → StellaraApp
-  └─ LoginScreen [LOGIN-001]
-        └─ "시작하기" / "데모 데이터로 둘러보기"
-              └─ OnboardingScreen [ONBOARDING-001]
-                    └─ 출생정보 입력 → currentBirthInfoProvider.set()
-                          └─ AppShell [NAV-001] (하단 4탭)
-                                ├─ MainHomeScreen [MAIN-001]
-                                │       └─ 행성 탭 → AstrologyScreen [ASTROLOGY-001]
-                                ├─ RandomQuestionScreen [CONTENT-001]
-                                ├─ TodayScreen [TODAY-001]
-                                └─ MyPageScreen [MYPAGE-001]
+main.dart → Env.load() → FirebaseBootstrap.initialize() → ProviderScope → StellaraApp
+  └─ _AuthGate (Firebase 세션 기반 자동 분기)
+        ├─ currentUser == null → LoginScreen [LOGIN-001]
+        │       └─ signInOrRestore() → Anonymous Auth + SecureStorage UID 저장
+        │              ├─ profileCompleted=false → OnboardingScreen [ONBOARDING-001]
+        │              └─ profileCompleted=true  → AppShell
+        ├─ profileCompleted=false → OnboardingScreen [ONBOARDING-001]
+        │       └─ 출생정보 입력 → Firestore users/{uid} 저장 → AppShell
+        └─ profileCompleted=true → AppShell [NAV-001] (하단 4탭)
+                ├─ MainHomeScreen [MAIN-001]
+                │       └─ 행성 클릭 → AstrologyScreen [ASTROLOGY-001]
+                ├─ RandomQuestionScreen [CONTENT-001]
+                ├─ TodayScreen [TODAY-001]
+                └─ MyPageScreen [MYPAGE-001]
 ```
 
 ### 5.6 데이터 캐시 계층 (토큰 절약 정책)
@@ -1080,6 +1096,9 @@ kDebugMode && USE_FIXTURE_IN_DEBUG=true → fixture 즉시 반환 (네트워크 
 | 주차별 기능 | `feature/week{N}-{기능명}` | `feature/week10-firestore-db` |
 | 버그 수정 | `fix/{설명}` | `fix/natal-chart-parse-error` |
 | 핫픽스 | `hotfix/{설명}` | `hotfix/env-missing-crash` |
+| 팀원별 기능 | `feature/{이름}-{기능명}` | `feature/도연-친구추가-기능` |
+
+**코드 공동 작업자**: 김도연(`feature/도연-친구추가-기능` 브랜치)이 FRIEND-001 친구 기능 코드를 공동 작성. 2026-05-31 기준 해당 브랜치의 `friend_repository.dart`, `friend_screen.dart`, `app_user.dart` 코드를 `feature/week10-place-resolver`로 머지 완료. 주요 수정 사항: `WriteBatch → runTransaction`, `signInWithPopup(Web 전용) → signInAnonymously`, 하드코딩 FirebaseOptions 제거.
 
 PR / 머지 정책 (2026-05-09 결정):
 
@@ -1137,7 +1156,7 @@ PR / 머지 정책 (2026-05-09 결정):
 
 | 자원 | 소유자 (Owner) | 청구 책임 | 백업 권한 보유자 | 비고 |
 |------|----------------|-----------|------------------|------|
-| Firebase 프로젝트 | 나영 (`nywoo0225@gmail.com`) | 무료 (Spark) | **팀원 3명 Editor 초대는 후순위 보류** (11주차 진입 전 처리) | 콘솔 region: `asia-northeast3` (서울). 4명 모두 Google 계정 보유 확인됨. 2026-05-09 결정: 10주차에는 owner 단독 운영, 11주차 친구 기능 진입 전 초대 |
+| Firebase 프로젝트 | 나영 (`nywoo0225@gmail.com`) | 무료 (Spark) | 도연 Editor 초대 완료 (2026-05-31) | 프로젝트 ID: `stellara-11878`. 팀 전원 동일 프로젝트 사용. region: `asia-northeast3` (서울). `google-services.json` 및 `.env` FIREBASE_WEB_* 값은 나영이 팀원에게 직접 공유(gitignore) |
 | Firestore Security Rules | 나영 (1차 작성) | - | 리뷰: 공통 | 11주차 T16.5 결과 반영 |
 | Prokerala credential | 나영 | 무료 플랜 | 11주차 후반 ~ 12주차에 seoyeon / seonwoo / doyeon backup 등록 예정 | 기본 브랜치에서는 `PROKERALA_REMOTE_ENABLED=false` 로 미사용 유지. 실응답 검증 시에만 단일 `.env` 에서 primary → seoyeon → seonwoo → doyeon 순서 fallback 사용 |
 | OpenAI API key | **사용 안 함 (기본 브랜치)** | 없음 | - | `AI_REMOTE_ENABLED=false` 유지. owner 승인 + 예산 확정 전까지 발급/등록/사용 금지 |
