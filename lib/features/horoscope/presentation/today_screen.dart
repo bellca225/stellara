@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/astro_text.dart';
 import '../../../core/widgets/panel.dart';
@@ -30,8 +29,8 @@ class TodayScreen extends ConsumerWidget {
     final selected = ref.watch(selectedSignSlugProvider);
     final asyncH = ref.watch(todayHoroscopeProvider);
 
-    return Scaffold(
-      body: SafeArea(
+    return StarBackground(
+      child: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.lg,
@@ -40,34 +39,46 @@ class TodayScreen extends ConsumerWidget {
             AppSpacing.xxl,
           ),
           children: [
-            const ScreenCodeChip(
-              code: 'TODAY-001',
-              label: '오늘의 운세',
-            ),
+            const ScreenCodeChip(code: 'TODAY-001', label: '오늘의 운세'),
             const SizedBox(height: AppSpacing.xl),
-            Text(
-              '오늘의 운세',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
+            Text('오늘의 운세', style: Theme.of(context).textTheme.headlineMedium),
             const SizedBox(height: AppSpacing.md),
             Wrap(
               spacing: AppSpacing.sm,
               runSpacing: AppSpacing.sm,
               children: [
                 for (final sign in _signs)
-                  ChoiceChip(
-                    selected: selected == sign,
-                    label: Text(zodiacNameKo(sign)),
-                    labelStyle: TextStyle(
-                      color: selected == sign ? AppColors.paper : AppColors.ink,
-                      fontWeight: FontWeight.w700,
+                  GestureDetector(
+                    onTap: () =>
+                        ref.read(selectedSignSlugProvider.notifier).state =
+                            sign,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: selected == sign
+                            ? AppColors.primary
+                            : AppColors.glass,
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: selected == sign
+                              ? AppColors.primary
+                              : AppColors.glassBorder,
+                        ),
+                      ),
+                      child: Text(
+                        zodiacNameKo(sign),
+                        style: TextStyle(
+                          color: selected == sign
+                              ? Colors.white
+                              : AppColors.inkMuted,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
-                    selectedColor: AppColors.ink,
-                    backgroundColor: AppColors.paper,
-                    side: const BorderSide(color: AppColors.line),
-                    showCheckmark: false,
-                    onSelected: (_) =>
-                        ref.read(selectedSignSlugProvider.notifier).state = sign,
                   ),
               ],
             ),
@@ -89,7 +100,7 @@ class TodayScreen extends ConsumerWidget {
               ),
               error: (error, _) => Panel(
                 child: Text(
-                  '오늘의 운세를 불러오지 못했어요.\n$error',
+                  '오늘의 운세를 불러오지 못했습니다.\n$error',
                   style: Theme.of(context).textTheme.bodyLarge,
                 ),
               ),
@@ -120,7 +131,7 @@ class TodayScreen extends ConsumerWidget {
                     const SizedBox(height: AppSpacing.lg),
                     Text(
                       horoscope.summary.isEmpty
-                          ? '오늘은 잠시 숨을 고르고 주변의 리듬을 살피는 하루예요.'
+                          ? '오늘은 새로운 기회를 기다리며 주변을 돌아보는 하루가 될 것입니다.'
                           : horoscope.summary,
                       style: Theme.of(context).textTheme.bodyLarge,
                     ),
@@ -128,21 +139,21 @@ class TodayScreen extends ConsumerWidget {
                     Row(
                       children: [
                         Expanded(
-                          child: _Info(
-                            label: '오늘의 기분',
+                          child: _InfoChip(
+                            label: '오늘의 기운',
                             value: moodKo(horoscope.mood),
                           ),
                         ),
                         const SizedBox(width: AppSpacing.sm),
                         Expanded(
-                          child: _Info(
+                          child: _InfoChip(
                             label: '행운 색상',
                             value: colorKo(horoscope.luckyColor),
                           ),
                         ),
                         const SizedBox(width: AppSpacing.sm),
                         Expanded(
-                          child: _Info(
+                          child: _InfoChip(
                             label: '행운 숫자',
                             value: horoscope.luckyNumber.toString(),
                           ),
@@ -160,12 +171,8 @@ class TodayScreen extends ConsumerWidget {
   }
 }
 
-class _Info extends StatelessWidget {
-  const _Info({
-    required this.label,
-    required this.value,
-  });
-
+class _InfoChip extends StatelessWidget {
+  const _InfoChip({required this.label, required this.value});
   final String label;
   final String value;
 
@@ -177,8 +184,9 @@ class _Info extends StatelessWidget {
         vertical: AppSpacing.md,
       ),
       decoration: BoxDecoration(
-        color: AppColors.canvas,
-        borderRadius: BorderRadius.circular(AppRadius.button),
+        color: AppColors.glass,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.glassBorder),
       ),
       child: Column(
         children: [

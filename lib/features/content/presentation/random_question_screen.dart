@@ -1,116 +1,218 @@
 import 'package:flutter/material.dart';
-
-import '../../../core/env/env.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/panel.dart';
+import '../../auth/application/auth_providers.dart';
 
-class RandomQuestionScreen extends StatelessWidget {
+class RandomQuestionScreen extends ConsumerStatefulWidget {
   const RandomQuestionScreen({super.key});
 
   @override
+  ConsumerState<RandomQuestionScreen> createState() =>
+      _RandomQuestionScreenState();
+}
+
+class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
+  String? _selectedFriendName;
+  String _question = '김민수와 함께 여행 가면?';
+  String _answer =
+      '함께 여행을 가면 즉흥적이고 모험적인 여정이 될 것입니다. 계획에 없던 장소를 발견하여 잊지 못할 추억을 만들 수 있습니다.';
+  bool _showAnswer = true;
+
+  final _questions = [
+    '함께 가장 해보고 싶은 여행지는?',
+    '서로에게 가장 고마운 순간은?',
+    '10년 후 우리는 어떤 모습일까?',
+    '함께하면 가장 즐거운 활동은?',
+    '서로의 가장 닮은 점은 무엇일까?',
+  ];
+
+  void _newQuestion() {
+    setState(() {
+      _question = _questions[DateTime.now().millisecond % _questions.length];
+      _showAnswer = false;
+    });
+    Future.delayed(const Duration(seconds: 1), () {
+      if (mounted) setState(() => _showAnswer = true);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg,
-            AppSpacing.xl,
-            AppSpacing.lg,
-            AppSpacing.xxl,
-          ),
+    return StarBackground(
+      child: SafeArea(
+        child: Column(
           children: [
-            const ScreenCodeChip(
-              code: 'CONTENT-001',
-              label: '랜덤 질문',
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            Text(
-              '랜덤 질문',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            const Text(
-              '이 화면은 나중에 AI가 질문을 만들어 주는 자리예요. 지금은 화면 흐름과 배치만 먼저 잡아두었습니다.',
-              style: TextStyle(
-                color: AppColors.inkMuted,
-                height: 1.5,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              Env.aiRemoteEnabled
-                  ? '원격 AI 호출이 허용된 빌드입니다.'
-                  : '현재 빌드에서는 무료 플랜 보호를 위해 원격 AI 호출을 막고, 로컬 질문 세트만 사용합니다.',
-              style: const TextStyle(
-                color: AppColors.inkMuted,
-                height: 1.5,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            const _QuestionCard(
-              badge: '질문 1',
-              question: '요즘 내가 가장 오래 붙잡고 있는 감정은 무엇일까요?',
-            ),
-            const SizedBox(height: AppSpacing.md),
-            const _QuestionCard(
-              badge: '질문 2',
-              question: '친해지고 싶은 사람에게 먼저 건네고 싶은 말은 무엇인가요?',
-            ),
-            const SizedBox(height: AppSpacing.md),
-            const _QuestionCard(
-              badge: '질문 3',
-              question: '이번 주의 나를 가장 잘 설명하는 장면은 어떤 모습인가요?',
-            ),
-            const SizedBox(height: AppSpacing.md),
-            const _QuestionCard(
-              badge: '직접 만든 질문',
-              question: '내가 스스로에게 묻고 싶은 질문을 여기에 적게 됩니다.',
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            OutlinedButton(
-              onPressed: Env.aiRemoteEnabled ? () {} : null,
-              child: Text(
-                Env.aiRemoteEnabled
-                    ? '질문 생성 연결 예정'
-                    : '원격 AI 비활성화 (무과금 보호)',
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+                children: [
+                  const ScreenCodeChip(code: 'CONTENT-001', label: '랜덤 질문'),
+                  const SizedBox(height: 20),
+                  const Text(
+                    '랜덤 질문',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w800,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    '친구를 선택하고 점성술 질문을 받아보세요',
+                    style: TextStyle(color: AppColors.inkMuted, fontSize: 14),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  // 친구 선택
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.glass,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.glassBorder),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _selectedFriendName,
+                        hint: const Text(
+                          '친구 선택',
+                          style: TextStyle(color: AppColors.inkSubtle),
+                        ),
+                        dropdownColor: const Color(0xFF0D1B3E),
+                        style: const TextStyle(color: Colors.white),
+                        isExpanded: true,
+                        icon: const Icon(
+                          Icons.keyboard_arrow_down,
+                          color: AppColors.inkMuted,
+                        ),
+                        items: ['김민수', '박서연', '이지원', '최유나']
+                            .map(
+                              (name) => DropdownMenuItem(
+                                value: name,
+                                child: Text(name),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (val) =>
+                            setState(() => _selectedFriendName = val),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  // 질문 카드
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: AppColors.glass,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.glassBorder),
+                    ),
+                    child: Text(
+                      _selectedFriendName != null
+                          ? '$_selectedFriendName와 $_question'
+                          : _question,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // 점성술 답변
+                  if (_showAnswer)
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppColors.glass,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppColors.glassBorder),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.auto_awesome,
+                                color: AppColors.primaryLight,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                '점성술 답변',
+                                style: TextStyle(
+                                  color: AppColors.primaryLight,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            _answer,
+                            style: const TextStyle(
+                              color: AppColors.inkMuted,
+                              fontSize: 14,
+                              height: 1.6,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(height: 24),
+                  // 버튼들
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _newQuestion,
+                          icon: const Icon(Icons.refresh, size: 18),
+                          label: const Text('새 질문'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: const BorderSide(
+                              color: AppColors.glassBorder,
+                            ),
+                            backgroundColor: AppColors.glass,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () {},
+                          icon: const Icon(Icons.share, size: 18),
+                          label: const Text('공유하기'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _QuestionCard extends StatelessWidget {
-  const _QuestionCard({
-    required this.badge,
-    required this.question,
-  });
-
-  final String badge;
-  final String question;
-
-  @override
-  Widget build(BuildContext context) {
-    return Panel(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            badge,
-            style: const TextStyle(
-              color: AppColors.inkMuted,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            question,
-            style: Theme.of(context).textTheme.bodyLarge,
-          ),
-        ],
       ),
     );
   }

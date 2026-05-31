@@ -21,6 +21,7 @@ class MainHomeScreen extends ConsumerWidget {
     final asyncChart = ref.watch(myNatalChartProvider);
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: asyncChart.when(
           loading: () => const _MainHomeSkeleton(),
@@ -33,10 +34,7 @@ class MainHomeScreen extends ConsumerWidget {
 }
 
 class _MainHomeContent extends StatelessWidget {
-  const _MainHomeContent({
-    required this.birth,
-    required this.chart,
-  });
+  const _MainHomeContent({required this.birth, required this.chart});
 
   final BirthInfo birth;
   final NatalChart chart;
@@ -58,46 +56,43 @@ class _MainHomeContent extends StatelessWidget {
         AppSpacing.xxl,
       ),
       children: [
-        const ScreenCodeChip(
-          code: 'MAIN-001',
-          label: '메인 홈',
-        ),
+        const ScreenCodeChip(code: 'MAIN-001', label: '메인 홈'),
         const SizedBox(height: AppSpacing.xl),
         Text(
           '나의 우주',
           textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontSize: 26,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.headlineMedium?.copyWith(fontSize: 26),
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(
           signLabel,
           textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: AppColors.inkMuted,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(color: AppColors.inkMuted),
         ),
         const SizedBox(height: AppSpacing.xl),
         _OrbitPreview(
           nickname: birth.nickname,
-          onTapMe: () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const AstrologyScreen()),
-          ),
+          onTapMe: () => Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const AstrologyScreen())),
           onTapFriend: null,
         ),
         const SizedBox(height: AppSpacing.xl),
         InkWell(
           borderRadius: BorderRadius.circular(999),
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const FriendScreen()),
-          ),
+          onTap: () => Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const FriendScreen())),
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 18),
             decoration: BoxDecoration(
-              color: AppColors.skeleton,
+              color: AppColors.glass,
               borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: AppColors.ink, width: 1.2),
+              border: Border.all(color: AppColors.glassBorder, width: 1.2),
             ),
             child: const Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -121,10 +116,7 @@ class _MainHomeContent extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                '나의 Big 3',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
+              Text('나의 Big 3', style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: AppSpacing.md),
               Wrap(
                 spacing: AppSpacing.sm,
@@ -247,10 +239,10 @@ class _OrbitBubble extends StatelessWidget {
       width: diameter,
       height: diameter,
       decoration: BoxDecoration(
-        color: isEnabled ? AppColors.paper : AppColors.canvas,
+        color: AppColors.glass,
         shape: BoxShape.circle,
         border: Border.all(
-          color: isEnabled ? AppColors.inkSubtle : AppColors.line,
+          color: isEnabled ? AppColors.primaryLight : AppColors.glassBorder,
           width: 1.6,
         ),
       ),
@@ -265,9 +257,7 @@ class _OrbitBubble extends StatelessWidget {
       ),
     );
 
-    if (!isEnabled) {
-      return bubble;
-    }
+    if (!isEnabled) return bubble;
 
     return Material(
       color: Colors.transparent,
@@ -282,7 +272,6 @@ class _OrbitBubble extends StatelessWidget {
 
 class _SignChip extends StatelessWidget {
   const _SignChip({required this.label});
-
   final String label;
 
   @override
@@ -290,9 +279,9 @@ class _SignChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: AppColors.paper,
+        color: AppColors.glass,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: AppColors.line),
+        border: Border.all(color: AppColors.glassBorder),
       ),
       child: Text(
         label,

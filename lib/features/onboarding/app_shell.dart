@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import '../../core/theme/app_theme.dart';
 import '../content/presentation/random_question_screen.dart';
 import '../home/presentation/main_home_screen.dart';
@@ -26,53 +25,49 @@ class _AppShellState extends State<AppShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       body: IndexedStack(index: _index, children: _pages),
-      bottomNavigationBar: SafeArea(
-        top: false,
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.md,
-            AppSpacing.md,
-            AppSpacing.md,
-            AppSpacing.sm,
-          ),
-          decoration: const BoxDecoration(
-            color: AppColors.paper,
-            border: Border(
-              top: BorderSide(color: AppColors.line),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF0D1B3E),
+          border: Border(top: BorderSide(color: AppColors.glassBorder)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              children: [
+                _NavItem(
+                  icon: Icons.home_outlined,
+                  activeIcon: Icons.home_rounded,
+                  label: '홈',
+                  selected: _index == 0,
+                  onTap: () => setState(() => _index = 0),
+                ),
+                _NavItem(
+                  icon: Icons.chat_bubble_outline,
+                  activeIcon: Icons.chat_bubble,
+                  label: '랜덤질문',
+                  selected: _index == 1,
+                  onTap: () => setState(() => _index = 1),
+                ),
+                _NavItem(
+                  icon: Icons.wb_sunny_outlined,
+                  activeIcon: Icons.wb_sunny,
+                  label: '오늘운세',
+                  selected: _index == 2,
+                  onTap: () => setState(() => _index = 2),
+                ),
+                _NavItem(
+                  icon: Icons.person_outline,
+                  activeIcon: Icons.person,
+                  label: '마이페이지',
+                  selected: _index == 3,
+                  onTap: () => setState(() => _index = 3),
+                ),
+              ],
             ),
-          ),
-          child: Row(
-            children: [
-              _NavItem(
-                icon: Icons.home_outlined,
-                activeIcon: Icons.home_rounded,
-                label: '홈',
-                selected: _index == 0,
-                onTap: () => setState(() => _index = 0),
-              ),
-              _NavItem(
-                icon: Icons.chat_bubble_outline,
-                activeIcon: Icons.chat_bubble,
-                label: '랜덤질문',
-                selected: _index == 1,
-                onTap: () => setState(() => _index = 1),
-              ),
-              _NavItem(
-                icon: Icons.wb_sunny_outlined,
-                activeIcon: Icons.wb_sunny,
-                label: '오늘의운세',
-                selected: _index == 2,
-                onTap: () => setState(() => _index = 2),
-              ),
-              _NavItem(
-                icon: Icons.person_outline,
-                activeIcon: Icons.person,
-                label: '마이페이지',
-                selected: _index == 3,
-                onTap: () => setState(() => _index = 3),
-              ),
-            ],
           ),
         ),
       ),
@@ -97,47 +92,27 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final iconColor = selected ? AppColors.paper : AppColors.inkSubtle;
-
     return Expanded(
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: selected ? AppColors.ink : AppColors.paper,
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(
-                    color: selected ? AppColors.ink : AppColors.inkSubtle,
-                  ),
-                ),
-                alignment: Alignment.center,
-                child: Icon(
-                  selected ? activeIcon : icon,
-                  size: 18,
-                  color: iconColor,
-                ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              selected ? activeIcon : icon,
+              size: 24,
+              color: selected ? AppColors.primaryLight : AppColors.inkSubtle,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: selected ? AppColors.primaryLight : AppColors.inkSubtle,
+                fontSize: 11,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
               ),
-              const SizedBox(height: 6),
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: selected ? AppColors.ink : AppColors.inkMuted,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
