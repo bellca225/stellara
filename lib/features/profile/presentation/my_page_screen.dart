@@ -6,6 +6,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/astro_text.dart';
 import '../../../core/widgets/panel.dart';
 import '../../astrology/application/astrology_providers.dart';
+import '../../astrology/domain/birth_info.dart';
 import '../../onboarding/presentation/onboarding_screen.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../auth/presentation/landing_screen.dart';
