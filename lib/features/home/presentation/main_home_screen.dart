@@ -20,7 +20,7 @@ class MainHomeScreen extends ConsumerWidget {
     final birth = ref.watch(currentBirthInfoProvider);
     final asyncChart = ref.watch(myNatalChartProvider);
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: asyncChart.when(
           loading: () => const _MainHomeSkeleton(),
@@ -37,6 +37,12 @@ class _MainHomeContent extends StatelessWidget {
 
   final BirthInfo birth;
   final NatalChart chart;
+
+  static const _glassBoxShadow = [
+    BoxShadow(color: Color(0x26000000), blurRadius: 4, offset: Offset(0, 4)),
+    BoxShadow(color: Color(0x801E3A8A), blurRadius: 20, offset: Offset(0, 5)),
+    BoxShadow(color: Color(0x26FFFFFF), blurRadius: 1, offset: Offset(0, 1)),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -79,16 +85,23 @@ class _MainHomeContent extends StatelessWidget {
             ).push(MaterialPageRoute(builder: (_) => const AstrologyScreen())),
           ),
           const SizedBox(height: AppSpacing.xl),
+          // 친구 목록 버튼
           InkWell(
             borderRadius: BorderRadius.circular(999),
             onTap: () => Navigator.of(
               context,
             ).push(MaterialPageRoute(builder: (_) => const FriendScreen())),
             child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 18),
+              padding: const EdgeInsets.symmetric(vertical: 17),
               decoration: BoxDecoration(
-                color: AppColors.primary,
+                gradient: const LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [Color(0x662B7FFF), Color(0x40155DFC)],
+                ),
                 borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: Color(0x26FFFFFF), width: 0.636),
+                boxShadow: _glassBoxShadow,
               ),
               child: const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -112,17 +125,32 @@ class _MainHomeContent extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
+          // 나의 Big 3 카드
           Container(
             padding: const EdgeInsets.all(AppSpacing.lg),
             decoration: BoxDecoration(
-              color: const Color(0xFF0D1B3E),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.glassBorder),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0x14FFFFFF), Color(0x08FFFFFF)],
+              ),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: Color(0x1EFFFFFF), width: 0.636),
+              boxShadow: _glassBoxShadow,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('나의 Big 3', style: Theme.of(context).textTheme.titleLarge),
+                const Text(
+                  '나의 Big 3',
+                  style: TextStyle(
+                    color: Color(0xFF8EC5FF),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.2,
+                    height: 1.428,
+                  ),
+                ),
                 const SizedBox(height: AppSpacing.md),
                 Wrap(
                   spacing: AppSpacing.sm,
@@ -130,6 +158,7 @@ class _MainHomeContent extends StatelessWidget {
                   children: [for (final label in big3) _SignChip(label: label)],
                 ),
                 const SizedBox(height: AppSpacing.lg),
+                // 상세 보기 버튼
                 InkWell(
                   borderRadius: BorderRadius.circular(999),
                   onTap: () => Navigator.of(context).push(
@@ -137,18 +166,27 @@ class _MainHomeContent extends StatelessWidget {
                   ),
                   child: Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    padding: const EdgeInsets.symmetric(vertical: 9),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1A2E5A),
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0x1AFFFFFF), Color(0x0DFFFFFF)],
+                      ),
                       borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: Color(0x26FFFFFF),
+                        width: 0.636,
+                      ),
+                      boxShadow: _glassBoxShadow,
                     ),
                     child: const Center(
                       child: Text(
                         '상세 보기',
                         style: TextStyle(
-                          color: AppColors.ink,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
+                          color: Color(0xFFBEDBFF),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),
@@ -174,7 +212,6 @@ class _OrbitPreview extends StatelessWidget {
         final size = math.min(constraints.maxWidth, 320.0);
         final cx = size / 2;
         final cy = size / 2;
-
         const r1 = 0.22;
         const r2 = 0.35;
         const r3 = 0.46;
@@ -327,18 +364,41 @@ class _SignChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.fromLTRB(13, 7, 13, 6),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A2E5A),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0x14FFFFFF), Color(0x08FFFFFF)],
+        ),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0x446699FF), width: 1),
+        border: Border.all(color: Color(0x1EFFFFFF), width: 0.636),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x26000000),
+            blurRadius: 4,
+            offset: Offset(0, 4),
+          ),
+          BoxShadow(
+            color: Color(0x801E3A8A),
+            blurRadius: 20,
+            offset: Offset(0, 5),
+          ),
+          BoxShadow(
+            color: Color(0x26FFFFFF),
+            blurRadius: 1,
+            offset: Offset(0, 1),
+          ),
+        ],
       ),
       child: Text(
         label,
         style: const TextStyle(
-          color: AppColors.ink,
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
+          color: Color(0xCCFFFFFF),
+          fontSize: 12,
+          fontWeight: FontWeight.w300,
+          letterSpacing: -0.2,
+          height: 1.333,
         ),
       ),
     );

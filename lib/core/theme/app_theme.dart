@@ -198,7 +198,8 @@ class StarBackground extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0xFF0A0A1F), Color(0xFF08235F)],
+          colors: [Color(0xFF0A0A1F), Color(0xFF0F1729), Color(0xFF1E3A8A)],
+          stops: [0.0, 0.3, 1.0],
         ),
       ),
       child: Stack(
