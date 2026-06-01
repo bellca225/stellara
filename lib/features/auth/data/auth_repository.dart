@@ -73,17 +73,20 @@ class AuthRepository {
     }
 
     // 신규 사용자 — 최소 문서 먼저 생성 후 friendCode 발급.
+    // AppUser.toMap() 대신 직접 맵을 구성해 createdAt 을 신규 생성 시에만 설정.
+    final uid = firebaseUser.uid;
     final newUser = AppUser(
-      uid: firebaseUser.uid,
+      uid: uid,
       nickname: '별자리 유저',
       friendCode: '',
       profileCompleted: false,
       authProvider: 'anonymous',
     );
-    await _db
-        .collection('users')
-        .doc(firebaseUser.uid)
-        .set(newUser.toMap(), SetOptions(merge: true));
+    await _db.collection('users').doc(uid).set({
+      ...newUser.toMap(),
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
 
     final code = await _issueFriendCode(firebaseUser.uid, newUser.toMap());
     return newUser.copyWith(friendCode: code);
