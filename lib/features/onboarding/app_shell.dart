@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 import '../content/presentation/random_question_screen.dart';
 import '../home/presentation/main_home_screen.dart';
@@ -46,8 +46,8 @@ class _AppShellState extends State<AppShell> {
                   onTap: () => setState(() => _index = 0),
                 ),
                 _NavItem(
-                  icon: Icons.chat_bubble_outline,
-                  activeIcon: Icons.chat_bubble,
+                  icon: Icons.auto_awesome_outlined,
+                  activeIcon: Icons.auto_awesome,
                   label: '랜덤질문',
                   selected: _index == 1,
                   onTap: () => setState(() => _index = 1),
@@ -55,7 +55,7 @@ class _AppShellState extends State<AppShell> {
                 _NavItem(
                   icon: Icons.wb_sunny_outlined,
                   activeIcon: Icons.wb_sunny,
-                  label: '오늘운세',
+                  label: '오늘의 운세',
                   selected: _index == 2,
                   onTap: () => setState(() => _index = 2),
                 ),
