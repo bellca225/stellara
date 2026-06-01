@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +8,7 @@ import '../../../core/widgets/panel.dart';
 import '../../astrology/application/astrology_providers.dart';
 import '../../onboarding/presentation/onboarding_screen.dart';
 import '../../auth/application/auth_providers.dart';
+import '../../auth/presentation/landing_screen.dart';
 
 class MyPageScreen extends ConsumerWidget {
   const MyPageScreen({super.key});
@@ -172,7 +174,18 @@ class MyPageScreen extends ConsumerWidget {
             SizedBox(
               width: double.infinity,
               child: OutlinedButton(
-                onPressed: () {},
+                onPressed: () async {
+                  // Firebase Auth 세션 종료 + Riverpod 상태 초기화
+                  await FirebaseAuth.instance.signOut();
+                  ref.read(currentUserProvider.notifier).state = null;
+                  if (context.mounted) {
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(
+                          builder: (_) => const LandingScreen()),
+                      (_) => false, // 스택 전체 제거
+                    );
+                  }
+                },
                 child: const Text('로그아웃'),
               ),
             ),

@@ -39,15 +39,32 @@ class FriendRepository {
   }
 
   /// 이미 pending 요청이 있는지 확인 (양방향).
-  Future<bool> hasPendingRequest(String uid1, String uid2) async {
-    final pairKey = ([uid1, uid2]..sort()).join('__');
-    final snap = await _db
+  ///
+  /// ⚠️ pairKey 쿼리를 사용하면 안 되는 이유:
+  ///   Firestore Security Rules 가 LIST 쿼리를 쿼리 조건만으로 검증하는데,
+  ///   pairKey 조건으로는 "fromUid 또는 toUid == auth.uid"를 증명할 수 없어
+  ///   PERMISSION_DENIED 가 발생.
+  ///
+  /// 해결: fromUid / toUid 를 직접 쿼리해 Rule 조건과 일치시킴.
+  ///   - 방향 1: 내가 보낸 요청 (fromUid == myUid) → Rule: fromUid == auth.uid ✓
+  ///   - 방향 2: 상대가 보낸 요청 (toUid == myUid) → Rule: toUid == auth.uid ✓
+  ///   기존 인덱스 fromUid+status, toUid+status+createdAt 으로 충분.
+  Future<bool> hasPendingRequest(String myUid, String theirUid) async {
+    // 방향 1: 내가 상대에게 이미 보낸 요청
+    final sent = await _db
         .collection('friendRequests')
-        .where('pairKey', isEqualTo: pairKey)
+        .where('fromUid', isEqualTo: myUid)
         .where('status', isEqualTo: 'pending')
-        .limit(1)
         .get();
-    return snap.docs.isNotEmpty;
+    if (sent.docs.any((d) => d.data()['toUid'] == theirUid)) return true;
+
+    // 방향 2: 상대가 나에게 이미 보낸 요청
+    final received = await _db
+        .collection('friendRequests')
+        .where('toUid', isEqualTo: myUid)
+        .where('status', isEqualTo: 'pending')
+        .get();
+    return received.docs.any((d) => d.data()['fromUid'] == theirUid);
   }
 
   // ── 친구 요청 전송 ────────────────────────────────────────────

@@ -14,6 +14,7 @@ class UserProfile {
   const UserProfile({
     required this.uid,
     required this.authProvider,
+    required this.loginId,
     required this.nickname,
     required this.profileCompleted,
     this.friendCode,
@@ -25,10 +26,13 @@ class UserProfile {
     required this.updatedAt,
   });
 
-  /// Anonymous Auth (T05) 가 발급한 Firebase uid. Kakao 연결 시에도 link 로 동일 uid 유지.
+  /// Firebase uid. Email/Password Auth 기준.
   final String uid;
 
-  /// "anonymous" | "kakao" | "firebase". 10주차 기본은 "anonymous".
+  /// 서비스용 아이디. loginIds/{loginId} 에 인덱스 저장.
+  final String loginId;
+
+  /// "email" | "anonymous" | "kakao".
   final String authProvider;
 
   final String nickname;
@@ -58,6 +62,7 @@ class UserProfile {
   UserProfile copyWith({
     String? uid,
     String? authProvider,
+    String? loginId,
     String? nickname,
     bool? profileCompleted,
     String? friendCode,
@@ -71,6 +76,7 @@ class UserProfile {
     return UserProfile(
       uid: uid ?? this.uid,
       authProvider: authProvider ?? this.authProvider,
+      loginId: loginId ?? this.loginId,
       nickname: nickname ?? this.nickname,
       profileCompleted: profileCompleted ?? this.profileCompleted,
       friendCode: friendCode ?? this.friendCode,
@@ -90,11 +96,12 @@ class UserProfile {
   Map<String, dynamic> toFirestore() {
     return {
       'uid': uid,
+      'loginId': loginId,
       'authProvider': authProvider,
       'nickname': nickname,
       'profileCompleted': profileCompleted,
       'friendCode': friendCode,
-      'sunSign': sunSign,               // ← 버그 수정: friend_repository 에서 읽는 필드
+      'sunSign': sunSign,
       'birthInfo': birthInfo == null ? null : _birthInfoToFirestore(birthInfo!),
       'favoriteIds': favoriteIds,
       'activeChartVersion': activeChartVersion,
@@ -107,7 +114,8 @@ class UserProfile {
   factory UserProfile.fromFirestore(String uid, Map<String, dynamic> data) {
     return UserProfile(
       uid: uid,
-      authProvider: (data['authProvider'] as String?) ?? 'anonymous',
+      loginId: (data['loginId'] as String?) ?? '',
+      authProvider: (data['authProvider'] as String?) ?? 'email',
       nickname: (data['nickname'] as String?) ?? '익명의 행성',
       profileCompleted: (data['profileCompleted'] as bool?) ?? false,
       friendCode: data['friendCode'] as String?,

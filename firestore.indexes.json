@@ -18,6 +18,14 @@
       ]
     },
     {
+      "collectionGroup": "friendRequests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "pairKey", "order": "ASCENDING" },
+        { "fieldPath": "status",  "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "friendships",
       "queryScope": "COLLECTION",
       "fields": [

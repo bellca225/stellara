@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -95,10 +96,16 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(e.message)));
       }
-    } catch (_) {
+    } catch (e, st) {
+      // 실제 에러를 개발 로그에 출력해 디버깅에 활용
+      if (kDebugMode) {
+        debugPrint('[FriendScreen] sendRequest 실패: $e\n$st');
+      }
       if (mounted) {
+        // Firestore 에러 메시지에서 원인을 추출해 사용자에게 표시
+        final msg = _friendlyError(e.toString());
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('요청 전송에 실패했어요. 다시 시도해주세요.')),
+          SnackBar(content: Text(msg)),
         );
       }
     } finally {
@@ -145,6 +152,23 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
         );
       }
     }
+  }
+
+  // Firestore/Firebase 에러 메시지를 사용자 친화적 문구로 변환
+  String _friendlyError(String raw) {
+    if (raw.contains('PERMISSION_DENIED') || raw.contains('permission-denied')) {
+      return '권한이 없어요. 로그아웃 후 다시 로그인해주세요.';
+    }
+    if (raw.contains('FAILED_PRECONDITION') || raw.contains('requires an index')) {
+      return '서버 설정 중이에요. 잠시 후 다시 시도해주세요.';
+    }
+    if (raw.contains('NOT_FOUND') || raw.contains('not-found')) {
+      return '존재하지 않는 사용자예요.';
+    }
+    if (raw.contains('UNAVAILABLE') || raw.contains('network')) {
+      return '네트워크 연결을 확인해주세요.';
+    }
+    return '요청 전송에 실패했어요. 잠시 후 다시 시도해주세요.';
   }
 
   @override

@@ -9,6 +9,9 @@ import '../data/friend_code_repository.dart';
 import '../data/friend_repository.dart';
 import '../domain/friend.dart';
 
+/// 즐겨찾기 최대 인원. 메인 오빗 표시 및 토글 제한에 사용.
+const int kMaxFavorites = 3;
+
 final friendRepositoryProvider = Provider<FriendRepository>((ref) {
   return FriendRepository();
 });
@@ -28,6 +31,13 @@ final friendListProvider = FutureProvider<List<Friend>>((ref) async {
       .getFriends(profile.uid, profile.favoriteIds);
 });
 
+/// 즐겨찾기된 친구만 반환. 메인 화면 오빗 표시에 사용.
+/// friendListProvider 에서 isFavorite == true 인 것만 필터.
+final favoriteFriendsProvider = Provider<List<Friend>>((ref) {
+  final friends = ref.watch(friendListProvider).valueOrNull ?? [];
+  return friends.where((f) => f.isFavorite).toList();
+});
+
 /// 받은 친구 요청 목록.
 final receivedRequestsProvider = FutureProvider<List<FriendRequest>>((ref) async {
   final profileAsync = ref.watch(currentUserProfileProvider);
@@ -38,7 +48,10 @@ final receivedRequestsProvider = FutureProvider<List<FriendRequest>>((ref) async
       .getReceivedRequests(profile.uid);
 });
 
-/// 즐겨찾기 토글. 성공 시 friendListProvider 를 invalidate 해 목록 갱신.
+/// 즐겨찾기 토글.
+///
+/// ⚠️ 즐겨찾기는 최대 [kMaxFavorites]명까지만 등록 가능.
+/// 초과 시 Exception 을 throw 해 화면에서 SnackBar 로 안내.
 ///
 /// 호출 방법:
 ///   await ref.read(toggleFavoriteProvider(friend).future);
@@ -48,7 +61,6 @@ final toggleFavoriteProvider =
   final uid = ref.read(currentUserProvider)?.uid;
   if (uid == null) throw Exception('로그인 정보를 찾을 수 없어요.');
 
-  // 현재 favorites 목록을 Firestore 에서 직접 읽어 최신 상태로 토글.
   final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
   final currentFavorites = List<String>.from(
     doc.data()?['favoriteIds'] as List? ?? [],
@@ -58,8 +70,11 @@ final toggleFavoriteProvider =
   if (friend.isFavorite) {
     updated.remove(friend.uid);
   } else {
-    if (updated.length >= 3) {
-      throw Exception('즐겨찾기는 최대 3명까지 가능해요.');
+    if (updated.length >= kMaxFavorites) {
+      throw Exception(
+        '즐겨찾기는 최대 $kMaxFavorites명까지 등록할 수 있어요.\n'
+        '기존 즐겨찾기를 해제한 후 다시 시도해주세요.',
+      );
     }
     if (!updated.contains(friend.uid)) updated.add(friend.uid);
   }

@@ -40,6 +40,15 @@ service cloud.firestore {
       return !('favoriteIds' in data) || data.favoriteIds.size() <= 3;
     }
 
+    // ── loginIds: 아이디 중복 방지 인덱스 ────────────────────────────
+    // 아이디 존재 여부는 미인증 상태에서도 확인 가능 (회원가입 중복 검사).
+    // 쓰기는 트랜잭션으로만 (클라이언트 직접 쓰기 차단).
+    match /loginIds/{loginId} {
+      allow read: if true; // 중복 검사는 미인증 허용
+      allow write: if isSignedIn()
+        && request.resource.data.uid == request.auth.uid;
+    }
+
     // ── users: 사용자 프로필 + 출생정보 ───────────────────────────
     // read 는 인증된 사용자 전체 허용 (친구 검색/궁합에서 닉네임/birthInfo 일부 필요)
     // write 는 본인만, favoriteIds 는 최대 3명
@@ -107,8 +116,9 @@ service cloud.firestore {
     // 문서 ID 자체가 pairKey 라 중복 friendship 자연 차단
     // create 시 본인이 uids 에 포함돼야 함. 멤버만 read/delete, update 는 차단
     match /friendships/{pairKey} {
+      // resource == null 허용: 친구 여부 확인 시 문서가 없으면 null 참조 에러 방지
       allow read: if isSignedIn()
-        && request.auth.uid in resource.data.uids;
+        && (resource == null || request.auth.uid in resource.data.uids);
       allow create: if isSignedIn()
         && request.auth.uid in request.resource.data.uids
         && request.resource.data.uids.size() == 2;

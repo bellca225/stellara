@@ -64,7 +64,8 @@ class UserRepository {
     final updates = <String, dynamic>{
       'birthInfo': UserProfile(
         uid: uid,
-        authProvider: 'anonymous',
+        loginId: '',
+        authProvider: 'email',
         nickname: nickname ?? birthInfo.nickname,
         profileCompleted: true,
         birthInfo: birthInfo,
