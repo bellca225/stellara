@@ -70,6 +70,21 @@ class BirthInfo {
     return '${dt}_${latitude}_${longitude}_$utcOffset';
   }
 
+  /// Riverpod .family 캐시 키로 사용되므로 값 기반 동등성이 필수.
+  /// 같은 출생 정보면 동일 객체로 취급 → 불필요한 provider 재생성 방지.
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BirthInfo &&
+          other.dateTime == dateTime &&
+          other.latitude == latitude &&
+          other.longitude == longitude &&
+          other.utcOffset == utcOffset &&
+          other.nickname == nickname;
+
+  @override
+  int get hashCode => Object.hash(dateTime, latitude, longitude, utcOffset, nickname);
+
   @override
   String toString() =>
       'BirthInfo(nickname=$nickname, dt=$dateTime, lat=$latitude, lng=$longitude, '

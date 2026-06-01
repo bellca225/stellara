@@ -47,6 +47,21 @@ final synastryProvider =
 final matchProvider = FutureProvider.family<SynastryResult, ({BirthInfo friendBirth, String friendUid})>(
   (ref, args) {
     final myBirth = ref.watch(currentBirthInfoProvider);
+    if (myBirth == null) {
+      return ref.watch(currentUserProfileProvider.future).then((_) {
+        final loadedBirth = ref.read(currentBirthInfoProvider);
+        if (loadedBirth == null) {
+          throw StateError('내 출생 정보가 없습니다. 마이페이지에서 입력해주세요.');
+        }
+        final myUid = ref.read(currentUserIdProvider).valueOrNull;
+        return ref.read(synastryRepositoryProvider).compare(
+          me: loadedBirth,
+          partner: args.friendBirth,
+          myUid: myUid,
+          partnerUid: args.friendUid,
+        );
+      });
+    }
     final myUidAsync = ref.watch(currentUserIdProvider);
     final myUid = myUidAsync.valueOrNull;
     final repo = ref.watch(synastryRepositoryProvider);

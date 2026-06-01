@@ -27,7 +27,8 @@ class MainHomeScreen extends ConsumerWidget {
         child: asyncChart.when(
           loading: () => const _MainHomeSkeleton(),
           error: (error, _) => _MainHomeError(message: '$error'),
-          data: (chart) => _MainHomeContent(birth: birth, chart: chart),
+          // chart data 가 도달했다는 건 birth 가 이미 존재한다는 의미이므로 null-fallback 은 방어 코드.
+        data: (chart) => _MainHomeContent(birth: birth ?? BirthInfo.demo(), chart: chart),
         ),
       ),
     );

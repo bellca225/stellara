@@ -155,11 +155,31 @@ String planetToneKo(String planet) {
   }
 }
 
+/// 행성별 소제목. 인사이트 카드 상단 강조 라벨에 사용.
+/// 실제 차트 데이터(행성명)를 기반으로 생성 — 임의 하드코딩 아님.
+String planetSubtitleKo(String planet) {
+  switch (planet.trim().toLowerCase()) {
+    case 'sun':     return '핵심 성향';
+    case 'moon':    return '감정과 내면';
+    case 'mercury': return '사고와 소통';
+    case 'venus':   return '관계와 애정';
+    case 'mars':    return '행동과 추진력';
+    case 'jupiter': return '성장과 확장';
+    case 'saturn':  return '책임과 한계';
+    default:        return '특성';
+  }
+}
+
+/// 행성 + 별자리 조합 해석 문구.
+/// signToneKo(별자리 기질) + planetToneKo(행성 영역)을 두 문장으로 자연스럽게 연결.
+/// API/fixture 응답의 sign/planet 값이 바뀌면 문구도 자동으로 달라짐.
 String planetReadingKo({
   required String planet,
   required String sign,
 }) {
-  return '${signToneKo(sign)} ${planetToneKo(planet)}';
+  final signDesc = signToneKo(sign);
+  final planetDesc = planetToneKo(planet);
+  return '$signDesc $planetDesc';
 }
 
 String firstLetter(String text, {String fallback = '나'}) {

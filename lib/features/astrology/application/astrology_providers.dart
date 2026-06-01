@@ -60,14 +60,16 @@ final astrologyRepositoryProvider = Provider<AstrologyRepository>((ref) {
 
 // ── "현재 사용자의 출생 정보" — Firestore UserProfile 에서 읽음 ──
 //
-// Firestore users/{uid}.birthInfo 가 없으면 demo 데이터로 fallback.
-// 온보딩 완료 후 upsertBirthInfo() 가 호출되면 자동으로 스트림 갱신됨.
-final currentBirthInfoProvider = Provider<BirthInfo>((ref) {
+// - profile 로딩 중이거나 birthInfo 가 없으면 null 반환.
+// - null 을 반환함으로써 profile 로드 전에 demo 데이터로 API 가 호출되는 문제를 방지한다.
+// - 온보딩 완료 후 upsertBirthInfo() 가 호출되면 Firestore stream 이 갱신되어
+//   이 Provider 도 자동으로 새 BirthInfo 를 emit 한다.
+final currentBirthInfoProvider = Provider<BirthInfo?>((ref) {
   final profileAsync = ref.watch(currentUserProfileProvider);
   return profileAsync.when(
-    data: (profile) => profile?.birthInfo ?? BirthInfo.demo(),
-    loading: () => BirthInfo.demo(),
-    error: (_, __) => BirthInfo.demo(),
+    data: (profile) => profile?.birthInfo,
+    loading: () => null,  // 로딩 중엔 null — demo 데이터로 API 호출 방지
+    error: (_, __) => null,
   );
 });
 
@@ -82,7 +84,23 @@ final natalChartProvider =
 });
 
 /// "현재 로그인 사용자의 차트" — 화면에서 가장 자주 쓰는 단축 Provider.
+///
+/// birth 가 null(profile 로딩 중 또는 birthInfo 미입력)이면
+/// currentUserProfileProvider.future 를 기다린 뒤 재시도한다.
+/// birth 가 변경되면 currentBirthInfoProvider 를 watch 하고 있으므로
+/// Riverpod 이 자동으로 이 provider 를 재실행한다.
 final myNatalChartProvider = FutureProvider<NatalChart>((ref) {
   final birth = ref.watch(currentBirthInfoProvider);
+  if (birth == null) {
+    // profile stream 이 아직 데이터를 emit 하지 않은 상태.
+    // future 를 통해 첫 데이터를 기다린 뒤 birth 를 재확인한다.
+    return ref.watch(currentUserProfileProvider.future).then((_) {
+      final loadedBirth = ref.read(currentBirthInfoProvider);
+      if (loadedBirth == null) {
+        throw StateError('출생 정보가 없습니다. 마이페이지에서 입력해주세요.');
+      }
+      return ref.read(natalChartProvider(loadedBirth).future);
+    });
+  }
   return ref.watch(natalChartProvider(birth).future);
 });

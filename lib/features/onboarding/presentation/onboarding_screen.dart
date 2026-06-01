@@ -135,8 +135,19 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     });
 
     try {
-      // 날짜 파싱
-      final dateParts = _dateCtrl.text.trim().split('-').map(int.parse).toList();
+      // ── 1. 생년월일 파싱 ──────────────────────────────────────────
+      final dateStr = _dateCtrl.text.trim();
+      if (dateStr.isEmpty) {
+        setState(() => _error = '생년월일을 입력해주세요.');
+        return;
+      }
+      final dateParts = dateStr.split('-').map(int.parse).toList();
+      if (dateParts.length != 3) {
+        setState(() => _error = '생년월일 형식을 확인해주세요. 예: 1995-02-15');
+        return;
+      }
+
+      // ── 2. 출생 시간 파싱 (선택사항) ──────────────────────────────
       final timeStr = _timeCtrl.text.trim();
       final timeParts = timeStr.isEmpty
           ? [0, 0]
@@ -147,30 +158,51 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         timeParts[0], timeParts[1],
       );
 
-      // 출생지 Geocoding
+      // ── 3. 출생지 Geocoding ─────────────────────────────────────
       double latitude;
       double longitude;
       String? placeName;
       final placeQuery = _placeCtrl.text.trim();
 
-      if (_placeResolver.supportsForwardGeocoding && placeQuery.isNotEmpty) {
+      if (placeQuery.isEmpty) {
+        // 출생지 미입력 → 서울 기본값으로 안내 후 처리
+        if (kDebugMode) {
+          // ignore: avoid_print
+          print('[Onboarding] 출생지 미입력 → 서울 기본값 사용');
+        }
+        latitude = 37.5665;
+        longitude = 126.9780;
+        placeName = '서울특별시';
+      } else if (_placeResolver.supportsForwardGeocoding) {
         final result = await _placeResolver.resolveDetailed(placeQuery);
         switch (result) {
           case PlaceResolutionSuccess(:final place):
             latitude = place.latitude;
             longitude = place.longitude;
             placeName = place.placeName;
+            if (kDebugMode) {
+              // ignore: avoid_print
+              print('[Onboarding] 장소 변환 성공: "$placeQuery" → '
+                  'lat=${place.latitude}, lng=${place.longitude}');
+            }
           case PlaceResolutionFailure(:final kind):
             setState(() => _error = _placeErrorMessage(kind));
             return;
         }
       } else {
-        // Web 또는 출생지 미입력 → 서울 기본값
+        // Web 등 geocoding 미지원 플랫폼 → 사용자 입력값 + 서울 좌표 fallback
         latitude = 37.5665;
         longitude = 126.9780;
-        placeName = placeQuery.isEmpty ? '서울특별시' : placeQuery;
+        placeName = placeQuery;
+        if (kDebugMode) {
+          // ignore: avoid_print
+          print('[Onboarding] geocoding 미지원 플랫폼 → 서울 좌표 fallback, placeName="$placeQuery"');
+        }
       }
 
+      // ── 4. BirthInfo 구성 ────────────────────────────────────────
+      // utcOffset: 현재 한국 앱 대상이므로 기본 +09:00. 해외 출생지는 추후 geocoding
+      // 결과에서 timezone 을 추출하여 자동화 예정.
       final birth = BirthInfo(
         nickname: ref.read(currentUserProvider)?.loginId ?? '별자리',
         dateTime: dt,
@@ -180,7 +212,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         placeName: placeName,
       );
 
-      // Firestore 저장
+      if (kDebugMode) {
+        // ignore: avoid_print
+        print('[Onboarding] 저장할 BirthInfo: ${birth.chartVersion}');
+      }
+
+      // ── 5. 로그인 확인 ───────────────────────────────────────────
       final uid = ref.read(currentUserProvider)?.uid
           ?? ref.read(currentUserIdProvider).valueOrNull;
       if (uid == null) {
@@ -188,11 +225,21 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         return;
       }
 
+      // 저장 전 이전 birth 기반 캐시를 먼저 무효화한다.
+      // Firestore stream 업데이트 타이밍에 의존하지 않기 위해 명시적으로 처리.
+      final oldBirth = ref.read(currentBirthInfoProvider);
+      if (oldBirth != null) {
+        ref.invalidate(natalChartProvider(oldBirth));
+      }
+
       await ref.read(userRepositoryProvider).upsertBirthInfo(
         uid: uid,
         birthInfo: birth,
         nickname: birth.nickname,
       );
+
+      // myNatalChartProvider 도 invalidate 해 Firestore stream 업데이트 전이라도
+      // 최신 birth 가 반영된 시점에 즉시 재실행되도록 한다.
       ref.invalidate(myNatalChartProvider);
 
       if (!mounted) return;

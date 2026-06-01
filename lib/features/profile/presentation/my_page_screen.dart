@@ -17,6 +17,8 @@ class MyPageScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final birth = ref.watch(currentBirthInfoProvider);
     final asyncChart = ref.watch(myNatalChartProvider);
+    // birth 가 null 이면(profile 로딩 중 / birthInfo 미입력) demo 값으로 표시.
+    final birthDisplay = birth ?? BirthInfo.demo();
     final user = ref.watch(currentUserProvider);
     final friendCode = user?.friendCode ?? 'AQU2024';
 
@@ -42,7 +44,7 @@ class MyPageScreen extends ConsumerWidget {
                 ),
                 alignment: Alignment.center,
                 child: Text(
-                  firstLetter(birth.nickname, fallback: '별'),
+                  firstLetter(birthDisplay.nickname, fallback: '별'),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 36,
@@ -54,7 +56,7 @@ class MyPageScreen extends ConsumerWidget {
             const SizedBox(height: AppSpacing.lg),
             Center(
               child: Text(
-                birth.nickname,
+                birthDisplay.nickname,
                 style: Theme.of(context).textTheme.headlineMedium,
               ),
             ),
@@ -136,15 +138,17 @@ class MyPageScreen extends ConsumerWidget {
                   const SizedBox(height: AppSpacing.md),
                   _InfoRow(
                     label: '생년월일',
-                    value:
-                        '${birth.dateTime.year}-${_pad(birth.dateTime.month)}-${_pad(birth.dateTime.day)}',
+                    value: birth == null
+                        ? '-'
+                        : '${birthDisplay.dateTime.year}-${_pad(birthDisplay.dateTime.month)}-${_pad(birthDisplay.dateTime.day)}',
                   ),
                   _InfoRow(
                     label: '출생 시간',
-                    value:
-                        '${_pad(birth.dateTime.hour)}:${_pad(birth.dateTime.minute)}',
+                    value: birth == null
+                        ? '-'
+                        : '${_pad(birthDisplay.dateTime.hour)}:${_pad(birthDisplay.dateTime.minute)}',
                   ),
-                  _InfoRow(label: '출생지', value: birth.placeName ?? '-'),
+                  _InfoRow(label: '출생지', value: birth?.placeName ?? '-'),
                   const SizedBox(height: AppSpacing.md),
                   SizedBox(
                     width: double.infinity,

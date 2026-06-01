@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/env/env.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/astro_text.dart';
 import '../../../core/widgets/panel.dart';
+import '../../users/application/user_providers.dart';
 import '../application/astrology_providers.dart';
 import '../domain/birth_info.dart';
 import '../domain/natal_chart.dart';
@@ -15,14 +17,32 @@ class AstrologyScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final birth = ref.watch(currentBirthInfoProvider);
+    final profileAsync = ref.watch(currentUserProfileProvider);
     final asyncChart = ref.watch(myNatalChartProvider);
+
+    // 출생 정보가 없는 사용자 가드
+    // profileCompleted=false 이거나 birthInfo=null이면 차트 화면 대신 안내 표시.
+    // profile 이 아직 로딩 중이면(null) 스켈레톤을 보여주며 기다린다.
+    final profile = profileAsync.valueOrNull;
+    if (profileAsync.hasValue && profile != null &&
+        (!profile.profileCompleted || profile.birthInfo == null)) {
+      return Scaffold(
+        body: SafeArea(
+          child: _NoBirthInfoView(onBack: () => Navigator.of(context).pop()),
+        ),
+      );
+    }
 
     return Scaffold(
       body: SafeArea(
         child: asyncChart.when(
           loading: () => const _ChartSkeleton(),
           error: (error, _) => _ErrorView(message: '$error'),
-          data: (chart) => _ChartContent(birth: birth, chart: chart),
+          // birth 가 null 일 수 없는 시점(chart data 도달 시)이지만 안전을 위해 null-check.
+          data: (chart) {
+            if (birth == null) return const _ChartSkeleton();
+            return _ChartContent(birth: birth, chart: chart);
+          },
         ),
       ),
     );
@@ -83,7 +103,7 @@ class _ChartContent extends StatelessWidget {
         _AspectTable(chart: chart),
         const SizedBox(height: AppSpacing.xl),
         Text(
-          '상세 해석',
+          '상세 분석',
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontSize: 20,
               ),
@@ -91,7 +111,8 @@ class _ChartContent extends StatelessWidget {
         const SizedBox(height: AppSpacing.md),
         for (final planet in detailPlanets) ...[
           _InsightCard(
-            title: '${planetNameKo(planet.name)} · ${zodiacNameKo(planet.sign)}',
+            title: '${planetNameKo(planet.name)} in ${zodiacNameKo(planet.sign)}',
+            subtitle: planetSubtitleKo(planet.name),
             description: planetReadingKo(
               planet: planet.name,
               sign: planet.sign,
@@ -114,6 +135,9 @@ class _BirthChartHeader extends StatelessWidget {
 
   final BirthInfo birth;
 
+  /// fixture 모드일 때 true. 실제 사용자 데이터가 아닌 데모 데이터임을 나타냄.
+  bool get _isDemo => Env.shouldUseFixtureForProkerala;
+
   @override
   Widget build(BuildContext context) {
     return Center(
@@ -134,15 +158,52 @@ class _BirthChartHeader extends StatelessWidget {
               border: Border.all(color: AppColors.line, width: 1.4),
             ),
             alignment: Alignment.center,
-            child: Text(
-              '출생 차트\n${birth.dateTime.year}-${_pad(birth.dateTime.month)}-${_pad(birth.dateTime.day)}',
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: AppColors.ink,
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                height: 1.35,
-              ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.star_outline_rounded,
+                  color: AppColors.primaryLight,
+                  size: 28,
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  '출생 차트',
+                  style: TextStyle(
+                    color: AppColors.ink,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${birth.dateTime.year}-${_pad(birth.dateTime.month)}-${_pad(birth.dateTime.day)}',
+                  style: const TextStyle(
+                    color: AppColors.inkMuted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                // fixture 모드 표시기 — 실제 API 데이터가 아님을 명시
+                if (_isDemo) ...[
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text(
+                      '데모',
+                      style: TextStyle(
+                        color: Colors.orange,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
         ),
@@ -316,9 +377,12 @@ class _InsightCard extends StatelessWidget {
   const _InsightCard({
     required this.title,
     required this.description,
+    this.subtitle,
   });
 
   final String title;
+  /// 예: '핵심 성향', '감정과 내면' — planetSubtitleKo() 결과.
+  final String? subtitle;
   final String description;
 
   @override
@@ -328,17 +392,32 @@ class _InsightCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 행성 in 별자리 (디자이너 화면 기준)
           Text(
             title,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontSize: 18,
+                  fontSize: 16,
+                  color: AppColors.primaryLight,
                 ),
           ),
+          // 소제목: 핵심 성향 / 감정과 내면 등
+          if (subtitle != null) ...[
+            const SizedBox(height: 2),
+            Text(
+              subtitle!,
+              style: const TextStyle(
+                color: AppColors.inkSubtle,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
           const SizedBox(height: AppSpacing.sm),
           Text(
             description,
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   color: AppColors.inkMuted,
+                  height: 1.55,
                 ),
           ),
         ],
@@ -406,6 +485,49 @@ class _ErrorView extends StatelessWidget {
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodyLarge,
         ),
+      ),
+    );
+  }
+}
+
+/// 출생 정보 미입력 사용자에게 보여주는 가드 화면.
+class _NoBirthInfoView extends StatelessWidget {
+  const _NoBirthInfoView({required this.onBack});
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              IconButton(
+                onPressed: onBack,
+                icon: const Icon(Icons.arrow_back),
+              ),
+              Text(
+                '점성술 분석',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+            ],
+          ),
+          const Spacer(),
+          const Icon(Icons.star_outline_rounded, size: 56, color: AppColors.inkSubtle),
+          const SizedBox(height: AppSpacing.lg),
+          Text(
+            '출생 정보가 필요해요',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          const Text(
+            '점성술 분석을 보려면\n마이페이지에서 생년월일·출생시간·출생지를\n먼저 입력해주세요.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.inkMuted, height: 1.5),
+          ),
+          const Spacer(),
+        ],
       ),
     );
   }

@@ -67,9 +67,10 @@ class _MatchScreenState extends ConsumerState<MatchScreen> {
   Widget build(BuildContext context) {
     final me = ref.watch(currentBirthInfoProvider);
     final partner = _partner;
-    final result = partner == null
+    // me 가 null 이면(profile 로딩 중) synastryProvider 호출 건너뜀.
+    final result = (partner == null || me == null)
         ? null
-        : ref.watch(synastryProvider((me: me, partner: partner)));
+        : ref.watch(synastryProvider((me: me, partner: partner, myUid: null, partnerUid: '')));
 
     return Scaffold(
       appBar: AppBar(title: const Text('친구와 궁합')),
@@ -87,16 +88,18 @@ class _MatchScreenState extends ConsumerState<MatchScreen> {
                 children: [
                   const SectionTitle('내 출생정보'),
                   const SizedBox(height: 8),
-                  KeyValueRow(label: '닉네임', value: me.nickname),
+                  KeyValueRow(label: '닉네임', value: me?.nickname ?? '-'),
                   KeyValueRow(
                       label: '생년월일',
-                      value:
-                          '${me.dateTime.year}-${_pad(me.dateTime.month)}-${_pad(me.dateTime.day)}'),
+                      value: me == null
+                          ? '-'
+                          : '${me.dateTime.year}-${_pad(me.dateTime.month)}-${_pad(me.dateTime.day)}'),
                   KeyValueRow(
                       label: '시간',
-                      value:
-                          '${_pad(me.dateTime.hour)}:${_pad(me.dateTime.minute)} ${me.utcOffset}'),
-                  KeyValueRow(label: '출생지', value: me.placeName ?? '-'),
+                      value: me == null
+                          ? '-'
+                          : '${_pad(me.dateTime.hour)}:${_pad(me.dateTime.minute)} ${me.utcOffset}'),
+                  KeyValueRow(label: '출생지', value: me?.placeName ?? '-'),
                 ],
               ),
             ),

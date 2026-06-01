@@ -13,6 +13,7 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../domain/birth_info.dart';
 import '../domain/natal_chart.dart';
 
 class ChartRepository {
@@ -37,12 +38,22 @@ class ChartRepository {
 
   /// 차트 저장 + users/{uid}.sunSign / activeChartVersion 동기화.
   /// runTransaction 으로 두 컬렉션을 원자적으로 갱신.
+  ///
+  /// [birth] 를 받아 어떤 출생 정보로 계산된 결과인지 메타데이터로 함께 저장한다.
+  /// 이를 통해 birth 변경 여부를 비교하거나 분석 근거를 추적할 수 있다.
   Future<void> save({
     required String uid,
     required String chartVersion,
     required NatalChart chart,
+    required BirthInfo birth,
   }) async {
     final now = FieldValue.serverTimestamp();
+    String pad(int n) => n.toString().padLeft(2, '0');
+    final analysisBirthDate =
+        '${birth.dateTime.year}-${pad(birth.dateTime.month)}-${pad(birth.dateTime.day)}';
+    final analysisBirthTime =
+        '${pad(birth.dateTime.hour)}:${pad(birth.dateTime.minute)}';
+
     final chartData = {
       'uid': uid,
       'chartVersion': chartVersion,
@@ -53,6 +64,18 @@ class ChartRepository {
       'houses': chart.houses.map((h) => h.toJson()).toList(),
       'aspects': chart.aspects.map((a) => a.toJson()).toList(),
       'chartSummary': _buildSummary(chart),
+      // 이 분석이 어떤 출생 정보 기준으로 생성됐는지 메타데이터로 저장.
+      // birth 변경 감지 및 분석 근거 추적에 사용한다.
+      'analysisBirthDate': analysisBirthDate,
+      'analysisBirthTime': analysisBirthTime,
+      'analysisBirthPlace': birth.placeName ?? '',
+      'latitude': birth.latitude,
+      'longitude': birth.longitude,
+      'timezone': birth.utcOffset,
+      'generatedAt': now,
+      // 캐시 신선도 추적
+      'lastCalculatedAt': now,  // 실제 API 로 마지막 계산한 시각
+      'source': 'prokerala',    // 데이터 출처 (prokerala | fixture)
       'updatedAt': now,
     };
 
