@@ -3,6 +3,8 @@
 // 로그인/세션 컨텍스트에서 쓰는 경량 사용자 모델.
 // 상세 프로필(출생정보 등)은 UserProfile(users/{uid})에서 관리한다.
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class AppUser {
   const AppUser({
     required this.uid,
@@ -43,6 +45,10 @@ class AppUser {
       'profileCompleted': profileCompleted,
       'authProvider': authProvider,
       if (sunSign != null) 'sunSign': sunSign,
+      // 신규 사용자 문서 생성 시 타임스탬프 포함.
+      // merge:true 이므로 기존 문서에 덮어쓰기 시 이 값은 무시됨.
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
     };
   }
 

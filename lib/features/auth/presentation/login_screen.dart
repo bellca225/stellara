@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../application/auth_providers.dart';
 import '../data/auth_repository.dart';
 import '../domain/app_user.dart';
 import '../../onboarding/presentation/onboarding_screen.dart';
@@ -133,6 +134,8 @@ class LoginScreen extends ConsumerWidget {
     final result = await repo.signInOrRestore();
     final user = result.user;
     if (user != null && context.mounted) {
+      // Provider 상태 갱신 — _AuthGate 가 이 값을 watch 하므로 반드시 필요.
+      ref.read(currentUserProvider.notifier).state = user;
       if (!user.profileCompleted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const OnboardingScreen()),

@@ -17,6 +17,7 @@ class UserProfile {
     required this.nickname,
     required this.profileCompleted,
     this.friendCode,
+    this.sunSign,
     this.birthInfo,
     this.favoriteIds = const [],
     this.activeChartVersion,
@@ -38,6 +39,10 @@ class UserProfile {
   /// 현재 활성 친구 코드. T16 에서 발급되기 전까지 null 가능.
   final String? friendCode;
 
+  /// 태양 별자리. charts/{uid} 생성 후 동기화됨. 미생성 시 null.
+  /// friend_repository 에서 data['sunSign'] 으로 읽으므로 toFirestore 에 반드시 포함.
+  final String? sunSign;
+
   /// 출생정보. 온보딩 진입 전이면 null 가능.
   final BirthInfo? birthInfo;
 
@@ -56,6 +61,7 @@ class UserProfile {
     String? nickname,
     bool? profileCompleted,
     String? friendCode,
+    String? sunSign,
     BirthInfo? birthInfo,
     List<String>? favoriteIds,
     String? activeChartVersion,
@@ -68,6 +74,7 @@ class UserProfile {
       nickname: nickname ?? this.nickname,
       profileCompleted: profileCompleted ?? this.profileCompleted,
       friendCode: friendCode ?? this.friendCode,
+      sunSign: sunSign ?? this.sunSign,
       birthInfo: birthInfo ?? this.birthInfo,
       favoriteIds: favoriteIds ?? this.favoriteIds,
       activeChartVersion: activeChartVersion ?? this.activeChartVersion,
@@ -87,6 +94,7 @@ class UserProfile {
       'nickname': nickname,
       'profileCompleted': profileCompleted,
       'friendCode': friendCode,
+      'sunSign': sunSign,               // ← 버그 수정: friend_repository 에서 읽는 필드
       'birthInfo': birthInfo == null ? null : _birthInfoToFirestore(birthInfo!),
       'favoriteIds': favoriteIds,
       'activeChartVersion': activeChartVersion,
@@ -103,6 +111,7 @@ class UserProfile {
       nickname: (data['nickname'] as String?) ?? '익명의 행성',
       profileCompleted: (data['profileCompleted'] as bool?) ?? false,
       friendCode: data['friendCode'] as String?,
+      sunSign: data['sunSign'] as String?,
       birthInfo: data['birthInfo'] is Map<String, dynamic>
           ? _birthInfoFromFirestore(data['birthInfo'] as Map<String, dynamic>)
           : null,

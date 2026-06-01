@@ -18,12 +18,18 @@ import '../../../core/env/env.dart';
 import '../domain/birth_info.dart';
 import '../domain/natal_chart.dart';
 import '../fixtures/natal_chart_fixture.dart';
+import 'chart_repository.dart';
 import 'prokerala_api.dart';
 
 class AstrologyRepository {
-  AstrologyRepository(this._api, this._cache);
+  AstrologyRepository(this._api, this._cache, this._chartRepo, {String? uid})
+      : _currentUid = uid;
   final ProkeralaApi _api;
   final DiskCache _cache;
+  final ChartRepository _chartRepo;
+
+  /// 현재 로그인 사용자 uid. Firestore L3 저장/조회에 사용. null 이면 L3 스킵.
+  final String? _currentUid;
 
   Future<NatalChart> getNatalChart(BirthInfo birth) async {
     // 기본 브랜치 정책상 원격 호출을 막거나, 디버그 + fixture 옵션이면 네트워크를 타지 않는다.
@@ -41,26 +47,42 @@ class AstrologyRepository {
       try {
         return NatalChart.fromJson(cached);
       } catch (e) {
-        // 캐시 스키마가 변하거나 손상된 경우 — 무시하고 실호출로 fallback.
         if (kDebugMode) {
           // ignore: avoid_print
-          print('[AstrologyRepository] L2 디코드 실패 → 실호출 fallback: $e');
+          print('[AstrologyRepository] L2 디코드 실패 → L3 fallback: $e');
         }
+      }
+    }
+
+    // L3 (Firestore) 조회. 앱 재설치 / 기기 변경 후에도 차트 유지.
+    // uid 는 AstrologyRepository 외부에서 주입받아야 함. null 이면 L3 스킵.
+    if (_currentUid != null) {
+      final firestoreChart = await _chartRepo.get(_currentUid!, birth.chartVersion);
+      if (firestoreChart != null) {
+        // L3 hit → L2 에 내려써서 다음번 조회는 디스크에서 바로 반환.
+        await _cache.putJson(cacheKey, firestoreChart.toJson(), source: 'firestore');
+        return firestoreChart;
       }
     }
 
     try {
       final json = await _api.fetchNatalChart(birth);
       final chart = _parseNatalChart(json);
-      // 실응답만 디스크에 저장 (fixture 는 운영 원칙에 따라 미저장).
       await _cache.putJson(cacheKey, chart.toJson(), source: 'live');
+      // uid 가 있을 때만 Firestore 에 저장.
+      if (_currentUid != null) {
+        await _chartRepo.save(
+          uid: _currentUid!,
+          chartVersion: birth.chartVersion,
+          chart: chart,
+        );
+      }
       return chart;
     } catch (e, st) {
       if (kDebugMode) {
         // ignore: avoid_print
         print('[AstrologyRepository] natal chart 실패 → fixture fallback: $e\n$st');
       }
-      // 화면 깨짐 방지: 실패해도 사용자에겐 데모 차트라도 보여준다.
       return demoNatalChart();
     }
   }

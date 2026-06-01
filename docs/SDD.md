@@ -619,7 +619,7 @@ Base URL: `https://api.prokerala.com`
   "uid": "demo-una",
   "birthInfo": {
     "nickname": "물병자리의 꿈",
-    "dateTimeLocal": "1995-02-15T14:30:00",
+    "dateTimeLocal": "1999-02-25T14:30:00",
     "latitude": 37.5665,
     "longitude": 126.9780,
     "utcOffset": "+09:00",
@@ -634,7 +634,7 @@ Base URL: `https://api.prokerala.com`
 ```json
 {
   "data": {
-    "chartVersion": "1995-02-15T14:30:00_37.5665_126.9780_+09:00",
+    "chartVersion": "1999-02-25T14:30:00_37.5665_126.9780_+09:00",
     "source": "live",
     "cachedAt": "2026-05-08T11:30:00Z",
     "chart": {
@@ -705,7 +705,7 @@ Base URL: `https://api.prokerala.com`
 {
   "me": {
     "nickname": "물병자리의 꿈",
-    "dateTimeLocal": "1995-02-15T14:30:00",
+    "dateTimeLocal": "1999-02-25T14:30:00",
     "latitude": 37.5665,
     "longitude": 126.9780,
     "utcOffset": "+09:00",
@@ -846,7 +846,7 @@ users/{uid}
   friendCode: String             # 현재 활성 코드
   profileCompleted: bool
   birthInfo:
-    dateTimeLocal: String        # "1995-02-15T14:30:00"
+    dateTimeLocal: String        # "1999-02-25T14:30:00"
     utcOffset: String            # "+09:00"
     placeName: String
     latitude: double
@@ -911,7 +911,7 @@ charts/{uid}
 ```
 
 주의:
-- `chartVersion` 예시: `1995-02-15T14:30:00_37.5665_126.9780_+09:00`
+- `chartVersion` 예시: `1999-02-25T14:30:00_37.5665_126.9780_+09:00`
 - `users.activeChartVersion` 과 같지 않으면 stale 데이터로 간주한다
 
 #### `dailyFortunes/{uid}_{signSlug}_{yyyyMMdd}` — 운세 캐시

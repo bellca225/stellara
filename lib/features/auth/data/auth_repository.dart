@@ -18,6 +18,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../../friends/data/friend_code_repository.dart';
 import '../domain/app_user.dart';
 
 class AuthRepository {
@@ -55,14 +56,23 @@ class AuthRepository {
     }
   }
 
-  /// Firestore에서 사용자 로드. 신규 사용자면 최소 문서 생성.
+  /// Firestore에서 사용자 로드. 신규 사용자면 최소 문서 생성 + friendCode 자동 발급.
   Future<AppUser?> _loadOrCreateUser(User firebaseUser) async {
     final doc = await _db.collection('users').doc(firebaseUser.uid).get();
+
+    // 기존 사용자 — 로드만.
     if (doc.exists && doc.data() != null) {
-      return AppUser.fromMap(doc.data()!);
+      final data = doc.data()!;
+      // friendCode 가 없는 기존 사용자(이전 버전 데이터)는 여기서도 발급.
+      if ((data['friendCode'] as String?)?.isEmpty ?? true) {
+        await _issueFriendCode(firebaseUser.uid, data);
+        final updated = await _db.collection('users').doc(firebaseUser.uid).get();
+        return AppUser.fromMap(updated.data()!);
+      }
+      return AppUser.fromMap(data);
     }
 
-    // 신규 사용자 - 최소 문서 생성 (출생정보는 온보딩에서 채움)
+    // 신규 사용자 — 최소 문서 먼저 생성 후 friendCode 발급.
     final newUser = AppUser(
       uid: firebaseUser.uid,
       nickname: '별자리 유저',
@@ -74,7 +84,19 @@ class AuthRepository {
         .collection('users')
         .doc(firebaseUser.uid)
         .set(newUser.toMap(), SetOptions(merge: true));
-    return newUser;
+
+    final code = await _issueFriendCode(firebaseUser.uid, newUser.toMap());
+    return newUser.copyWith(friendCode: code);
+  }
+
+  /// FriendCodeRepository 를 통해 친구 코드 발급. 실패해도 앱은 계속 실행.
+  Future<String?> _issueFriendCode(String uid, Map<String, dynamic> userData) async {
+    try {
+      final codeRepo = FriendCodeRepository(_db);
+      return await codeRepo.issue(uid);
+    } catch (e) {
+      return null;
+    }
   }
 
   /// uid로 Firestore 사용자 조회.

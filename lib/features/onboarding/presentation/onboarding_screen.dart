@@ -17,6 +17,8 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/panel.dart';
 import '../../astrology/application/astrology_providers.dart';
 import '../../astrology/domain/birth_info.dart';
+import '../../auth/application/auth_providers.dart';
+import '../../users/application/user_providers.dart';
 import '../data/place_resolver.dart';
 import '../app_shell.dart';
 
@@ -128,7 +130,21 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         placeName: placeName,
       );
 
-      ref.read(currentBirthInfoProvider.notifier).state = birth;
+      // Firestore 에 저장 → currentBirthInfoProvider 가 stream 으로 자동 반영됨.
+      // currentUserProvider 는 로그인 시 동기적으로 설정된 StateProvider 라
+      // StreamProvider(currentUserIdProvider) 보다 안정적으로 uid 를 제공함.
+      final uid = ref.read(currentUserProvider)?.uid
+          ?? ref.read(currentUserIdProvider).valueOrNull;
+      if (uid != null) {
+        await ref.read(userRepositoryProvider).upsertBirthInfo(
+          uid: uid,
+          birthInfo: birth,
+          nickname: birth.nickname,
+        );
+      } else {
+        setState(() => _error = '로그인 정보를 불러올 수 없어요. 앱을 재시작 후 다시 시도해주세요.');
+        return;
+      }
       ref.invalidate(myNatalChartProvider);
 
       if (!mounted) {
@@ -144,7 +160,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       }
     } catch (e) {
       setState(() => _error =
-          '입력값을 다시 확인해주세요 (생년월일은 1995-02-15, 시간은 14:30 형식).');
+          '입력값을 다시 확인해주세요 (생년월일은 1999-02-25, 시간은 14:30 형식).');
     } finally {
       if (mounted) {
         setState(() => _isSubmitting = false);
@@ -198,7 +214,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     keyboardType: TextInputType.datetime,
                     decoration: const InputDecoration(
                       labelText: '생년월일',
-                      hintText: '예: 1995-02-15',
+                      hintText: '예: 1999-02-25',
                     ),
                   ),
                   const SizedBox(height: 10),

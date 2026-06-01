@@ -8,12 +8,15 @@
 // - 9주차에 build_runner 를 한 번 돌리는 것만으로도 충분한 학습 부담.
 // - 추후 더 복잡한 Notifier가 필요해지면 그때 @riverpod 으로 옮긴다.
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/cache/disk_cache.dart';
 import '../../../core/http/dio_client.dart';
+import '../../users/application/user_providers.dart';
 import '../data/astrology_repository.dart';
+import '../data/chart_repository.dart';
 import '../data/prokerala_api.dart';
 import '../data/prokerala_token_repository.dart';
 import '../domain/birth_info.dart';
@@ -39,19 +42,33 @@ final prokeralaApiProvider = Provider<ProkeralaApi>(
 );
 
 // ── 도메인 Repository ───────────────────────────────────────────
-final astrologyRepositoryProvider = Provider<AstrologyRepository>(
-  (ref) => AstrologyRepository(
-    ref.watch(prokeralaApiProvider),
-    ref.watch(diskCacheProvider),
-  ),
+final chartRepositoryProvider = Provider<ChartRepository>(
+  (ref) => ChartRepository(FirebaseFirestore.instance),
 );
 
-// ── "현재 사용자의 출생 정보" — 10주차에 Firestore 와 연결 ────────
+final astrologyRepositoryProvider = Provider<AstrologyRepository>((ref) {
+  // uid 를 주입해 Firestore L3 캐시를 활성화.
+  final uidAsync = ref.watch(currentUserIdProvider);
+  final uid = uidAsync.valueOrNull;
+  return AstrologyRepository(
+    ref.watch(prokeralaApiProvider),
+    ref.watch(diskCacheProvider),
+    ref.watch(chartRepositoryProvider),
+    uid: uid,
+  );
+});
+
+// ── "현재 사용자의 출생 정보" — Firestore UserProfile 에서 읽음 ──
 //
-// 9주차에는 OnboardingScreen 에서 setState 대신 이 Provider 에 값을 써넣고,
-// 다른 화면들은 ref.watch(currentBirthInfoProvider) 로 읽는다.
-final currentBirthInfoProvider = StateProvider<BirthInfo>((ref) {
-  return BirthInfo.demo();
+// Firestore users/{uid}.birthInfo 가 없으면 demo 데이터로 fallback.
+// 온보딩 완료 후 upsertBirthInfo() 가 호출되면 자동으로 스트림 갱신됨.
+final currentBirthInfoProvider = Provider<BirthInfo>((ref) {
+  final profileAsync = ref.watch(currentUserProfileProvider);
+  return profileAsync.when(
+    data: (profile) => profile?.birthInfo ?? BirthInfo.demo(),
+    loading: () => BirthInfo.demo(),
+    error: (_, __) => BirthInfo.demo(),
+  );
 });
 
 // ── 차트 호출 ───────────────────────────────────────────────────

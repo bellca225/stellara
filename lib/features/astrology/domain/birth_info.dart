@@ -18,7 +18,7 @@ class BirthInfo {
 
   final String nickname;
 
-  /// "현지 시각" 기준 출생일시. (예: 1995-02-15 14:30, 한국 출생이면 KST.)
+  /// "현지 시각" 기준 출생일시. (예: 1999-02-25 14:30, 한국 출생이면 KST.)
   /// utcOffset 와 함께 보관해야 Prokerala 가 정확한 절대 시각을 계산할 수 있다.
   final DateTime dateTime;
 
