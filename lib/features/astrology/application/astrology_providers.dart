@@ -8,12 +8,15 @@
 // - 9주차에 build_runner 를 한 번 돌리는 것만으로도 충분한 학습 부담.
 // - 추후 더 복잡한 Notifier가 필요해지면 그때 @riverpod 으로 옮긴다.
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/cache/disk_cache.dart';
 import '../../../core/http/dio_client.dart';
+import '../../users/application/user_providers.dart';
 import '../data/astrology_repository.dart';
+import '../data/chart_repository.dart';
 import '../data/prokerala_api.dart';
 import '../data/prokerala_token_repository.dart';
 import '../domain/birth_info.dart';
@@ -39,19 +42,35 @@ final prokeralaApiProvider = Provider<ProkeralaApi>(
 );
 
 // ── 도메인 Repository ───────────────────────────────────────────
-final astrologyRepositoryProvider = Provider<AstrologyRepository>(
-  (ref) => AstrologyRepository(
-    ref.watch(prokeralaApiProvider),
-    ref.watch(diskCacheProvider),
-  ),
+final chartRepositoryProvider = Provider<ChartRepository>(
+  (ref) => ChartRepository(FirebaseFirestore.instance),
 );
 
-// ── "현재 사용자의 출생 정보" — 10주차에 Firestore 와 연결 ────────
+final astrologyRepositoryProvider = Provider<AstrologyRepository>((ref) {
+  // uid 를 주입해 Firestore L3 캐시를 활성화.
+  final uidAsync = ref.watch(currentUserIdProvider);
+  final uid = uidAsync.valueOrNull;
+  return AstrologyRepository(
+    ref.watch(prokeralaApiProvider),
+    ref.watch(diskCacheProvider),
+    ref.watch(chartRepositoryProvider),
+    uid: uid,
+  );
+});
+
+// ── "현재 사용자의 출생 정보" — Firestore UserProfile 에서 읽음 ──
 //
-// 9주차에는 OnboardingScreen 에서 setState 대신 이 Provider 에 값을 써넣고,
-// 다른 화면들은 ref.watch(currentBirthInfoProvider) 로 읽는다.
-final currentBirthInfoProvider = StateProvider<BirthInfo>((ref) {
-  return BirthInfo.demo();
+// - profile 로딩 중이거나 birthInfo 가 없으면 null 반환.
+// - null 을 반환함으로써 profile 로드 전에 demo 데이터로 API 가 호출되는 문제를 방지한다.
+// - 온보딩 완료 후 upsertBirthInfo() 가 호출되면 Firestore stream 이 갱신되어
+//   이 Provider 도 자동으로 새 BirthInfo 를 emit 한다.
+final currentBirthInfoProvider = Provider<BirthInfo?>((ref) {
+  final profileAsync = ref.watch(currentUserProfileProvider);
+  return profileAsync.when(
+    data: (profile) => profile?.birthInfo,
+    loading: () => null,  // 로딩 중엔 null — demo 데이터로 API 호출 방지
+    error: (_, __) => null,
+  );
 });
 
 // ── 차트 호출 ───────────────────────────────────────────────────
@@ -65,7 +84,23 @@ final natalChartProvider =
 });
 
 /// "현재 로그인 사용자의 차트" — 화면에서 가장 자주 쓰는 단축 Provider.
+///
+/// birth 가 null(profile 로딩 중 또는 birthInfo 미입력)이면
+/// currentUserProfileProvider.future 를 기다린 뒤 재시도한다.
+/// birth 가 변경되면 currentBirthInfoProvider 를 watch 하고 있으므로
+/// Riverpod 이 자동으로 이 provider 를 재실행한다.
 final myNatalChartProvider = FutureProvider<NatalChart>((ref) {
   final birth = ref.watch(currentBirthInfoProvider);
+  if (birth == null) {
+    // profile stream 이 아직 데이터를 emit 하지 않은 상태.
+    // future 를 통해 첫 데이터를 기다린 뒤 birth 를 재확인한다.
+    return ref.watch(currentUserProfileProvider.future).then((_) {
+      final loadedBirth = ref.read(currentBirthInfoProvider);
+      if (loadedBirth == null) {
+        throw StateError('출생 정보가 없습니다. 마이페이지에서 입력해주세요.');
+      }
+      return ref.read(natalChartProvider(loadedBirth).future);
+    });
+  }
   return ref.watch(natalChartProvider(birth).future);
 });

@@ -2,10 +2,11 @@
 //
 // 앱 루트 위젯.
 //
-// _AuthGate: Firebase Auth 상태를 확인해 첫 화면을 결정한다.
-//   - currentUser 없음 → LoginScreen (anonymous auth 시작)
-//   - profileCompleted=false → OnboardingScreen
-//   - profileCompleted=true → AppShell (메인 홈)
+// _AuthGate 분기:
+//   - 세션 복원 중 → 로딩 스플래시 (깜빡임 방지)
+//   - 비로그인   → LandingScreen (계정 만들기 / 로그인)
+//   - 로그인 + profileCompleted=false → OnboardingScreen
+//   - 로그인 + profileCompleted=true  → AppShell
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -16,7 +17,7 @@ import 'core/theme/app_theme.dart';
 import 'core/firebase/firebase_bootstrap.dart';
 import 'features/auth/application/auth_providers.dart';
 import 'features/auth/data/auth_repository.dart';
-import 'features/auth/presentation/login_screen.dart';
+import 'features/auth/presentation/landing_screen.dart';
 import 'features/onboarding/app_shell.dart';
 import 'features/onboarding/presentation/onboarding_screen.dart';
 
@@ -28,14 +29,12 @@ class AppScrollBehavior extends MaterialScrollBehavior {
     BuildContext context,
     Widget child,
     ScrollableDetails details,
-  ) {
-    return child;
-  }
+  ) =>
+      child;
 
   @override
-  ScrollPhysics getScrollPhysics(BuildContext context) {
-    return const ClampingScrollPhysics();
-  }
+  ScrollPhysics getScrollPhysics(BuildContext context) =>
+      const ClampingScrollPhysics();
 }
 
 class StellaraApp extends StatelessWidget {
@@ -55,7 +54,6 @@ class StellaraApp extends StatelessWidget {
 }
 
 /// Firebase Auth 상태 기반 첫 화면 분기.
-/// Firebase가 준비되지 않은 환경(Web 미설정 등)에서는 LoginScreen으로 폴백.
 class _AuthGate extends ConsumerStatefulWidget {
   const _AuthGate();
 
@@ -64,6 +62,9 @@ class _AuthGate extends ConsumerStatefulWidget {
 }
 
 class _AuthGateState extends ConsumerState<_AuthGate> {
+  /// 세션 복원 완료 여부. false 동안은 로딩 화면을 보여줘 깜빡임 방지.
+  bool _sessionRestored = false;
+
   @override
   void initState() {
     super.initState();
@@ -71,25 +72,50 @@ class _AuthGateState extends ConsumerState<_AuthGate> {
   }
 
   Future<void> _restoreSession() async {
-    // Firebase가 준비된 환경에서만 세션 복원 시도
-    if (!FirebaseBootstrap.isReady) return;
-
-    final firebaseUser = FirebaseAuth.instance.currentUser;
-    if (firebaseUser == null) return;
-
-    final repo = AuthRepository();
-    final user = await repo.getUser(firebaseUser.uid);
-    if (user != null && mounted) {
-      ref.read(currentUserProvider.notifier).state = user;
+    if (FirebaseBootstrap.isReady) {
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      if (firebaseUser != null) {
+        final user = await AuthRepository().getUser(firebaseUser.uid);
+        if (user != null && mounted) {
+          ref.read(currentUserProvider.notifier).state = user;
+        }
+      }
     }
+    if (mounted) setState(() => _sessionRestored = true);
   }
 
   @override
   Widget build(BuildContext context) {
-    final user = ref.watch(currentUserProvider);
+    // 세션 복원 전: 별 배경만 있는 스플래시 (깜빡임 없음)
+    if (!_sessionRestored) return const _SplashScreen();
 
-    if (user == null) return const LoginScreen();
+    final user = ref.watch(currentUserProvider);
+    if (user == null) return const LandingScreen();
     if (!user.profileCompleted) return const OnboardingScreen();
     return const AppShell();
+  }
+}
+
+/// 세션 복원 중 보여주는 최소 스플래시.
+/// 불필요한 로그인 화면 깜빡임을 막기 위해 사용.
+class _SplashScreen extends StatelessWidget {
+  const _SplashScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      backgroundColor: Color(0xFF0A0A1F),
+      body: Center(
+        child: Text(
+          'Stellera',
+          style: TextStyle(
+            color: Colors.white54,
+            fontSize: 32,
+            fontWeight: FontWeight.w300,
+            letterSpacing: 3,
+          ),
+        ),
+      ),
+    );
   }
 }

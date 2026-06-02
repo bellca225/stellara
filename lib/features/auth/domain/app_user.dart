@@ -6,6 +6,7 @@
 class AppUser {
   const AppUser({
     required this.uid,
+    required this.loginId,
     required this.nickname,
     required this.friendCode,
     required this.profileCompleted,
@@ -14,11 +15,16 @@ class AppUser {
   });
 
   final String uid;
+
+  /// 서비스용 아이디 (Firebase UID 와 별개).
+  /// loginIds/{loginId} 컬렉션으로 중복 방지 및 역방향 조회.
+  final String loginId;
+
   final String nickname;
   final String friendCode;
   final bool profileCompleted;
 
-  /// "anonymous" | "dev"
+  /// "email" | "anonymous" | "dev"
   final String authProvider;
 
   /// 나탈 차트 생성 후 charts/{uid}.sunSign 에서 채워짐. 미생성 시 null.
@@ -27,10 +33,11 @@ class AppUser {
   factory AppUser.fromMap(Map<String, dynamic> map) {
     return AppUser(
       uid: map['uid'] as String? ?? '',
+      loginId: map['loginId'] as String? ?? '',
       nickname: map['nickname'] as String? ?? '',
       friendCode: map['friendCode'] as String? ?? '',
       profileCompleted: map['profileCompleted'] as bool? ?? false,
-      authProvider: map['authProvider'] as String? ?? 'anonymous',
+      authProvider: map['authProvider'] as String? ?? 'email',
       sunSign: map['sunSign'] as String?,
     );
   }
@@ -38,6 +45,7 @@ class AppUser {
   Map<String, dynamic> toMap() {
     return {
       'uid': uid,
+      'loginId': loginId,
       'nickname': nickname,
       'friendCode': friendCode,
       'profileCompleted': profileCompleted,
@@ -47,6 +55,7 @@ class AppUser {
   }
 
   AppUser copyWith({
+    String? loginId,
     String? nickname,
     String? friendCode,
     bool? profileCompleted,
@@ -54,6 +63,7 @@ class AppUser {
   }) {
     return AppUser(
       uid: uid,
+      loginId: loginId ?? this.loginId,
       nickname: nickname ?? this.nickname,
       friendCode: friendCode ?? this.friendCode,
       profileCompleted: profileCompleted ?? this.profileCompleted,

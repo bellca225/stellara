@@ -13,6 +13,7 @@
 // 응답을 도메인 모델로 바꾸는 일은 *Repository 에 맡긴다 (관심사 분리).
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 
 import '../domain/birth_info.dart';
@@ -51,11 +52,26 @@ class ProkeralaApi {
   /// 응답 예시 키: `data.planet_position`, `data.houses`, `data.aspects` 등
   /// (서버 응답 모양은 호출 후 한 번 더 검증 필요 — TODO 표시)
   Future<Map<String, dynamic>> fetchNatalChart(BirthInfo birth) async {
+    final params = _profileQuery(birth);
+    if (kDebugMode) {
+      // ignore: avoid_print
+      print('[ProkeralaApi] fetchNatalChart payload:\n'
+          '  datetime   : ${params['datetime']}\n'
+          '  coordinates: ${params['coordinates']}\n'
+          '  ayanamsa   : ${params['ayanamsa']}\n'
+          '  (chartVersion: ${birth.chartVersion})');
+    }
     final res = await _dio.get<Map<String, dynamic>>(
       '/v2/astrology/natal-chart',
-      queryParameters: _profileQuery(birth),
+      queryParameters: params,
     );
     _ensureOk(res);
+    if (kDebugMode) {
+      final data = res.data;
+      // ignore: avoid_print
+      print('[ProkeralaApi] fetchNatalChart 응답 status=${res.statusCode}, '
+          'top-level keys=${data?.keys.toList()}');
+    }
     return res.data!;
   }
 

@@ -14,15 +14,19 @@ import '../../astrology/data/prokerala_api.dart';
 import '../../astrology/domain/birth_info.dart';
 import '../domain/synastry_result.dart';
 import '../fixtures/synastry_fixture.dart';
+import 'synastry_cache_repository.dart';
 
 class SynastryRepository {
-  SynastryRepository(this._api, this._cache);
+  SynastryRepository(this._api, this._cache, this._firestoreCache);
   final ProkeralaApi _api;
   final DiskCache _cache;
+  final SynastryCacheRepository _firestoreCache;
 
   Future<SynastryResult> compare({
     required BirthInfo me,
     required BirthInfo partner,
+    String? myUid,
+    String? partnerUid,
   }) async {
     // L0: fixture (디스크 저장 안 함).
     if (Env.shouldUseFixtureForProkerala) {
@@ -44,10 +48,27 @@ class SynastryRepository {
       }
     }
 
+    // L3: Firestore 캐시 조회.
+    final firestoreResult = await _firestoreCache.get(me.chartVersion, partner.chartVersion);
+    if (firestoreResult != null) {
+      await _cache.putJson(cacheKey, firestoreResult.toJson(), source: 'firestore');
+      return firestoreResult;
+    }
+
     try {
       final json = await _api.fetchSynastry(me: me, partner: partner);
       final result = _scoreFromJson(json);
       await _cache.putJson(cacheKey, result.toJson(), source: 'live');
+      // L3 저장 (uid 가 있을 때만).
+      if (myUid != null && partnerUid != null) {
+        await _firestoreCache.save(
+          uid1: myUid,
+          uid2: partnerUid,
+          meVersion: me.chartVersion,
+          partnerVersion: partner.chartVersion,
+          result: result,
+        );
+      }
       return result;
     } catch (e) {
       if (kDebugMode) {

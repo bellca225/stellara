@@ -31,14 +31,58 @@ class FriendRepository {
     }
   }
 
+  // ── 이미 친구인지 확인 ────────────────────────────────────────
+  Future<bool> isAlreadyFriend(String uid1, String uid2) async {
+    final pairKey = ([uid1, uid2]..sort()).join('__');
+    final doc = await _db.collection('friendships').doc(pairKey).get();
+    return doc.exists;
+  }
+
+  /// 이미 pending 요청이 있는지 확인 (양방향).
+  ///
+  /// ⚠️ pairKey 쿼리를 사용하면 안 되는 이유:
+  ///   Firestore Security Rules 가 LIST 쿼리를 쿼리 조건만으로 검증하는데,
+  ///   pairKey 조건으로는 "fromUid 또는 toUid == auth.uid"를 증명할 수 없어
+  ///   PERMISSION_DENIED 가 발생.
+  ///
+  /// 해결: fromUid / toUid 를 직접 쿼리해 Rule 조건과 일치시킴.
+  ///   - 방향 1: 내가 보낸 요청 (fromUid == myUid) → Rule: fromUid == auth.uid ✓
+  ///   - 방향 2: 상대가 보낸 요청 (toUid == myUid) → Rule: toUid == auth.uid ✓
+  ///   기존 인덱스 fromUid+status, toUid+status+createdAt 으로 충분.
+  Future<bool> hasPendingRequest(String myUid, String theirUid) async {
+    // 방향 1: 내가 상대에게 이미 보낸 요청
+    final sent = await _db
+        .collection('friendRequests')
+        .where('fromUid', isEqualTo: myUid)
+        .where('status', isEqualTo: 'pending')
+        .get();
+    if (sent.docs.any((d) => d.data()['toUid'] == theirUid)) return true;
+
+    // 방향 2: 상대가 나에게 이미 보낸 요청
+    final received = await _db
+        .collection('friendRequests')
+        .where('toUid', isEqualTo: myUid)
+        .where('status', isEqualTo: 'pending')
+        .get();
+    return received.docs.any((d) => d.data()['fromUid'] == theirUid);
+  }
+
   // ── 친구 요청 전송 ────────────────────────────────────────────
-  /// [fromNickname], [fromSunSign] 은 UI 표시용 denormalized 스냅샷.
+  /// 전송 전 자기 자신/중복/이미 친구 여부를 검사하고 에러를 던짐.
   Future<void> sendRequest({
     required String fromUid,
     required String fromNickname,
     required String fromSunSign,
     required String toUid,
   }) async {
+    if (fromUid == toUid) throw FriendError.selfAdd;
+
+    final alreadyFriend = await isAlreadyFriend(fromUid, toUid);
+    if (alreadyFriend) throw FriendError.alreadyFriend;
+
+    final hasPending = await hasPendingRequest(fromUid, toUid);
+    if (hasPending) throw FriendError.duplicateRequest;
+
     final pairKey = ([fromUid, toUid]..sort()).join('__');
     await _db.collection('friendRequests').add({
       'fromUid': fromUid,
@@ -152,5 +196,26 @@ class FriendRepository {
       'favoriteIds': favoriteIds,
       'updatedAt': DateTime.now().toUtc().toIso8601String(),
     });
+  }
+}
+
+/// 친구 요청 전송 시 발생할 수 있는 도메인 에러.
+enum FriendError {
+  selfAdd,         // 자기 자신에게 요청
+  alreadyFriend,   // 이미 친구
+  duplicateRequest, // 이미 pending 요청 있음
+  unknown;
+
+  String get message {
+    switch (this) {
+      case FriendError.selfAdd:
+        return '자기 자신은 추가할 수 없어요.';
+      case FriendError.alreadyFriend:
+        return '이미 친구로 등록된 사용자예요.';
+      case FriendError.duplicateRequest:
+        return '이미 친구 요청을 보냈어요. 상대방의 수락을 기다려주세요.';
+      case FriendError.unknown:
+        return '오류가 발생했어요. 잠시 후 다시 시도해주세요.';
+    }
   }
 }

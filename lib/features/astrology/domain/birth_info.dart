@@ -18,7 +18,7 @@ class BirthInfo {
 
   final String nickname;
 
-  /// "현지 시각" 기준 출생일시. (예: 1995-02-15 14:30, 한국 출생이면 KST.)
+  /// "현지 시각" 기준 출생일시. (예: 1999-02-25 14:30, 한국 출생이면 KST.)
   /// utcOffset 와 함께 보관해야 Prokerala 가 정확한 절대 시각을 계산할 수 있다.
   final DateTime dateTime;
 
@@ -69,6 +69,21 @@ class BirthInfo {
         'T${pad(dateTime.hour)}:${pad(dateTime.minute)}:${pad(dateTime.second)}';
     return '${dt}_${latitude}_${longitude}_$utcOffset';
   }
+
+  /// Riverpod .family 캐시 키로 사용되므로 값 기반 동등성이 필수.
+  /// 같은 출생 정보면 동일 객체로 취급 → 불필요한 provider 재생성 방지.
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BirthInfo &&
+          other.dateTime == dateTime &&
+          other.latitude == latitude &&
+          other.longitude == longitude &&
+          other.utcOffset == utcOffset &&
+          other.nickname == nickname;
+
+  @override
+  int get hashCode => Object.hash(dateTime, latitude, longitude, utcOffset, nickname);
 
   @override
   String toString() =>

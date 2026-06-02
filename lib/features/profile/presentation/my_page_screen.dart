@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,8 +6,10 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/astro_text.dart';
 import '../../../core/widgets/panel.dart';
 import '../../astrology/application/astrology_providers.dart';
+import '../../astrology/domain/birth_info.dart';
 import '../../onboarding/presentation/onboarding_screen.dart';
 import '../../auth/application/auth_providers.dart';
+import '../../auth/presentation/landing_screen.dart';
 
 class MyPageScreen extends ConsumerWidget {
   const MyPageScreen({super.key});
@@ -15,6 +18,8 @@ class MyPageScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final birth = ref.watch(currentBirthInfoProvider);
     final asyncChart = ref.watch(myNatalChartProvider);
+    // birth 가 null 이면(profile 로딩 중 / birthInfo 미입력) demo 값으로 표시.
+    final birthDisplay = birth ?? BirthInfo.demo();
     final user = ref.watch(currentUserProvider);
     final friendCode = user?.friendCode ?? 'AQU2024';
 
@@ -40,7 +45,7 @@ class MyPageScreen extends ConsumerWidget {
                 ),
                 alignment: Alignment.center,
                 child: Text(
-                  firstLetter(birth.nickname, fallback: '별'),
+                  firstLetter(birthDisplay.nickname, fallback: '별'),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 36,
@@ -52,7 +57,7 @@ class MyPageScreen extends ConsumerWidget {
             const SizedBox(height: AppSpacing.lg),
             Center(
               child: Text(
-                birth.nickname,
+                birthDisplay.nickname,
                 style: Theme.of(context).textTheme.headlineMedium,
               ),
             ),
@@ -134,15 +139,17 @@ class MyPageScreen extends ConsumerWidget {
                   const SizedBox(height: AppSpacing.md),
                   _InfoRow(
                     label: '생년월일',
-                    value:
-                        '${birth.dateTime.year}-${_pad(birth.dateTime.month)}-${_pad(birth.dateTime.day)}',
+                    value: birth == null
+                        ? '-'
+                        : '${birthDisplay.dateTime.year}-${_pad(birthDisplay.dateTime.month)}-${_pad(birthDisplay.dateTime.day)}',
                   ),
                   _InfoRow(
                     label: '출생 시간',
-                    value:
-                        '${_pad(birth.dateTime.hour)}:${_pad(birth.dateTime.minute)}',
+                    value: birth == null
+                        ? '-'
+                        : '${_pad(birthDisplay.dateTime.hour)}:${_pad(birthDisplay.dateTime.minute)}',
                   ),
-                  _InfoRow(label: '출생지', value: birth.placeName ?? '-'),
+                  _InfoRow(label: '출생지', value: birth?.placeName ?? '-'),
                   const SizedBox(height: AppSpacing.md),
                   SizedBox(
                     width: double.infinity,
@@ -172,7 +179,18 @@ class MyPageScreen extends ConsumerWidget {
             SizedBox(
               width: double.infinity,
               child: OutlinedButton(
-                onPressed: () {},
+                onPressed: () async {
+                  // Firebase Auth 세션 종료 + Riverpod 상태 초기화
+                  await FirebaseAuth.instance.signOut();
+                  ref.read(currentUserProvider.notifier).state = null;
+                  if (context.mounted) {
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(
+                          builder: (_) => const LandingScreen()),
+                      (_) => false, // 스택 전체 제거
+                    );
+                  }
+                },
                 child: const Text('로그아웃'),
               ),
             ),

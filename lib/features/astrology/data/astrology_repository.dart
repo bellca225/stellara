@@ -18,49 +18,99 @@ import '../../../core/env/env.dart';
 import '../domain/birth_info.dart';
 import '../domain/natal_chart.dart';
 import '../fixtures/natal_chart_fixture.dart';
+import 'chart_repository.dart';
 import 'prokerala_api.dart';
 
 class AstrologyRepository {
-  AstrologyRepository(this._api, this._cache);
+  AstrologyRepository(this._api, this._cache, this._chartRepo, {String? uid})
+      : _currentUid = uid;
   final ProkeralaApi _api;
   final DiskCache _cache;
+  final ChartRepository _chartRepo;
+
+  /// 현재 로그인 사용자 uid. Firestore L3 저장/조회에 사용. null 이면 L3 스킵.
+  final String? _currentUid;
 
   Future<NatalChart> getNatalChart(BirthInfo birth) async {
-    // 기본 브랜치 정책상 원격 호출을 막거나, 디버그 + fixture 옵션이면 네트워크를 타지 않는다.
-    // L0 (fixture) 가 가장 강한 토큰 절약. 디스크에 저장하지 않는다.
+    // L0 (fixture): 기본 브랜치 정책 또는 디버그 + fixture 옵션이면 네트워크를 타지 않는다.
     if (Env.shouldUseFixtureForProkerala) {
-      // 마치 네트워크 호출처럼 보이도록 약간의 지연을 준다(스켈레톤 UI 검증용).
+      if (kDebugMode) {
+        // ignore: avoid_print
+        print('[AstrologyRepository] L0 fixture 반환 '
+            '(shouldUseFixtureForProkerala=true). '
+            'birth 변경이 반영되지 않습니다. '
+            '.env PROKERALA_REMOTE_ENABLED=true, USE_FIXTURE_IN_DEBUG=false 확인 필요.');
+      }
       await Future<void>.delayed(const Duration(milliseconds: 350));
       return demoNatalChart();
+    }
+
+    if (kDebugMode) {
+      // ignore: avoid_print
+      print('[AstrologyRepository] getNatalChart 시작 '
+          'birth=${birth.chartVersion} uid=$_currentUid');
     }
 
     // L2 (디스크) 조회. chartVersion 이 같으면 무조건 hit (영구 TTL).
     final cacheKey = CacheKeys.natal(birth.chartVersion);
     final cached = _cache.getJson(cacheKey);
     if (cached != null) {
+      if (kDebugMode) {
+        // ignore: avoid_print
+        print('[AstrologyRepository] L2 disk 캐시 hit key=$cacheKey');
+      }
       try {
         return NatalChart.fromJson(cached);
       } catch (e) {
-        // 캐시 스키마가 변하거나 손상된 경우 — 무시하고 실호출로 fallback.
         if (kDebugMode) {
           // ignore: avoid_print
-          print('[AstrologyRepository] L2 디코드 실패 → 실호출 fallback: $e');
+          print('[AstrologyRepository] L2 디코드 실패 → L3 fallback: $e');
         }
       }
     }
 
+    // L3 (Firestore) 조회. 앱 재설치 / 기기 변경 후에도 차트 유지.
+    if (_currentUid != null) {
+      final firestoreChart = await _chartRepo.get(_currentUid!, birth.chartVersion);
+      if (firestoreChart != null) {
+        if (kDebugMode) {
+          // ignore: avoid_print
+          print('[AstrologyRepository] L3 Firestore 캐시 hit uid=$_currentUid');
+        }
+        await _cache.putJson(cacheKey, firestoreChart.toJson(), source: 'firestore');
+        return firestoreChart;
+      }
+    }
+
+    // L4: Prokerala API 실호출
+    if (kDebugMode) {
+      // ignore: avoid_print
+      print('[AstrologyRepository] L4 API 호출 시작 birth=${birth.chartVersion}');
+    }
     try {
       final json = await _api.fetchNatalChart(birth);
       final chart = _parseNatalChart(json);
-      // 실응답만 디스크에 저장 (fixture 는 운영 원칙에 따라 미저장).
+      if (kDebugMode) {
+        // ignore: avoid_print
+        print('[AstrologyRepository] L4 API 응답 파싱 완료 '
+            'sun=${chart.sunSign} moon=${chart.moonSign} asc=${chart.ascendantSign} '
+            'planets=${chart.planets.length}개');
+      }
       await _cache.putJson(cacheKey, chart.toJson(), source: 'live');
+      if (_currentUid != null) {
+        await _chartRepo.save(
+          uid: _currentUid!,
+          chartVersion: birth.chartVersion,
+          chart: chart,
+          birth: birth,
+        );
+      }
       return chart;
     } catch (e, st) {
       if (kDebugMode) {
         // ignore: avoid_print
-        print('[AstrologyRepository] natal chart 실패 → fixture fallback: $e\n$st');
+        print('[AstrologyRepository] L4 API 실패 → fixture fallback: $e\n$st');
       }
-      // 화면 깨짐 방지: 실패해도 사용자에겐 데모 차트라도 보여준다.
       return demoNatalChart();
     }
   }
