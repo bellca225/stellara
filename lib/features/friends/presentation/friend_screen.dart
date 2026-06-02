@@ -38,6 +38,13 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
   Future<void> _search() async {
     final code = _searchController.text.trim().toUpperCase();
     if (code.isEmpty) return;
+    if (code.length != 6) {
+      setState(() {
+        _searchResult = null;
+        _searchError = '친구 코드는 영문 대문자/숫자 6자리예요.';
+      });
+      return;
+    }
 
     final myUid = ref.read(currentUserProvider)?.uid;
 
@@ -248,11 +255,15 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
                           textCapitalization: TextCapitalization.characters,
                           autocorrect: false,
                           enableSuggestions: false,
+                          maxLength: 6,
                           inputFormatters: <TextInputFormatter>[
                             FriendCodeTextFormatter(),
                           ],
                           decoration: const InputDecoration(
                             hintText: '예: KAG6BC',
+                            helperText:
+                                '영문 대문자/숫자 6자리만 가능해요. 소문자는 자동으로 대문자로 바뀌어요.',
+                            counterText: '',
                             prefixIcon: Icon(Icons.search_rounded),
                           ),
                           onSubmitted: (_) => _search(),
