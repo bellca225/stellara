@@ -20,6 +20,7 @@ import 'features/auth/data/auth_repository.dart';
 import 'features/auth/presentation/landing_screen.dart';
 import 'features/onboarding/app_shell.dart';
 import 'features/onboarding/presentation/onboarding_screen.dart';
+import 'features/users/application/user_providers.dart';
 
 class AppScrollBehavior extends MaterialScrollBehavior {
   const AppScrollBehavior();
@@ -86,6 +87,28 @@ class _AuthGateState extends ConsumerState<_AuthGate> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<AsyncValue<dynamic>>(currentUserProfileProvider, (_, next) {
+      final profile = next.valueOrNull;
+      final current = ref.read(currentUserProvider);
+      if (profile == null || current == null) {
+        return;
+      }
+      if (current.loginId == profile.loginId &&
+          current.nickname == profile.nickname &&
+          current.friendCode == profile.friendCode &&
+          current.profileCompleted == profile.profileCompleted &&
+          current.sunSign == profile.sunSign) {
+        return;
+      }
+      ref.read(currentUserProvider.notifier).state = current.copyWith(
+        loginId: profile.loginId,
+        nickname: profile.nickname,
+        friendCode: profile.friendCode,
+        profileCompleted: profile.profileCompleted,
+        sunSign: profile.sunSign,
+      );
+    });
+
     // 세션 복원 전: 별 배경만 있는 스플래시 (깜빡임 없음)
     if (!_sessionRestored) return const _SplashScreen();
 

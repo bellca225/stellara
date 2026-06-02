@@ -4,8 +4,10 @@
 // CSS/스타일은 디자인 담당자가 다듬을 예정. 로직과 구조만 구현.
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/input/app_input_formatters.dart';
 import '../application/auth_providers.dart';
 import '../data/auth_repository.dart';
 import '../data/login_id_repository.dart';
@@ -197,6 +199,13 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                       TextField(
                         controller: _idCtrl,
                         onChanged: _onIdChanged,
+                        keyboardType: TextInputType.emailAddress,
+                        textCapitalization: TextCapitalization.none,
+                        autocorrect: false,
+                        enableSuggestions: false,
+                        inputFormatters: <TextInputFormatter>[
+                          LoginIdTextFormatter(),
+                        ],
                         style: const TextStyle(color: Colors.white),
                         decoration: _inputDecoration('아이디를 입력하세요.'),
                       ),

@@ -8,11 +8,12 @@
 //
 // 마이페이지에서 수정할 때는 isEditing=true 로 호출.
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../astrology/application/astrology_providers.dart';
 import '../../astrology/domain/birth_info.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../users/application/user_providers.dart';
@@ -225,22 +226,26 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         return;
       }
 
-      // 저장 전 이전 birth 기반 캐시를 먼저 무효화한다.
-      // Firestore stream 업데이트 타이밍에 의존하지 않기 위해 명시적으로 처리.
-      final oldBirth = ref.read(currentBirthInfoProvider);
-      if (oldBirth != null) {
-        ref.invalidate(natalChartProvider(oldBirth));
-      }
-
       await ref.read(userRepositoryProvider).upsertBirthInfo(
         uid: uid,
         birthInfo: birth,
         nickname: birth.nickname,
       );
 
-      // myNatalChartProvider 도 invalidate 해 Firestore stream 업데이트 전이라도
-      // 최신 birth 가 반영된 시점에 즉시 재실행되도록 한다.
-      ref.invalidate(myNatalChartProvider);
+      // Firestore stream 이 실제로 최신 birth 를 반영한 뒤에만 재분석을 시작한다.
+      // 그렇지 않으면 저장 직후 old birth 로 한 번 더 요청하는 race 가 생길 수 있다.
+      try {
+        // ignore: deprecated_member_use
+        await ref
+            .read(currentUserProfileProvider.stream)
+            .firstWhere((profile) => profile?.birthInfo?.chartVersion == birth.chartVersion)
+            .timeout(const Duration(seconds: 5));
+      } on TimeoutException catch (e) {
+        if (kDebugMode) {
+          // ignore: avoid_print
+          print('[Onboarding] profile sync 대기 timeout (계속 진행): $e');
+        }
+      }
 
       if (!mounted) return;
 
@@ -432,6 +437,11 @@ class _StepCard extends StatelessWidget {
           TextField(
             controller: _controller,
             keyboardType: _keyboardType,
+            textCapitalization: step == 2
+                ? TextCapitalization.words
+                : TextCapitalization.none,
+            enableSuggestions: step == 2,
+            autocorrect: step == 2,
             style: const TextStyle(color: Colors.white),
             decoration: InputDecoration(
               hintText: _hint,
@@ -516,7 +526,7 @@ class _StepCard extends StatelessWidget {
       case 1:
         return TextInputType.datetime;
       default:
-        return TextInputType.text;
+        return TextInputType.streetAddress;
     }
   }
 

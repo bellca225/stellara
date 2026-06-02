@@ -1,4 +1,4 @@
-package com.example.stellara
+package com.stellara.app
 
 import io.flutter.embedding.android.FlutterActivity
 

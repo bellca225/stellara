@@ -46,6 +46,7 @@ class ChartRepository {
     required String chartVersion,
     required NatalChart chart,
     required BirthInfo birth,
+    String source = 'prokerala',
   }) async {
     final now = FieldValue.serverTimestamp();
     String pad(int n) => n.toString().padLeft(2, '0');
@@ -75,7 +76,7 @@ class ChartRepository {
       'generatedAt': now,
       // 캐시 신선도 추적
       'lastCalculatedAt': now,  // 실제 API 로 마지막 계산한 시각
-      'source': 'prokerala',    // 데이터 출처 (prokerala | fixture)
+      'source': source,         // 데이터 출처 (prokerala | local-derived)
       'updatedAt': now,
     };
 

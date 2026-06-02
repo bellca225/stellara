@@ -38,11 +38,14 @@ class AstrologyRepository {
         // ignore: avoid_print
         print('[AstrologyRepository] L0 fixture 반환 '
             '(shouldUseFixtureForProkerala=true). '
-            'birth 변경이 반영되지 않습니다. '
-            '.env PROKERALA_REMOTE_ENABLED=true, USE_FIXTURE_IN_DEBUG=false 확인 필요.');
+            '고정 mock 대신 birth 기반 로컬 차트를 사용합니다.');
       }
       await Future<void>.delayed(const Duration(milliseconds: 350));
-      return demoNatalChart();
+      return _persistAndReturnFallbackChart(
+        birth,
+        source: 'local-derived',
+        reason: 'policy-fixture',
+      );
     }
 
     if (kDebugMode) {
@@ -70,8 +73,9 @@ class AstrologyRepository {
     }
 
     // L3 (Firestore) 조회. 앱 재설치 / 기기 변경 후에도 차트 유지.
-    if (_currentUid != null) {
-      final firestoreChart = await _chartRepo.get(_currentUid!, birth.chartVersion);
+    final currentUid = _currentUid;
+    if (currentUid != null) {
+      final firestoreChart = await _chartRepo.get(currentUid, birth.chartVersion);
       if (firestoreChart != null) {
         if (kDebugMode) {
           // ignore: avoid_print
@@ -97,22 +101,55 @@ class AstrologyRepository {
             'planets=${chart.planets.length}개');
       }
       await _cache.putJson(cacheKey, chart.toJson(), source: 'live');
-      if (_currentUid != null) {
+      if (currentUid != null) {
         await _chartRepo.save(
-          uid: _currentUid!,
+          uid: currentUid,
           chartVersion: birth.chartVersion,
           chart: chart,
           birth: birth,
+          source: 'prokerala',
         );
       }
       return chart;
     } catch (e, st) {
       if (kDebugMode) {
         // ignore: avoid_print
-        print('[AstrologyRepository] L4 API 실패 → fixture fallback: $e\n$st');
+        print('[AstrologyRepository] L4 API 실패 → birth 기반 로컬 차트 fallback: $e\n$st');
       }
-      return demoNatalChart();
+      return _persistAndReturnFallbackChart(
+        birth,
+        source: 'local-derived',
+        reason: 'api-failure',
+      );
     }
+  }
+
+  Future<NatalChart> _persistAndReturnFallbackChart(
+    BirthInfo birth, {
+    required String source,
+    required String reason,
+  }) async {
+    final cacheKey = CacheKeys.natal(birth.chartVersion);
+    final chart = buildFallbackNatalChart(birth);
+    await _cache.putJson(cacheKey, chart.toJson(), source: source);
+    final currentUid = _currentUid;
+    if (currentUid != null) {
+      await _chartRepo.save(
+        uid: currentUid,
+        chartVersion: birth.chartVersion,
+        chart: chart,
+        birth: birth,
+        source: source,
+      );
+    }
+    if (kDebugMode) {
+      // ignore: avoid_print
+      print('[AstrologyRepository] fallback chart 생성 '
+          'source=$source reason=$reason '
+          'sun=${chart.sunSign} moon=${chart.moonSign} asc=${chart.ascendantSign} '
+          'birth=${birth.chartVersion}');
+    }
+    return chart;
   }
 
   // ── JSON → NatalChart 매핑 ────────────────────────────────────

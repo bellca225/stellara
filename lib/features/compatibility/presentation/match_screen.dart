@@ -115,6 +115,8 @@ class _MatchScreenState extends ConsumerState<MatchScreen> {
                   const SizedBox(height: AppSpacing.md),
                   TextField(
                     controller: _nicknameC,
+                    keyboardType: TextInputType.name,
+                    textCapitalization: TextCapitalization.words,
                     decoration: const InputDecoration(labelText: '닉네임'),
                   ),
                   const SizedBox(height: 8),
@@ -131,6 +133,8 @@ class _MatchScreenState extends ConsumerState<MatchScreen> {
                   const SizedBox(height: 8),
                   TextField(
                     controller: _placeC,
+                    keyboardType: TextInputType.streetAddress,
+                    textCapitalization: TextCapitalization.words,
                     decoration: const InputDecoration(labelText: '출생지'),
                   ),
                   const SizedBox(height: AppSpacing.md),

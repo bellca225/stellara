@@ -1,7 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/input/app_input_formatters.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/panel.dart';
 import '../../auth/application/auth_providers.dart';
@@ -209,7 +211,13 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
                       Expanded(
                         child: TextField(
                           controller: _searchController,
+                          keyboardType: TextInputType.visiblePassword,
                           textCapitalization: TextCapitalization.characters,
+                          autocorrect: false,
+                          enableSuggestions: false,
+                          inputFormatters: <TextInputFormatter>[
+                            FriendCodeTextFormatter(),
+                          ],
                           decoration: const InputDecoration(
                             hintText: '예: KAG6BC',
                             prefixIcon: Icon(Icons.search_rounded),
