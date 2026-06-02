@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class LandingScreen extends StatefulWidget {
   const LandingScreen({super.key});
@@ -58,7 +59,36 @@ class _LandingScreenState extends State<LandingScreen>
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Column(
                   children: [
-                    const Expanded(child: _LogoArea()),
+                    Expanded(
+                      child: Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Stellerara',
+                              style: GoogleFonts.sulphurPoint(
+                                fontSize: 48,
+                                fontWeight: FontWeight.w300,
+                                color: Colors.white,
+                                letterSpacing: 5.15,
+                                height: 1.0,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Discover What the Stars Reveal',
+                              style: GoogleFonts.sulphurPoint(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w400,
+                                color: const Color(0xFF8EC5FF),
+                                height: 1.0,
+                                letterSpacing: 0,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                     Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -79,41 +109,6 @@ class _LandingScreenState extends State<LandingScreen>
                   ],
                 ),
               ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LogoArea extends StatelessWidget {
-  const _LogoArea();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            'Stellerara',
-            style: TextStyle(
-              fontSize: 48,
-              fontWeight: FontWeight.w300,
-              color: Colors.white,
-              letterSpacing: 5.152,
-              height: 1.0,
-            ),
-          ),
-          SizedBox(height: 12),
-          Text(
-            'Discover What the Stars Reveal',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w400,
-              color: Color(0xFF8EC5FF),
-              height: 1.0,
             ),
           ),
         ],
