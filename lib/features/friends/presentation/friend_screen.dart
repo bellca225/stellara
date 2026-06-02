@@ -36,12 +36,12 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
 
   // ── 친구 코드 검색 ──────────────────────────────────────────────
   Future<void> _search() async {
-    final code = _searchController.text.trim().toUpperCase();
+    final code = _searchController.text.trim();
     if (code.isEmpty) return;
     if (code.length != 6) {
       setState(() {
         _searchResult = null;
-        _searchError = '친구 코드는 영문 대문자/숫자 6자리예요.';
+        _searchError = '친구 코드는 영문/숫자 6자리예요.';
       });
       return;
     }
@@ -252,7 +252,7 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
                         child: TextField(
                           controller: _searchController,
                           keyboardType: TextInputType.visiblePassword,
-                          textCapitalization: TextCapitalization.characters,
+                          textCapitalization: TextCapitalization.none,
                           autocorrect: false,
                           enableSuggestions: false,
                           maxLength: 6,
@@ -262,7 +262,7 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
                           decoration: const InputDecoration(
                             hintText: '예: KAG6BC',
                             helperText:
-                                '영문 대문자/숫자 6자리만 가능해요. 소문자는 자동으로 대문자로 바뀌어요.',
+                                '영문/숫자 6자리만 가능해요. 대소문자 구분 없이 검색돼요.',
                             counterText: '',
                             prefixIcon: Icon(Icons.search_rounded),
                           ),

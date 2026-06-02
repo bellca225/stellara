@@ -20,7 +20,11 @@ class FriendRepository {
   // ── 친구 코드 검색 ────────────────────────────────────────────
   Future<Map<String, dynamic>?> findUserByCode(String code) async {
     try {
-      final codeDoc = await _db.collection('friendCodes').doc(code).get();
+      final normalizedCode = code.trim().toUpperCase();
+      final codeDoc = await _db
+          .collection('friendCodes')
+          .doc(normalizedCode)
+          .get();
       if (!codeDoc.exists) return null;
       final uid = codeDoc.data()?['uid'] as String?;
       if (uid == null) return null;
