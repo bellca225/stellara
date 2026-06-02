@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.stellara"
+    namespace = "com.stellara.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -20,7 +20,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.stellara"
+        applicationId = "com.stellara.app"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
