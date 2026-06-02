@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/cache/disk_cache.dart';
 import '../../astrology/application/astrology_providers.dart';
+import '../../auth/application/auth_providers.dart';
 import '../../users/application/user_providers.dart';
 import '../data/daily_fortune_repository.dart';
 import '../data/horoscope_repository.dart';
