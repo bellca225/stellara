@@ -20,21 +20,16 @@ class FriendRepository {
   // ── 친구 코드 검색 ────────────────────────────────────────────
   Future<Map<String, dynamic>?> findUserByCode(String code) async {
     try {
-      final candidates = <String>{
-        code.trim(),
-        code.trim().toUpperCase(),
-        code.trim().toLowerCase(),
-      }.where((value) => value.isNotEmpty);
-
-      for (final candidate in candidates) {
-        final codeDoc = await _db.collection('friendCodes').doc(candidate).get();
-        if (!codeDoc.exists) continue;
-        final uid = codeDoc.data()?['uid'] as String?;
-        if (uid == null) return null;
-        final userDoc = await _db.collection('users').doc(uid).get();
-        return userDoc.data();
-      }
-      return null;
+      final normalizedCode = code.trim().toUpperCase();
+      final codeDoc = await _db
+          .collection('friendCodes')
+          .doc(normalizedCode)
+          .get();
+      if (!codeDoc.exists) return null;
+      final uid = codeDoc.data()?['uid'] as String?;
+      if (uid == null) return null;
+      final userDoc = await _db.collection('users').doc(uid).get();
+      return userDoc.data();
     } catch (_) {
       return null;
     }

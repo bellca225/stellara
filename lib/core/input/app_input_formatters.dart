@@ -31,9 +31,9 @@ class LoginIdTextFormatter extends TextInputFormatter {
 /// 친구 코드 검색 전용 formatter.
 ///
 /// - 영문/숫자만 허용
-/// - 사용자가 입력한 대소문자는 그대로 유지
-/// - 실제 검색은 repository 에서 대문자 정규화 후 수행하므로
-///   UI 상에서는 대소문자 구분 없이 입력 가능하다.
+/// - 소문자는 대문자로 정규화
+/// - friendCodes/{code} 문서 ID 자체가 대문자 6자리 규칙이므로
+///   검색 입력도 같은 스키마로 맞춘다.
 class FriendCodeTextFormatter extends TextInputFormatter {
   static final RegExp _allowed = RegExp(r'[A-Za-z0-9]');
 
@@ -46,7 +46,7 @@ class FriendCodeTextFormatter extends TextInputFormatter {
     for (final rune in newValue.text.runes) {
       final char = String.fromCharCode(rune);
       if (_allowed.hasMatch(char)) {
-        buffer.write(char);
+        buffer.write(char.toUpperCase());
       }
     }
     final text = buffer.toString();
