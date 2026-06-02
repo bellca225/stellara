@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/astro_text.dart';
 import '../../../core/widgets/panel.dart';
@@ -110,6 +111,7 @@ class MyPageScreen extends ConsumerWidget {
                         ),
                       ),
                       IconButton(
+                        tooltip: '복사',
                         onPressed: () {
                           Clipboard.setData(ClipboardData(text: friendCode));
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -118,6 +120,29 @@ class MyPageScreen extends ConsumerWidget {
                         },
                         icon: const Icon(
                           Icons.copy_all_outlined,
+                          color: AppColors.primaryLight,
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: '공유',
+                        onPressed: () async {
+                          try {
+                            await Share.share(
+                              'Stellara에서 함께 별자리 궁합 봐요! 🌟\n'
+                              '친구 코드: $friendCode\n\n'
+                              '#Stellara #점성술',
+                              subject: 'Stellara 친구 초대',
+                            );
+                          } catch (_) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('공유를 지원하지 않는 환경이에요.')),
+                              );
+                            }
+                          }
+                        },
+                        icon: const Icon(
+                          Icons.share_outlined,
                           color: AppColors.primaryLight,
                         ),
                       ),

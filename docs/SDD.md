@@ -1,7 +1,7 @@
 # Stellara — Software Design Document (SDD)
 
-> **문서 버전**: v1.2  
-> **최초 작성**: 2026-05-08 / **최종 수정**: 2026-05-31  
+> **문서 버전**: v1.3  
+> **최초 작성**: 2026-05-08 / **최종 수정**: 2026-06-02  
 > **기준 브랜치**: `feature/week10-place-resolver` (→ main 머지 예정)  
 > **팀명**: 물병 안 물고기  
 > **팀원**: 우나영, 김도연, 배서연, 이선우  
@@ -39,7 +39,7 @@ Stellara는 사용자의 출생 정보(생년월일, 출생 시간, 출생지)�
 
 - `lib/` 아래 Dart 파일 40개+ (실측 — 2026-05-31 기준)
 - 화면 10종 구현 (LOGIN·ONBOARDING·MAIN·ASTROLOGY·TODAY·MATCH·FRIEND·CONTENT·MYPAGE·SHARE)
-- Firebase Anonymous Auth + flutter_secure_storage 재설치 감지 완료
+- Firebase Email/Password Auth + `_AuthGate` 세션 복원 완료
 - `_AuthGate` 라우팅 — Firebase 세션 기반 자동 분기
 - Firestore 멤버 테이블(`users`, `charts`, `friendCodes`, `friendRequests`, `friendships`) 스키마 확정
 - 친구 기능(FRIEND-001): 코드 검색·요청·수락(runTransaction)·즐겨찾기 구현 (도연 공동 작업)
@@ -65,13 +65,13 @@ Stellara는 사용자의 출생 정보(생년월일, 출생 시간, 출생지)�
 
 | 기능 | 설명 | 현재 상태 | 목표 주차 |
 |------|------|-----------|-----------|
-| 로그인 화면 구조 | 로그인 UI 구조만 구성, 실 인증 없이 Firestore 직접 입력으로 사용자 세팅 | UI 목업 구현됨 | 10주차 |
-| 출생 정보 입력 및 Firestore 저장 | 생년월일·출생시간·출생지 입력 후 Firestore 저장 | 입력 UI 구현됨, 저장 미구현 | **10주차 (앞당김)** |
+| 로그인 화면 구조 | 아이디/비밀번호 회원가입·로그인 + Firebase 세션 복원 | **구현 완료** | 10주차 |
+| 출생 정보 입력 및 Firestore 저장 | 생년월일·출생시간·출생지 입력 후 Firestore 저장 | **구현 완료** | **10주차 (앞당김)** |
 | 나탈 차트 / 점성술 분석 | Prokerala API로 행성·하우스·Ascendant 계산, 360° 시각화 | API 부분 구현 (응답 키 검증 필요) | 10주차 검증 |
-| 오늘의 운세 | Prokerala Daily Horoscope + 캐시 | 부분 구현 | 12주차 캐시 |
-| **궁합 분석 (Synastry)** | 두 사용자 나탈 차트 비교, 4축 점수 및 설명 제공 | 화면 + API 부분 구현 (점수 휴리스틱) | **11주차 실데이터 연결** |
-| **친구 추가 및 소셜 연결** | 랜덤 코드 검색, 친구 요청·수락, 즐겨찾기 3명 | 정적 UI만 존재 | **11주차** |
-| **AI 랜덤 질문** | local question set 3개 + 사용자 질문 1개. 원격 AI는 별도 승인 전까지 비활성화 | 정적 카드 UI | **12주차** |
+| 오늘의 운세 | Prokerala Daily Horoscope + 캐시 | L2 디스크 + L3 Firestore 캐시 구현 | 12주차 캐시 |
+| **궁합 분석 (Synastry)** | 두 사용자 나탈 차트 비교, 4축 점수 및 설명 제공 | 친구 선택 기반 연동 진행 중, 점수는 휴리스틱 유지 | **11주차 실데이터 연결** |
+| **친구 추가 및 소셜 연결** | 랜덤 코드 검색, 친구 요청·수락, 즐겨찾기 3명 | **실데이터 연동 완료** | **11주차** |
+| **AI 랜덤 질문** | local question set 3개 + 사용자 질문 1개. 원격 AI는 별도 승인 전까지 비활성화 | local question flow 구현 | **12주차** |
 | **SNS 공유 이미지 생성** | 운세·궁합 결과를 이미지 카드로 만들어 공유 | 폴더만 존재, 미구현 | **13주차** |
 
 ### 2.2 선택 기능 (추가 구현 — 일정 여유 시)
@@ -121,7 +121,7 @@ Stellara는 사용자의 출생 정보(생년월일, 출생 시간, 출생지)�
 | Firebase 초기화 | firebase_core | ^4.9.0 |
 | Firebase 인증 | firebase_auth | ^6.5.1 |
 | Firestore SDK | cloud_firestore | ^6.4.1 |
-| Flutter Secure Storage | flutter_secure_storage | ^9.2.2 | Anonymous UID 재설치 감지, iOS Keychain / Android Keystore 저장 |
+| Flutter Secure Storage | flutter_secure_storage | ^9.2.2 | 현재 의존성만 추가, 앱 로직에서는 미사용 |
 | 모델 어노테이션 | freezed_annotation, json_annotation | 등록만, 코드 생성 미사용 |
 | 코드 생성 (dev) | build_runner, freezed, json_serializable, riverpod_generator | - |
 | Riverpod 어노테이션 | riverpod_annotation | ^2.3.5 |
@@ -177,10 +177,10 @@ Prokerala 직접 호출 코드는 유지하되, **기본 브랜치에서는 `PRO
 | 항목 | 현재 판단 | 비고 |
 |------|-----------|------|
 | Firestore | **즉시 사용 가능** | Spark 기준 저장 1 GiB, 읽기 50K/일, 쓰기 20K/일 |
-| Firebase Auth | **Android bootstrap 완료** | 앱 시작 시 anonymous auth 시도 |
+| Firebase Auth | **Email/Password Auth + 세션 복원 완료** | 앱 시작 시 `FirebaseAuth.currentUser` 확인 후 Firestore 사용자 로드 |
 | Cloud Functions | **MVP 기본 경로 제외** | Firebase 공식 문서상 배포는 Blaze 업그레이드 전제가 필요 |
 | Prokerala | **기본 비활성화** | `PROKERALA_REMOTE_ENABLED=false` 유지. 실응답 검증 창에서만 잠깐 사용 |
-| AI 외부 LLM | **기본 비활성화** | 무과금 운영을 위해 `AI_REMOTE_ENABLED=false` 유지. 모델: 랜덤질문 `gpt-4o-mini`, AI리포트 `gpt-4o`, Claude 대체 가능. owner 승인 전까지 direct call 금지 |
+| AI 외부 LLM | **기본 비활성화** | `AI_REMOTE_ENABLED=false` 유지. 멀티 프로바이더 구조: OpenAI(gpt-4o-mini) → Anthropic(claude-3-5-haiku-latest) 순 fallback. `AI_PROVIDER_ORDER` env로 제어. owner 승인 전까지 direct call 금지 |
 
 ### 4.4 현재 운영 구조
 
@@ -190,7 +190,7 @@ Prokerala 직접 호출 코드는 유지하되, **기본 브랜치에서는 `PRO
 [Flutter App]
     │
     ├── Firebase Firestore   (사용자·차트·친구·운세 캐시 저장)
-    ├── Firebase Anonymous Auth (Android bootstrap 완료)
+    ├── Firebase Auth (Email/Password + currentUser 세션 복원)
     ├── geocoding plugin     (Android/iOS 출생지 → 좌표 변환)
     ├── local question set   (현재 기본 질문 세트)
     ├── fixture data         (차트/운세/궁합 기본 데이터)
@@ -217,33 +217,36 @@ Prokerala 직접 호출 코드는 유지하되, **기본 브랜치에서는 `PRO
 - AI 질문/리포트는 프록시 뒤에서 외부 LLM 호출
 - `friend-code-issue`, `friend-request-accept` 같은 트랜잭션 민감 로직을 서버로 이동
 
-### 4.6 초기 DB 시딩 전략 (로그인 없이 개발 진행)
+### 4.6 초기 DB 시딩 전략 (회원가입 기반)
 
-카카오 OAuth 실 연동 전까지, 다음 방법으로 테스트 사용자 데이터를 직접 입력하여 개발을 진행한다.
+카카오 OAuth 실 연동 전까지는 **앱 자체 회원가입 흐름**을 기본 진입점으로 사용한다. 필요하면 Firebase Console 보조 입력을 병행한다.
 
-1. **Firebase Console** → Firestore → `users` 컬렉션에 테스트 문서 직접 생성
-2. 앱 로그인 화면의 `시작하기` / `데모 데이터로 둘러보기` 경로를 유지한 채 개발 진행
-3. 실제 출생 정보는 `BirthInfo.demo()` 서울 기본값 또는 온보딩 입력값 활용
-4. 카카오 OAuth는 13주차 이후 연결
+1. 앱에서 `계정 만들기` → `AuthRepository.signUp()` 실행
+2. Firebase Auth 계정 생성 후 Firestore `users/{uid}`, `loginIds/{loginId}`, `friendCodes/{code}` 를 트랜잭션으로 함께 생성
+3. 온보딩에서 출생 정보를 입력하면 `users/{uid}.birthInfo` 와 `activeChartVersion` 이 저장된다
+4. 친구 관계나 샘플 차트가 더 필요하면 Firebase Console 에서 보조적으로 확인/입력한다
+5. 카카오 OAuth는 13주차 이후 연결
 
-### 4.7 인증 전략: Firebase Anonymous Auth + flutter_secure_storage
+### 4.7 인증 전략: Firebase Email/Password Auth + Firestore `loginIds`
 
-Firestore Security Rules 가 동작하려면 `request.auth.uid` 가 채워져 있어야 한다. **Firebase Anonymous Auth** 를 사용하며, `flutter_secure_storage` 로 재설치 후 UID 변경을 감지한다.
+Firestore Security Rules 가 동작하려면 `request.auth.uid` 가 채워져 있어야 한다. 현재 앱은 **Firebase Email/Password Auth** 를 사용하고, 사용자는 `아이디/비밀번호`만 입력한다. Firebase Auth 가 이메일 기반만 지원하므로, 내부적으로는 `{loginId}@stellara.internal` 형태의 가상 이메일로 계정을 생성한다.
 
 | 항목 | 값 |
 |------|-----|
-| 도입 시점 | 10주차 T05 (Firebase bootstrap) — Android/Web/iOS 공통 |
-| 비용 | Spark 플랜 무료 |
-| 재설치 감지 | `flutter_secure_storage`에 마지막 UID 저장. 재설치 후 UID 변경 시 사용자에게 안내 |
-| 카카오 전환 | 추후 `linkWithCredential` 로 anonymous → kakao 변환 시 uid 유지 가능 |
-| Web 지원 | `FIREBASE_WEB_*` 환경변수 (`.env`) 기반으로 Web도 동일 Anonymous Auth |
+| 도입 시점 | 10주차 T05 이후 현재 `main` 기준 적용 완료 |
+| 사용자 입력 식별자 | `loginId` (4~20자, 영문 소문자/숫자/`_`, 숫자로 시작 불가) |
+| Auth 저장 방식 | Firebase Auth Email/Password (`{loginId}@stellara.internal`) |
+| Firestore 인덱스 | `loginIds/{loginId}` → `uid` 역방향 조회 |
+| 회원가입 저장 흐름 | Auth 계정 생성 → `users/{uid}` + `loginIds/{loginId}` + `friendCodes/{code}` 트랜잭션 생성 |
+| 세션 복원 | `_AuthGate` 에서 `FirebaseAuth.currentUser` 확인 후 Firestore `users/{uid}` 로드 |
+| Web 지원 | `.env` 의 `FIREBASE_WEB_*` 환경변수로 동일 구조 사용 |
 
 운영 원칙:
-- 앱 시작: `_AuthGate` → Firebase.currentUser 확인 → 없으면 `signInAnonymously()`
-- `flutter_secure_storage`에 마지막 UID 저장. 재설치 후 UID 달라지면 경고 스낵바 표시
-- `users/{uid}` 의 `uid` 는 anonymous uid 그대로 사용
-- `AuthRepository.devLogin(uid)` 로 Firestore 시딩 사용자 직접 진입 가능 (개발/데모용)
-- 데모용 디바이스 재설치 시 경고 뜨고 새 계정으로 시작 (이전 친구 관계 초기화 안내)
+- 비로그인 사용자는 `LandingScreen` 에서 `계정 만들기` 또는 `로그인` 으로 진입한다
+- 회원가입은 `AuthRepository.signUp()` 이 처리하며, Firestore 저장 실패 시 Auth 계정을 롤백한다
+- 로그인은 `AuthRepository.signInWithId()` 가 `loginId` 를 내부 가상 이메일로 변환해 처리한다
+- 앱 재시작 시 `_AuthGate` 가 현재 세션을 복원하고, Firestore 프로필을 읽어 `currentUserProvider` 를 동기화한다
+- `users/{uid}` 의 `uid` 는 Firebase Auth uid 그대로 사용한다
 
 #### 플랫폼별 Firebase 초기화
 
@@ -395,21 +398,20 @@ prokeralaApiProvider
         └── synastryRepositoryProvider
                   └── synastryProvider.family<SynastryResult, PartnerPair>
 
-currentBirthInfoProvider  // StateProvider<BirthInfo>
-// ⚠️ 메모리 전용. 앱 종료 시 초기화. 10주차 Firestore 연결 예정
+currentBirthInfoProvider  // currentUserProfileProvider 기반 Provider<BirthInfo?>
+// users/{uid}.birthInfo 를 읽어 앱 전역에서 사용
 ```
 
-> **10주차 이후**: `currentBirthInfoProvider` 는 Firestore Stream 또는 초기 fetch 기반으로 교체될 예정이다. `prokeralaApiProvider` 는 무료 플랜 경로에서는 direct call을 유지하고, Blaze 전환 시에만 프록시 호출로 교체한다.
+> `currentBirthInfoProvider` 는 현재 `currentUserProfileProvider` 를 통해 Firestore `users/{uid}.birthInfo` 를 읽는다. `prokeralaApiProvider` 는 무료 플랜 경로에서는 direct call을 유지하고, Blaze 전환 시에만 프록시 호출로 교체한다.
 
 ### 5.5 화면 진입 흐름 (실측)
 
 ```
 main.dart → Env.load() → FirebaseBootstrap.initialize() → ProviderScope → StellaraApp
   └─ _AuthGate (Firebase 세션 기반 자동 분기)
-        ├─ currentUser == null → LoginScreen [LOGIN-001]
-        │       └─ signInOrRestore() → Anonymous Auth + SecureStorage UID 저장
-        │              ├─ profileCompleted=false → OnboardingScreen [ONBOARDING-001]
-        │              └─ profileCompleted=true  → AppShell
+        ├─ currentUser == null → LandingScreen
+        │       ├─ SignUpScreen → Firebase Auth 계정 생성 + Firestore 사용자 생성
+        │       └─ LoginScreen  → Firebase Auth 로그인 + Firestore 사용자 복원
         ├─ profileCompleted=false → OnboardingScreen [ONBOARDING-001]
         │       └─ 출생정보 입력 → Firestore users/{uid} 저장 → AppShell
         └─ profileCompleted=true → AppShell [NAV-001] (하단 4탭)
@@ -469,24 +471,24 @@ main.dart → Env.load() → FirebaseBootstrap.initialize() → ProviderScope �
 
 | 화면 ID | 화면명 | 파일 경로 | 구현 상태 | 레이어 완성도 |
 |---------|--------|-----------|-----------|---------------|
-| LOGIN-001 | 로그인 | `auth/presentation/login_screen.dart` | 목업 UI | presentation만 |
-| ONBOARDING-001 | 출생 정보 입력 | `onboarding/presentation/onboarding_screen.dart` | UI 구현 | presentation만 |
+| LOGIN-001 | 로그인 | `auth/presentation/login_screen.dart` | **구현됨** | presentation + auth/data 연동 |
+| ONBOARDING-001 | 출생 정보 입력 | `onboarding/presentation/onboarding_screen.dart` | **구현됨** | presentation + geocoding + Firestore 저장 |
 | NAV-001 | 하단 4탭 | `onboarding/app_shell.dart` | **구현됨** | - |
 | MAIN-001 | 메인 홈 | `home/presentation/main_home_screen.dart` | 목업 UI | presentation만 |
 | ASTROLOGY-001 | 나탈 차트 | `astrology/presentation/astrology_screen.dart` | 부분 구현 | 전 레이어 (API 매핑 추정) |
-| TODAY-001 | 오늘의 운세 | `horoscope/presentation/today_screen.dart` | 부분 구현 | 전 레이어 (API 매핑 추정) |
-| MATCH-001 | 궁합 결과 | `compatibility/presentation/match_screen.dart` | 부분 구현 | 전 레이어 (점수 휴리스틱) |
-| FRIEND-001 | 친구 관리 | `friends/presentation/friend_screen.dart` | 정적 UI | presentation만 |
-| CONTENT-001 | 랜덤 질문 | `content/presentation/random_question_screen.dart` | 정적 UI | presentation만 |
-| MYPAGE-001 | 마이페이지 | `profile/presentation/my_page_screen.dart` | 목업 UI | presentation만 |
+| TODAY-001 | 오늘의 운세 | `horoscope/presentation/today_screen.dart` | 부분 구현 | 전 레이어 + L2/L3 캐시 |
+| MATCH-001 | 궁합 결과 | `compatibility/presentation/match_screen.dart` | 부분 구현 | 친구 선택형 연동 + 전 레이어 (점수 휴리스틱) |
+| FRIEND-001 | 친구 관리 | `friends/presentation/friend_screen.dart` | **구현됨** | presentation + Firestore 연동 |
+| CONTENT-001 | 랜덤 질문 | `content/presentation/random_question_screen.dart` | 부분 구현 | presentation + local question flow |
+| MYPAGE-001 | 마이페이지 | `profile/presentation/my_page_screen.dart` | 부분 구현 | 출생정보 수정/로그아웃/친구 코드 표시 |
 | SHARE-001 | 결과 공유 | `share/presentation/` (폴더만, 파일 없음) | **미구현** | - |
 
 ### 6.2 주요 화면 기능 상세
 
 #### LOGIN-001 — 로그인
-- **현재**: `시작하기` + `데모 데이터로 둘러보기` 버튼 2개
-- **10주차**: Firestore 직접 시딩 방식으로 로그인 우회, 구조 유지
-- `데모 데이터로 둘러보기` 버튼은 최종 정리 직전까지 유지
+- **현재**: `LandingScreen` 에서 `계정 만들기` / `로그인` 으로 진입
+- Firebase Email/Password Auth + Firestore `users/loginIds` 연동 완료
+- 로그인 성공 후 `profileCompleted` 값에 따라 온보딩 또는 `AppShell` 로 라우팅
 - **후순위**: 카카오 OAuth 실 연동
 
 #### ONBOARDING-001 — 출생 정보 입력
@@ -500,16 +502,60 @@ main.dart → Env.load() → FirebaseBootstrap.initialize() → ProviderScope �
 - API: direct Prokerala 호출 코드는 존재하지만 기본 브랜치에서는 잠겨 있다. Blaze 전환 시 프록시 이전 가능
 - Fixture fallback 패턴 유지
 
+#### TODAY-001 — 오늘의 운세
+- Prokerala Daily Horoscope 호출 경로 유지
+- `SharedPreferences` L2 캐시 + Firestore `dailyFortunes` L3 캐시 사용
+- 같은 사용자/같은 별자리/같은 날짜 조합이면 캐시를 우선 재사용한다
+
 #### MATCH-001 — 궁합 결과
 - Synastry 4축 점수: 감정/대화/연애/총점
 - ⚠️ 어스펙트 가중치 임의값 (코드 주석 명시) → 11주차 실데이터 연결 시 정교화
 
 #### CONTENT-001 — 랜덤 질문
-- 현재 브랜치에서는 **원격 AI 호출을 비활성화**하고 local question set 만 사용한다
-- `AI_REMOTE_ENABLED=true` 전환 전까지 OpenAI / Anthropic key 는 읽지 않는다
-- provider / raw model id 선택 UI는 비용 승인 후 별도 검토한다
-- **12주차**: local question set 3개 생성 + 사용자 직접 질문 1개 입력
-- 사용자 직접 질문 1개 입력 기능
+
+**AI 질문 생성 구조 (구현 완료, 기본 비활성화)**
+
+```
+[RandomQuestionScreen]
+    │ 친구 선택 (friendUid)
+    ▼
+[AiQuestionRequest]
+    - myChart (NatalChart: Sun/Moon/Venus/Mercury/Mars + aspects)
+    - friendChart (NatalChart)
+    - synastry (SynastryResult: 감정/대화/연애 점수)
+    - revision (새 질문 클릭 시 증가 → 캐시 우회)
+    ▼
+[AiQuestionRepository]
+    ├─ AI OFF or 키 없음 → QuestionRepository (로컬 fallback)
+    └─ AI ON
+        ├─ AI_PROVIDER_ORDER 순서대로 시도 (기본: openai → anthropic)
+        ├─ OpenAI gpt-4o-mini → 성공 시 QuestionItem(source: remoteAi)
+        ├─ 실패 시 Anthropic claude-3-5-haiku-latest → 시도
+        └─ 모두 실패 시 로컬 fallback (사용자에게 에러 미노출)
+```
+
+**env 키 구조 (Codex 구조와 통일)**
+```
+AI_REMOTE_ENABLED=false          # 마스터 스위치
+AI_PROVIDER_DEFAULT=auto         # 'openai' | 'anthropic' | 'auto'
+AI_PROVIDER_ORDER=openai,anthropic  # fallback 순서
+AI_MODEL_OPENAI_DEFAULT=gpt-4o-mini
+AI_MODEL_ANTHROPIC_DEFAULT=claude-3-5-haiku-latest
+OPENAI_API_KEY=
+ANTHROPIC_API_KEY=
+```
+
+**AI 질문 특성**
+- 나탈 차트(Big 3 + Venus/Mercury/Mars + 교차 어스펙트)를 context로 전달
+- 6가지 QuestionType 순환: balanceGame / situationPrediction / personalityReveal / funnyCompatibility / emotionStyle / creativeScenario
+- 질문 생성 비용: 1회 ~$0.00027 (gpt-4o-mini 기준, 입력 600 + 출력 300토큰)
+- `AI_REMOTE_ENABLED=false` 상태에서도 로컬 question set 3개로 동작 유지
+
+**구현 파일**
+- `content/data/ai_question_repository.dart` — 멀티 프로바이더 fallback chain
+- `content/application/question_providers.dart` — `aiQuestionSetProvider`, `aiCustomAnswerProvider`
+- `content/domain/question_item.dart` — `QuestionType` enum, `source/questionType/generatedAt` 필드
+- `core/env/env.dart` — `openAiApiKey`, `anthropicApiKey`, `aiProviderOrder`, `aiModelOpenAi`, `aiModelAnthropic` getter
 
 #### SHARE-001 — 결과 공유
 - **13주차**: `screenshot` + `share_plus` 패키지로 구현
@@ -1028,15 +1074,16 @@ synastryCaches/{pairKey}|{chartPairVersion}
 1. Firebase Console 에서 `users` 4건을 먼저 생성한다
 2. 각 사용자에 대해 `friendCodes/{code}` 인덱스를 같이 만든다
 3. `charts/{uid}` 는 첫 앱 실행 또는 `prokerala-natal` 첫 성공 시 자동 생성한다
-4. `LoginScreen` 의 `시작하기` / `데모 데이터로 둘러보기` 흐름을 유지한 상태로 테스트 사용자를 연결한다
+4. 계정 생성 또는 로그인 후 `_AuthGate` 기반 세션 복원 흐름으로 테스트 사용자를 연결한다
 
 ### 8.7 현재 로컬 데이터 생명주기
 
 | 데이터 | 저장 위치 | 앱 종료 시 |
 |--------|-----------|------------|
-| 사용자 출생정보 | `currentBirthInfoProvider` (메모리) | **소멸** |
-| 나탈 차트 결과 | `FutureProvider` 캐시 | **소멸** |
+| 사용자 출생정보 | Firestore `users/{uid}.birthInfo` + `currentBirthInfoProvider` | **유지됨** |
+| 나탈 차트 결과 | SharedPreferences L2 + Firestore `charts/{uid}` | **유지됨** |
 | Prokerala 토큰 | 메모리 캐시 | **소멸** |
+| 궁합 결과 | SharedPreferences L2 + Firestore `synastryCaches` | **유지됨** |
 
 ---
 
@@ -1067,7 +1114,7 @@ kDebugMode && USE_FIXTURE_IN_DEBUG=true → fixture 즉시 반환 (네트워크 
 | Firestore 연결 실패 | 로컬 캐시 우선, 오프라인 안내 배너 |
 | Web에서 출생지 자동 좌표 변환 미지원/불안정 | Android/iOS 입력 권장 안내 |
 | 출생지 좌표 변환 실패 (Android/iOS) | 더 구체적인 출생지 입력 요청 |
-| JWT 만료 (OAuth 도입 후) | 자동 갱신 → 실패 시 로그인 화면 이동. 현재는 Android anonymous auth 만 사용하므로 해당 없음 |
+| JWT 만료 (OAuth 도입 후) | 자동 갱신 → 실패 시 로그인 화면 이동. 현재 기본 경로는 Firebase Email/Password Auth 이므로 해당 없음 |
 
 ### 9.4 주요 리스크
 
@@ -1159,8 +1206,8 @@ PR / 머지 정책 (2026-05-09 결정):
 | Firebase 프로젝트 | 나영 (`nywoo0225@gmail.com`) | 무료 (Spark) | 도연 Editor 초대 완료 (2026-05-31) | 프로젝트 ID: `stellara-11878`. 팀 전원 동일 프로젝트 사용. region: `asia-northeast3` (서울). `google-services.json` 및 `.env` FIREBASE_WEB_* 값은 나영이 팀원에게 직접 공유(gitignore) |
 | Firestore Security Rules | 나영 (1차 작성) | - | 리뷰: 공통 | 11주차 T16.5 결과 반영 |
 | Prokerala credential | 나영 | 무료 플랜 | 11주차 후반 ~ 12주차에 seoyeon / seonwoo / doyeon backup 등록 예정 | 기본 브랜치에서는 `PROKERALA_REMOTE_ENABLED=false` 로 미사용 유지. 실응답 검증 시에만 단일 `.env` 에서 primary → seoyeon → seonwoo → doyeon 순서 fallback 사용 |
-| OpenAI API key | **사용 안 함 (기본 브랜치)** | 없음 | - | `AI_REMOTE_ENABLED=false` 유지. owner 승인 + 예산 확정 전까지 발급/등록/사용 금지 |
-| Anthropic API key | **사용 안 함 (기본 브랜치)** | 없음 | - | `AI_REMOTE_ENABLED=false` 유지. owner 승인 + 예산 확정 전까지 발급/등록/사용 금지 |
+| OpenAI API key | 나영 (발급 완료, 기본 비활성화) | 나영 | - | `AI_REMOTE_ENABLED=false` 유지. `.env`에만 보관. **키 노출 이력 있음 — 재발급 필요.** env 키명: `OPENAI_API_KEY` |
+| Anthropic API key | **미발급** | - | - | `AI_REMOTE_ENABLED=false` 유지. OpenAI fallback용. 필요 시 나영 발급. env 키명: `ANTHROPIC_API_KEY` |
 | GitHub 저장소 | 나영 | - | 팀원 4명 push 권한 | 정책 (b): feature 브랜치 자유, `main` 만 보호. PR 머지는 owner 가 처리 |
 
 운영 원칙:

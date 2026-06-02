@@ -211,7 +211,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         Align(
                           alignment: Alignment.centerRight,
                           child: TextButton(
-                            onPressed: () {},
+                            onPressed: () {
+                              showDialog<void>(
+                                context: context,
+                                builder: (_) => AlertDialog(
+                                  title: const Text('비밀번호 찾기'),
+                                  content: const Text(
+                                    '비밀번호 재설정은 현재 준비 중이에요.\n'
+                                    '아이디를 기억하고 계신다면 개발팀에 문의해 주세요.',
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.of(context).pop(),
+                                      child: const Text('확인'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
                             child: const Text(
                               '비밀번호를 잊으셨나요?',
                               style: TextStyle(

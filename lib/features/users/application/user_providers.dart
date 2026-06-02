@@ -50,6 +50,19 @@ final currentUserProfileProvider = StreamProvider<UserProfile?>((ref) {
       return ref.watch(userRepositoryProvider).watch(uid);
     },
     loading: () => Stream.value(null),
-    error: (_, __) => Stream.value(null),
+    error: (error, stackTrace) => Stream.value(null),
   );
+});
+
+/// 임의 uid의 사용자 프로필 1회 조회.
+///
+/// 친구 궁합처럼 "현재 로그인 사용자 외 다른 사용자"의 birthInfo가 필요한 화면에서
+/// 사용한다. Firestore rules 상 인증된 사용자는 users/{uid} read가 가능하므로
+/// friend uid만 알면 프로필을 조회할 수 있다.
+final userProfileByIdProvider = FutureProvider.family<UserProfile?, String>((
+  ref,
+  uid,
+) async {
+  if (!FirebaseBootstrap.isReady) return null;
+  return ref.watch(userRepositoryProvider).get(uid);
 });
