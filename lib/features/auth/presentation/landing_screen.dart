@@ -3,6 +3,9 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'login_screen.dart';
+import 'signup_screen.dart';
+
 class LandingScreen extends StatefulWidget {
   const LandingScreen({super.key});
 
@@ -95,13 +98,21 @@ class _LandingScreenState extends State<LandingScreen>
                         _GlassButton(
                           label: '계정 만들기',
                           isPrimary: true,
-                          onTap: () {},
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const SignUpScreen(),
+                            ),
+                          ),
                         ),
                         const SizedBox(height: 12),
                         _GlassButton(
                           label: '로그인',
                           isPrimary: false,
-                          onTap: () {},
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const LoginScreen(),
+                            ),
+                          ),
                         ),
                         const SizedBox(height: 48),
                       ],
