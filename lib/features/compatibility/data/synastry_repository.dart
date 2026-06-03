@@ -1,26 +1,44 @@
 // lib/features/compatibility/data/synastry_repository.dart
 //
-// 9주차 메모: Synastry 응답에서 "총점/감정/대화/연애" 4개 점수를 어떻게
-// 산출할지는 디자인 결정사항이다. Prokerala 의 raw synastry 는 어스펙트만 주므로,
-// 우리는 어스펙트 종류별 가중치를 곱해 4축 점수를 만든다.
-// 이 가중치는 점성술 일반 통념(친화 어스펙트=Trine/Sextile/+, 갈등=Square/Opposition/-)
-// 에 따른 임의 휴리스틱이다. 추후 11주차 이후에 더 정교화한다.
+// 궁합 결과 생성 흐름
+//   1. L2 DiskCache 조회
+//   2. L3 Firestore synastryCaches 조회
+//   3. 나/친구 natal chart 확보 (charts → disk natal → API/fallback)
+//   4. CompatibilityEngine 으로 로컬 계산
+//   5. 결과를 DiskCache + Firestore 캐시에 저장
+//
+// 핵심 원칙
+// - 결과 화면은 더 이상 고정 fixture 에 의존하지 않는다.
+// - pairKey(uid 기반) + chartPairVersion(chartVersion 기반)으로 캐시를 안정화한다.
+// - natal chart 가 이미 저장돼 있으면 그것을 우선 사용해 사용자 데이터와 일관성을 맞춘다.
 
 import 'package:flutter/foundation.dart';
 
 import '../../../core/cache/disk_cache.dart';
 import '../../../core/env/env.dart';
+import '../../astrology/data/chart_repository.dart';
+import '../../astrology/data/natal_chart_mapper.dart';
 import '../../astrology/data/prokerala_api.dart';
 import '../../astrology/domain/birth_info.dart';
+import '../../astrology/domain/natal_chart.dart';
+import '../../astrology/fixtures/natal_chart_fixture.dart';
 import '../domain/synastry_result.dart';
-import '../fixtures/synastry_fixture.dart';
+import 'compatibility_engine.dart';
 import 'synastry_cache_repository.dart';
 
 class SynastryRepository {
-  SynastryRepository(this._api, this._cache, this._firestoreCache);
+  SynastryRepository(
+    this._api,
+    this._cache,
+    this._firestoreCache,
+    this._chartRepo,
+    this._engine,
+  );
   final ProkeralaApi _api;
   final DiskCache _cache;
   final SynastryCacheRepository _firestoreCache;
+  final ChartRepository _chartRepo;
+  final CompatibilityEngine _engine;
 
   Future<SynastryResult> compare({
     required BirthInfo me,
@@ -28,112 +46,221 @@ class SynastryRepository {
     String? myUid,
     String? partnerUid,
   }) async {
-    // L0: fixture (디스크 저장 안 함).
-    if (Env.shouldUseFixtureForProkerala) {
-      await Future<void>.delayed(const Duration(milliseconds: 400));
-      return demoSynastry();
-    }
+    final pairKey = _buildPairKey(
+      myUid: myUid,
+      partnerUid: partnerUid,
+      meVersion: me.chartVersion,
+      partnerVersion: partner.chartVersion,
+    );
+    final chartPairVersion = SynastryCacheRepository.buildChartPairVersion(
+      me.chartVersion,
+      partner.chartVersion,
+    );
+    final cacheKey = CacheKeys.synastry(pairKey, chartPairVersion);
 
-    // L2: 디스크. 두 차트 버전 조합이 키. 어느 한 쪽이라도 birthInfo 가 바뀌면 cache miss.
-    final cacheKey = CacheKeys.synastry(me.chartVersion, partner.chartVersion);
+    // L2: 디스크. pairKey + chartPairVersion 조합이 키.
     final cached = _cache.getJson(cacheKey);
     if (cached != null) {
       try {
-        return SynastryResult.fromJson(cached);
+        final result = SynastryResult.fromJson(cached);
+        if (_isUsableCache(
+          result,
+          pairKey: pairKey,
+          chartPairVersion: chartPairVersion,
+        )) {
+          return result;
+        }
+        await _cache.remove(cacheKey);
       } catch (e) {
         if (kDebugMode) {
           // ignore: avoid_print
           print('[SynastryRepository] L2 디코드 실패 → 실호출 fallback: $e');
         }
+        await _cache.remove(cacheKey);
       }
     }
 
     // L3: Firestore 캐시 조회.
-    final firestoreResult = await _firestoreCache.get(me.chartVersion, partner.chartVersion);
-    if (firestoreResult != null) {
-      await _cache.putJson(cacheKey, firestoreResult.toJson(), source: 'firestore');
-      return firestoreResult;
+    if (myUid != null && partnerUid != null) {
+      final firestoreResult = await _firestoreCache.get(
+        uid1: myUid,
+        uid2: partnerUid,
+        meVersion: me.chartVersion,
+        partnerVersion: partner.chartVersion,
+        expectedEngineVersion: CompatibilityEngine.engineVersion,
+      );
+      if (firestoreResult != null) {
+        await _cache.putJson(
+          cacheKey,
+          firestoreResult.toJson(),
+          source: 'firestore',
+        );
+        return firestoreResult;
+      }
+    }
+
+    final myChart = await _loadNatalChart(
+      me,
+      uid: myUid,
+      persistIfOwner: myUid != null,
+    );
+    final partnerChart = await _loadNatalChart(
+      partner,
+      uid: partnerUid,
+      persistIfOwner: false,
+    );
+
+    final result = _engine.evaluate(
+      pairKey: pairKey,
+      chartPairVersion: chartPairVersion,
+      me: myChart,
+      partner: partnerChart,
+      source: 'local-engine',
+    );
+    await _cache.putJson(cacheKey, result.toJson(), source: result.source);
+
+    if (myUid != null && partnerUid != null) {
+      await _firestoreCache.save(
+        uid1: myUid,
+        uid2: partnerUid,
+        meVersion: me.chartVersion,
+        partnerVersion: partner.chartVersion,
+        meBirth: me,
+        partnerBirth: partner,
+        meChart: myChart,
+        partnerChart: partnerChart,
+        result: result,
+      );
+    }
+    return result;
+  }
+
+  bool _isUsableCache(
+    SynastryResult result, {
+    required String pairKey,
+    required String chartPairVersion,
+  }) {
+    if (result.engineVersion != CompatibilityEngine.engineVersion) {
+      return false;
+    }
+    if (result.chartPairVersion != null &&
+        result.chartPairVersion != chartPairVersion) {
+      return false;
+    }
+    if (result.pairKey != null && result.pairKey != pairKey) {
+      return false;
+    }
+    return true;
+  }
+
+  String _buildPairKey({
+    required String meVersion,
+    required String partnerVersion,
+    String? myUid,
+    String? partnerUid,
+  }) {
+    if (myUid != null && partnerUid != null) {
+      return SynastryCacheRepository.buildPairKey(myUid, partnerUid);
+    }
+    final local = ([meVersion, partnerVersion]..sort()).join('__');
+    return 'local__$local';
+  }
+
+  Future<NatalChart> _loadNatalChart(
+    BirthInfo birth, {
+    String? uid,
+    required bool persistIfOwner,
+  }) async {
+    final natalCacheKey = CacheKeys.natal(birth.chartVersion);
+
+    if (uid != null) {
+      final firestoreChart = await _chartRepo.get(uid, birth.chartVersion);
+      if (firestoreChart != null) {
+        await _cache.putJson(
+          natalCacheKey,
+          firestoreChart.toJson(),
+          source: 'firestore',
+        );
+        return firestoreChart;
+      }
+    }
+
+    final disk = _cache.getJson(natalCacheKey);
+    if (disk != null) {
+      try {
+        return NatalChart.fromJson(disk);
+      } catch (e) {
+        if (kDebugMode) {
+          // ignore: avoid_print
+          print('[SynastryRepository] natal L2 디코드 실패 → 재계산: $e');
+        }
+        await _cache.remove(natalCacheKey);
+      }
+    }
+
+    if (Env.shouldUseFixtureForProkerala) {
+      return _fallbackNatalChart(
+        birth,
+        uid: uid,
+        persistIfOwner: persistIfOwner,
+        reason: 'policy-fixture',
+      );
     }
 
     try {
-      final json = await _api.fetchSynastry(me: me, partner: partner);
-      final result = _scoreFromJson(json);
-      await _cache.putJson(cacheKey, result.toJson(), source: 'live');
-      // L3 저장 (uid 가 있을 때만).
-      if (myUid != null && partnerUid != null) {
-        await _firestoreCache.save(
-          uid1: myUid,
-          uid2: partnerUid,
-          meVersion: me.chartVersion,
-          partnerVersion: partner.chartVersion,
-          result: result,
+      final json = await _api.fetchNatalChart(birth);
+      final chart = NatalChartMapper.fromJson(json);
+      await _cache.putJson(natalCacheKey, chart.toJson(), source: 'live');
+      if (uid != null && persistIfOwner) {
+        await _chartRepo.save(
+          uid: uid,
+          chartVersion: birth.chartVersion,
+          chart: chart,
+          birth: birth,
+          source: 'prokerala',
         );
       }
-      return result;
-    } catch (e) {
+      return chart;
+    } catch (e, st) {
       if (kDebugMode) {
         // ignore: avoid_print
-        print('[SynastryRepository] 실패 → fixture: $e');
+        print('[SynastryRepository] natal API 실패 → fallback: $e\n$st');
       }
-      return demoSynastry();
+      return _fallbackNatalChart(
+        birth,
+        uid: uid,
+        persistIfOwner: persistIfOwner,
+        reason: 'api-failure',
+      );
     }
   }
 
-  /// Prokerala 응답 → 4축 점수.
-  ///
-  /// 각 어스펙트마다 카테고리별 가중치를 더해 0~100 으로 정규화.
-  SynastryResult _scoreFromJson(Map<String, dynamic> json) {
-    final data = (json['data'] as Map?) ?? json;
-    final aspects = (data['aspects'] as List?) ?? const [];
-
-    // 카테고리별 누적 점수.
-    double emotion = 50, comm = 50, romance = 50;
-
-    for (final a in aspects) {
-      if (a is! Map) continue;
-      final type = (a['aspect'] ?? '').toString().toLowerCase();
-      final pa = (a['planet_a'] ?? a['planet1'] ?? '').toString().toLowerCase();
-      final pb = (a['planet_b'] ?? a['planet2'] ?? '').toString().toLowerCase();
-
-      // 어스펙트 종류별 영향 (대략적 휴리스틱)
-      double sign;
-      switch (type) {
-        case 'trine':
-        case 'sextile':
-        case 'conjunction':
-          sign = 1.0;
-          break;
-        case 'square':
-        case 'opposition':
-          sign = -1.0;
-          break;
-        default:
-          sign = 0.3;
-      }
-
-      // 행성 짝에 따라 어떤 카테고리에 영향을 주는지.
-      bool involves(String x) => pa == x || pb == x;
-      if (involves('moon') || involves('venus')) emotion += 4 * sign;
-      if (involves('mercury')) comm += 4 * sign;
-      if (involves('venus') || involves('mars')) romance += 4 * sign;
-    }
-
-    int clamp(double v) => v.clamp(0, 100).round();
-    final emotionScore = clamp(emotion);
-    final commScore = clamp(comm);
-    final romanceScore = clamp(romance);
-    final total = ((emotionScore + commScore + romanceScore) / 3).round();
-
-    return SynastryResult(
-      totalScore: total,
-      emotionScore: emotionScore,
-      communicationScore: commScore,
-      romanceScore: romanceScore,
-      summary: total >= 75
-          ? '서로의 흐름이 자연스럽게 이어져 편안한 온기가 느껴지는 조합입니다.'
-          : total >= 55
-              ? '기본적인 궁합은 좋은 편이고, 대화를 조금만 더 세심하게 챙기면 더 가까워질 수 있습니다.'
-              : '리듬 차이는 있지만 서로를 이해하려는 마음이 쌓이면 관계가 충분히 깊어질 수 있습니다.',
+  Future<NatalChart> _fallbackNatalChart(
+    BirthInfo birth, {
+    String? uid,
+    required bool persistIfOwner,
+    required String reason,
+  }) async {
+    final chart = buildFallbackNatalChart(birth);
+    await _cache.putJson(
+      CacheKeys.natal(birth.chartVersion),
+      chart.toJson(),
+      source: 'local-derived',
     );
+    if (uid != null && persistIfOwner) {
+      await _chartRepo.save(
+        uid: uid,
+        chartVersion: birth.chartVersion,
+        chart: chart,
+        birth: birth,
+        source: 'local-derived',
+      );
+    }
+    if (kDebugMode) {
+      // ignore: avoid_print
+      print('[SynastryRepository] natal fallback 생성 reason=$reason '
+          'sun=${chart.sunSign} moon=${chart.moonSign} asc=${chart.ascendantSign}');
+    }
+    return chart;
   }
 }

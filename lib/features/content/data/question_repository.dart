@@ -12,6 +12,7 @@ class QuestionRepository {
     required String friendName,
     String? friendSign,
     String? mySign,
+    int count = 3,
     int revision = 0,
   }) async {
     // 현재 브랜치에서는 local question set 만 사용한다.
@@ -20,7 +21,7 @@ class QuestionRepository {
     final templates = List<_QuestionTheme>.from(_QuestionTheme.values);
     final random = Random(friendUid.hashCode ^ (revision * 37));
     templates.shuffle(random);
-    final picked = templates.take(3).toList();
+    final picked = templates.take(count.clamp(1, templates.length)).toList();
 
     return [
       for (var i = 0; i < picked.length; i++)

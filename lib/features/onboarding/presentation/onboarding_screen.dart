@@ -1,7 +1,8 @@
 // lib/features/onboarding/presentation/onboarding_screen.dart
 //
-// ONBOARDING-001 — 별자리의 초대 (3단계 스텝 방식)
+// ONBOARDING-001 — 별자리의 초대 (4단계 스텝 방식)
 //
+// Step 0: 이름(displayName) 입력 ← NEW
 // Step 1: 생년월일 입력
 // Step 2: 출생 시간 입력
 // Step 3: 출생지 입력 → 완료 시 Firestore 저장
@@ -35,7 +36,11 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 }
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
-  int _step = 0; // 0=생년월일, 1=출생시간, 2=출생지
+  int _step = 0; // 0=이름, 1=생년월일, 2=출생시간, 3=출생지
+
+  // Step 0: 이름(displayName)
+  final _nameCtrl = TextEditingController();
+  String? _nameError;
 
   // 네이티브 Picker로 선택된 값 (TextField 대신)
   DateTime? _selectedDate;
@@ -53,6 +58,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   @override
   void initState() {
     super.initState();
+    // 마이페이지 수정 모드: 이름 step 은 건너뛰고 생년월일부터 시작
+    if (widget.isEditing) _step = 1;
+    // 기존 displayName 이 있으면 이름 필드에 채워 둠
+    final profile = ref.read(currentUserProfileProvider).valueOrNull;
+    if (profile != null) {
+      _nameCtrl.text = profile.effectiveDisplayName;
+    }
     final b = widget.initialBirthInfo;
     if (b != null) {
       _selectedDate = b.dateTime;
@@ -69,8 +81,17 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   @override
   void dispose() {
+    _nameCtrl.dispose();
     _placeCtrl.dispose();
     super.dispose();
+  }
+
+  // ── 이름 검증 ─────────────────────────────────────────────────────
+  String? _validateName(String value) {
+    final v = value.trim();
+    if (v.isEmpty) return '이름을 입력해주세요.';
+    if (v.length > 20) return '20자 이내로 입력해주세요.';
+    return null;
   }
 
   // ── 날짜 선택 ─────────────────────────────────────────────────────
@@ -127,15 +148,26 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     setState(() => _error = null);
     switch (_step) {
       case 0:
+        // 이름 검증
+        final nameErr = _validateName(_nameCtrl.text);
+        if (nameErr != null) {
+          setState(() => _nameError = nameErr);
+          return;
+        }
+        setState(() {
+          _nameError = null;
+          _step = 1;
+        });
+      case 1:
         if (_selectedDate == null) {
           setState(() => _error = '생년월일을 선택해주세요.');
           return;
         }
-        setState(() => _step = 1);
-      case 1:
-        // 시간은 선택사항 — "모름" 또는 선택 완료면 다음으로
         setState(() => _step = 2);
       case 2:
+        // 시간은 선택사항 — "모름" 또는 선택 완료면 다음으로
+        setState(() => _step = 3);
+      case 3:
         _submit();
     }
   }
@@ -210,10 +242,17 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       }
 
       // ── 4. BirthInfo 구성 ────────────────────────────────────────
-      // utcOffset: 현재 한국 앱 대상이므로 기본 +09:00. 해외 출생지는 추후 geocoding
-      // 결과에서 timezone 을 추출하여 자동화 예정.
+      // BirthInfo.nickname 은 displayName 을 우선 사용.
+      // utcOffset: 현재 한국 앱 대상이므로 기본 +09:00.
+      final enteredName = _nameCtrl.text.trim();
+      final displayName = enteredName.isNotEmpty
+          ? enteredName
+          : (ref.read(currentUserProfileProvider).valueOrNull?.effectiveDisplayName
+              ?? ref.read(currentUserProvider)?.effectiveDisplayName
+              ?? '별자리');
+
       final birth = BirthInfo(
-        nickname: ref.read(currentUserProvider)?.loginId ?? '별자리',
+        nickname: displayName,
         dateTime: dt,
         latitude: latitude,
         longitude: longitude,
@@ -237,7 +276,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       await ref.read(userRepositoryProvider).upsertBirthInfo(
         uid: uid,
         birthInfo: birth,
-        nickname: birth.nickname,
+        nickname: displayName,
+        displayName: displayName,
       );
 
       // Firestore stream 이 실제로 최신 birth 를 반영한 뒤에만 재분석을 시작한다.
@@ -333,7 +373,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Step ${_step + 1} of 3',
+                  // 마이페이지 수정 모드는 step 1~3(1-based: 1~3 of 3)
+                  widget.isEditing
+                      ? 'Step ${_step} of 3'
+                      : 'Step ${_step + 1} of 4',
                   style: const TextStyle(
                     color: Color(0xFF5B9BFF),
                     fontSize: 14,
@@ -342,15 +385,19 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
                 const SizedBox(height: 20),
 
-                // 진행 바
+                // 진행 바 (4칸, 수정 모드 3칸)
                 Row(
-                  children: List.generate(3, (i) {
+                  children: List.generate(widget.isEditing ? 3 : 4, (i) {
+                    final filled = widget.isEditing
+                        ? i < _step  // step 1~3 기준
+                        : i <= _step;
+                    final last = i == (widget.isEditing ? 2 : 3);
                     return Expanded(
                       child: Container(
                         height: 3,
-                        margin: EdgeInsets.only(right: i < 2 ? 4 : 0),
+                        margin: EdgeInsets.only(right: last ? 0 : 4),
                         decoration: BoxDecoration(
-                          color: i <= _step
+                          color: filled
                               ? const Color(0xFF1A5FD4)
                               : Colors.white12,
                           borderRadius: BorderRadius.circular(2),
@@ -366,6 +413,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 Expanded(
                   child: _StepCard(
                     step: _step,
+                    nameCtrl: _nameCtrl,
+                    nameError: _nameError,
                     selectedDate: _selectedDate,
                     selectedTime: _selectedTime,
                     timeUnknown: _timeUnknown,
@@ -401,6 +450,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 class _StepCard extends StatelessWidget {
   const _StepCard({
     required this.step,
+    required this.nameCtrl,
+    this.nameError,
     required this.selectedDate,
     required this.selectedTime,
     required this.timeUnknown,
@@ -412,6 +463,8 @@ class _StepCard extends StatelessWidget {
   });
 
   final int step;
+  final TextEditingController nameCtrl;
+  final String? nameError;
   final DateTime? selectedDate;
   final TimeOfDay? selectedTime;
   final bool timeUnknown;
@@ -452,8 +505,38 @@ class _StepCard extends StatelessWidget {
           ),
           const SizedBox(height: 24),
 
-          // ── Step 0: 생년월일 DatePicker ──────────────────────────
+          // ── Step 0: 이름(displayName) 입력 ──────────────────────
           if (step == 0) ...[
+            const Text('이름', style: TextStyle(color: Colors.white70, fontSize: 14)),
+            const SizedBox(height: 8),
+            TextField(
+              controller: nameCtrl,
+              autofocus: true,
+              maxLength: 20,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                hintText: '예: 별이, 나영, 김별',
+                hintStyle: const TextStyle(color: Colors.white24),
+                counterText: '',
+                filled: true,
+                fillColor: Colors.white.withOpacity(0.07),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF1A5FD4), width: 1.5),
+                ),
+                errorText: nameError,
+                errorStyle: const TextStyle(color: Colors.redAccent, fontSize: 12),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              ),
+            ),
+          ],
+
+          // ── Step 1: 생년월일 DatePicker ──────────────────────────
+          if (step == 1) ...[
             const Text('생년월일', style: TextStyle(color: Colors.white70, fontSize: 14)),
             const SizedBox(height: 8),
             _PickerButton(
@@ -466,8 +549,8 @@ class _StepCard extends StatelessWidget {
             ),
           ],
 
-          // ── Step 1: 출생 시간 TimePicker + 모름 토글 ─────────────
-          if (step == 1) ...[
+          // ── Step 2: 출생 시간 TimePicker + 모름 토글 ─────────────
+          if (step == 2) ...[
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -519,8 +602,8 @@ class _StepCard extends StatelessWidget {
             ),
           ],
 
-          // ── Step 2: 출생지 TextField (geocoding 연동) ─────────────
-          if (step == 2) ...[
+          // ── Step 3: 출생지 TextField (geocoding 연동) ─────────────
+          if (step == 3) ...[
             const Text('출생지', style: TextStyle(color: Colors.white70, fontSize: 14)),
             const SizedBox(height: 8),
             TextField(
@@ -576,16 +659,18 @@ class _StepCard extends StatelessWidget {
 
   String get _title {
     switch (step) {
-      case 0: return '언제 태어나셨나요?';
-      case 1: return '몇 시에 태어나셨나요?';
+      case 0: return '어떻게 불러드리면 될까요?';
+      case 1: return '언제 태어나셨나요?';
+      case 2: return '몇 시에 태어나셨나요?';
       default: return '어디서 태어나셨나요?';
     }
   }
 
   String get _subtitle {
     switch (step) {
-      case 0: return '정확한 별자리 차트를 위해 필요합니다';
-      case 1: return '정확한 시간은 상승 별자리에 영향을 줍니다';
+      case 0: return '당신만의 별자리 차트를 만들기 위해 필요해요.';
+      case 1: return '정확한 별자리 차트를 위해 필요합니다';
+      case 2: return '정확한 시간은 상승 별자리에 영향을 줍니다';
       default: return '지역에 따라 천체의 위치가 달라집니다';
     }
   }
@@ -690,7 +775,7 @@ class _StepButtons extends StatelessWidget {
         Expanded(
           child: SizedBox(
             height: 52,
-            child: _primaryButton(step == 2 ? '완료' : '다음', onNext, isSubmitting),
+            child: _primaryButton(step == 3 ? '완료' : '다음', onNext, isSubmitting),
           ),
         ),
       ],

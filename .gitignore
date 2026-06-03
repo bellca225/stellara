@@ -43,3 +43,6 @@ app.*.map.json
 /android/app/release
 /android/.gradle/
 /android/local.properties
+
+# Local AI/editor settings
+.claude/settings.local.json

@@ -18,27 +18,33 @@ final dailyFortuneRepositoryProvider = Provider<DailyFortuneRepository>(
 final horoscopeRepositoryProvider = Provider<HoroscopeRepository>((ref) {
   final uidAsync = ref.watch(currentUserIdProvider);
   final uid = uidAsync.valueOrNull;
+  final profile = ref.watch(currentUserProfileProvider).valueOrNull;
   return HoroscopeRepository(
     ref.watch(prokeralaApiProvider),
     ref.watch(diskCacheProvider),
     ref.watch(dailyFortuneRepositoryProvider),
     uid: uid,
+    chartVersion:
+        profile?.activeChartVersion ?? profile?.birthInfo?.chartVersion,
+    utcOffset: profile?.birthInfo?.utcOffset,
   );
 });
 
-/// 사용자가 선택한 별자리 (TODAY-001 화면 위쪽 picker).
-/// 초기값: 로그인 사용자의 태양 별자리 → 없으면 'aquarius' fallback.
-final selectedSignSlugProvider = StateProvider<String>((ref) {
-  final sunSign = ref.watch(currentUserProvider)?.sunSign;
-  if (sunSign != null && sunSign.isNotEmpty && sunSign != '-') {
-    return sunSign.toLowerCase();
-  }
-  return 'aquarius';
-});
-
-/// 오늘 날짜 + 별자리 → 운세 fetch.
 final todayHoroscopeProvider = FutureProvider<Horoscope>((ref) async {
-  final slug = ref.watch(selectedSignSlugProvider);
   final repo = ref.watch(horoscopeRepositoryProvider);
-  return repo.getDaily(signSlug: slug);
+  final profile = ref.watch(currentUserProfileProvider).valueOrNull;
+  final user = ref.watch(currentUserProvider);
+
+  String? signSlug = profile?.sunSign ?? user?.sunSign;
+  if (signSlug == null || signSlug.trim().isEmpty || signSlug.trim() == '-') {
+    final chart = await ref.watch(myNatalChartProvider.future);
+    signSlug = chart.sunSign;
+  }
+
+  final normalized = signSlug.trim().toLowerCase();
+  if (normalized.isEmpty || normalized == '-') {
+    throw StateError('오늘의 운세를 생성할 별자리 정보를 찾지 못했어요.');
+  }
+
+  return repo.getDaily(signSlug: normalized);
 });

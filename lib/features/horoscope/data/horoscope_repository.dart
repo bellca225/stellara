@@ -15,22 +15,29 @@ class HoroscopeRepository {
     this._cache,
     this._firestoreCache, {
     String? uid,
-  }) : _currentUid = uid;
+    String? chartVersion,
+    String? utcOffset,
+  }) : _currentUid = uid,
+       _activeChartVersion = chartVersion,
+       _utcOffset = utcOffset;
   final ProkeralaApi _api;
   final DiskCache _cache;
   final DailyFortuneRepository _firestoreCache;
   final String? _currentUid;
+  final String? _activeChartVersion;
+  final String? _utcOffset;
 
   Future<Horoscope> getDaily({required String signSlug, DateTime? date}) async {
+    final keyDate = _resolveTargetDate(date);
+
     // L0: fixture (가장 강한 토큰 절약, 디스크 저장 안 함).
     if (Env.shouldUseFixtureForProkerala) {
       await Future<void>.delayed(const Duration(milliseconds: 250));
-      return demoHoroscope(signSlug, date);
+      return demoHoroscope(signSlug, keyDate);
     }
 
     // L2: 디스크. 키가 sign+yyyyMMdd 라 다른 날짜면 자연 cache miss.
-    final keyDate = date ?? DateTime.now();
-    final cacheKey = CacheKeys.daily(signSlug, keyDate);
+    final cacheKey = _cacheKey(signSlug, keyDate);
     final cached = _cache.getJson(cacheKey);
     if (cached != null) {
       try {
@@ -50,6 +57,7 @@ class HoroscopeRepository {
         uid: currentUid,
         signSlug: signSlug,
         date: keyDate,
+        chartVersion: _activeChartVersion,
       );
       if (firestoreHoroscope != null) {
         await _cache.putJson(
@@ -64,15 +72,17 @@ class HoroscopeRepository {
     try {
       final json = await _api.fetchDailyHoroscope(
         signSlug: signSlug,
-        date: date,
+        date: keyDate,
       );
-      final horoscope = _parse(json, signSlug, date);
+      final horoscope = _parse(json, signSlug, keyDate);
       await _cache.putJson(cacheKey, horoscope.toJson(), source: 'live');
       if (currentUid != null) {
         await _firestoreCache.save(
           uid: currentUid,
           horoscope: horoscope,
           source: 'live',
+          chartVersion: _activeChartVersion,
+          utcOffset: _utcOffset,
         );
       }
       return horoscope;
@@ -81,8 +91,41 @@ class HoroscopeRepository {
         // ignore: avoid_print
         print('[HoroscopeRepository] daily 실패 → fixture: $e');
       }
-      return demoHoroscope(signSlug, date);
+      return demoHoroscope(signSlug, keyDate);
     }
+  }
+
+  String _cacheKey(String signSlug, DateTime date) {
+    final uid = _currentUid;
+    final chartVersion = _activeChartVersion;
+    if (uid != null && chartVersion != null && chartVersion.isNotEmpty) {
+      return CacheKeys.dailyForUser(uid, signSlug, chartVersion, date);
+    }
+    return CacheKeys.daily(signSlug, date);
+  }
+
+  DateTime _resolveTargetDate(DateTime? explicitDate) {
+    if (explicitDate != null) {
+      return DateTime(explicitDate.year, explicitDate.month, explicitDate.day);
+    }
+    final offset = _parseUtcOffset(_utcOffset);
+    if (offset == null) {
+      final now = DateTime.now();
+      return DateTime(now.year, now.month, now.day);
+    }
+    final zonedNow = DateTime.now().toUtc().add(offset);
+    return DateTime(zonedNow.year, zonedNow.month, zonedNow.day);
+  }
+
+  Duration? _parseUtcOffset(String? raw) {
+    if (raw == null || raw.isEmpty) return null;
+    final match = RegExp(r'^([+-])(\d{2}):(\d{2})$').firstMatch(raw);
+    if (match == null) return null;
+    final sign = match.group(1) == '-' ? -1 : 1;
+    final hours = int.tryParse(match.group(2) ?? '');
+    final minutes = int.tryParse(match.group(3) ?? '');
+    if (hours == null || minutes == null) return null;
+    return Duration(hours: sign * hours, minutes: sign * minutes);
   }
 
   Horoscope _parse(Map<String, dynamic> json, String slug, DateTime? date) {
@@ -100,6 +143,7 @@ class HoroscopeRepository {
           ? (data['lucky_number'] as num).toInt()
           : 0,
       mood: (data['mood'] ?? '-').toString(),
+      luckyPlace: data['lucky_place']?.toString(),
     );
   }
 }

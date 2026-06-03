@@ -133,8 +133,22 @@ class CacheKeys {
     return 'daily.$signSlug.$ymd';
   }
 
-  /// synastry 키. T05/T09 진입 후 uid 기반 pairKey 가 들어오기 전까지는
-  /// chartVersion 두 개를 그대로 잇는다 (단일 디바이스 캐시이므로 안전).
-  static String synastry(String myChartVersion, String partnerChartVersion) =>
-      'synastry.${myChartVersion}__$partnerChartVersion';
+  /// 로그인 사용자 기준 오늘의 운세 캐시 키.
+  /// birth 정보가 바뀌면 chartVersion 이 달라져 자동 cache miss 된다.
+  static String dailyForUser(
+    String uid,
+    String signSlug,
+    String chartVersion,
+    DateTime date,
+  ) {
+    String pad(int n) => n.toString().padLeft(2, '0');
+    final ymd = '${date.year}${pad(date.month)}${pad(date.day)}';
+    return 'daily.$uid.$chartVersion.$signSlug.$ymd';
+  }
+
+  /// synastry 키.
+  /// pairKey + chartPairVersion 조합을 사용해
+  /// 사용자 쌍이 같더라도 출생 정보 변경 시 자동 cache miss 되도록 한다.
+  static String synastry(String pairKey, String chartPairVersion) =>
+      'synastry.$pairKey|$chartPairVersion';
 }

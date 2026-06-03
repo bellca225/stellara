@@ -7,6 +7,7 @@ import '../../../core/cache/disk_cache.dart';
 import '../../astrology/application/astrology_providers.dart';
 import '../../astrology/domain/birth_info.dart';
 import '../../users/application/user_providers.dart';
+import '../data/compatibility_engine.dart';
 import '../data/synastry_cache_repository.dart';
 import '../data/synastry_repository.dart';
 import '../domain/synastry_result.dart';
@@ -15,11 +16,17 @@ final synastryCacheRepositoryProvider = Provider<SynastryCacheRepository>(
   (ref) => SynastryCacheRepository(FirebaseFirestore.instance),
 );
 
+final compatibilityEngineProvider = Provider<CompatibilityEngine>(
+  (ref) => const CompatibilityEngine(),
+);
+
 final synastryRepositoryProvider = Provider<SynastryRepository>(
   (ref) => SynastryRepository(
     ref.watch(prokeralaApiProvider),
     ref.watch(diskCacheProvider),
     ref.watch(synastryCacheRepositoryProvider),
+    ref.watch(chartRepositoryProvider),
+    ref.watch(compatibilityEngineProvider),
   ),
 );
 

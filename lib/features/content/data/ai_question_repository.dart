@@ -369,8 +369,17 @@ class AiQuestionRepository {
 
     if (synastry != null) {
       buf.writeln('[궁합 점수]');
-      buf.writeln('감정: ${synastry.emotionScore}% / 대화: ${synastry.communicationScore}% / 연애: ${synastry.romanceScore}%');
+      buf.writeln(
+        '감정: ${synastry.emotionScore}% / 대화: ${synastry.communicationScore}% / '
+        '연애: ${synastry.romanceScore}% / 우정: ${synastry.friendshipScore}%',
+      );
       buf.writeln('총점: ${synastry.totalScore}%');
+      if (synastry.strengths.isNotEmpty) {
+        buf.writeln('강점: ${synastry.strengths.take(2).join(' / ')}');
+      }
+      if (synastry.challenges.isNotEmpty) {
+        buf.writeln('주의 포인트: ${synastry.challenges.take(1).join(' / ')}');
+      }
       buf.writeln();
     }
 
@@ -579,4 +588,3 @@ class HttpClientWrapper {
     return content;
   }
 }
-

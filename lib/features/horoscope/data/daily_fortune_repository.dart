@@ -13,21 +13,31 @@ class DailyFortuneRepository {
     required String uid,
     required String signSlug,
     required DateTime date,
+    String? chartVersion,
   }) async {
-    final docId = _docId(uid, signSlug, date);
     try {
-      final snap = await _col.doc(docId).get();
-      final data = snap.data();
-      if (data == null) return null;
-      return Horoscope(
-        signSlug: data['signSlug'] as String? ?? signSlug,
-        signName: data['signName'] as String? ?? signSlug,
-        date: DateTime.tryParse(data['date'] as String? ?? '') ?? date,
-        summary: data['summary'] as String? ?? '',
-        luckyColor: data['luckyColor'] as String? ?? '-',
-        luckyNumber: (data['luckyNumber'] as num?)?.toInt() ?? 0,
-        mood: data['mood'] as String? ?? '-',
-      );
+      final docIds = <String>[
+        _docId(uid, signSlug, date, chartVersion: chartVersion),
+        if (chartVersion != null && chartVersion.isNotEmpty)
+          _legacyDocId(uid, signSlug, date),
+      ];
+      for (final docId in docIds) {
+        final snap = await _col.doc(docId).get();
+        final data = snap.data();
+        if (data == null) continue;
+        return Horoscope(
+          signSlug: data['signSlug'] as String? ?? signSlug,
+          signName: data['signName'] as String? ?? signSlug,
+          date: DateTime.tryParse(data['date'] as String? ?? '') ?? date,
+          summary: data['summary'] as String? ?? '',
+          luckyColor: data['luckyColor'] as String? ?? '-',
+          luckyNumber: (data['luckyNumber'] as num?)?.toInt() ?? 0,
+          mood: data['mood'] as String? ?? '-',
+          luckyPlace:
+              data['luckyPlace'] as String? ?? data['lucky_place'] as String?,
+        );
+      }
+      return null;
     } catch (_) {
       return null;
     }
@@ -37,8 +47,15 @@ class DailyFortuneRepository {
     required String uid,
     required Horoscope horoscope,
     String source = 'live',
+    String? chartVersion,
+    String? utcOffset,
   }) async {
-    final docId = _docId(uid, horoscope.signSlug, horoscope.date);
+    final docId = _docId(
+      uid,
+      horoscope.signSlug,
+      horoscope.date,
+      chartVersion: chartVersion,
+    );
     try {
       await _col.doc(docId).set({
         'uid': uid,
@@ -50,7 +67,10 @@ class DailyFortuneRepository {
         'luckyColor': horoscope.luckyColor,
         'luckyNumber': horoscope.luckyNumber,
         'mood': horoscope.mood,
+        'luckyPlace': horoscope.luckyPlace,
         'source': source,
+        'chartVersion': chartVersion,
+        'utcOffset': utcOffset,
         'cachedAt': FieldValue.serverTimestamp(),
       });
     } catch (_) {
@@ -58,7 +78,22 @@ class DailyFortuneRepository {
     }
   }
 
-  String _docId(String uid, String signSlug, DateTime date) {
+  String _docId(
+    String uid,
+    String signSlug,
+    DateTime date, {
+    String? chartVersion,
+  }) {
+    if (chartVersion == null || chartVersion.isEmpty) {
+      return _legacyDocId(uid, signSlug, date);
+    }
+    final yyyy = date.year.toString().padLeft(4, '0');
+    final mm = date.month.toString().padLeft(2, '0');
+    final dd = date.day.toString().padLeft(2, '0');
+    return '${uid}_${signSlug}_${chartVersion}_$yyyy$mm$dd';
+  }
+
+  String _legacyDocId(String uid, String signSlug, DateTime date) {
     final yyyy = date.year.toString().padLeft(4, '0');
     final mm = date.month.toString().padLeft(2, '0');
     final dd = date.day.toString().padLeft(2, '0');

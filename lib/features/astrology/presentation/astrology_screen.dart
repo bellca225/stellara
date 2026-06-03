@@ -27,22 +27,63 @@ class AstrologyScreen extends ConsumerWidget {
     if (profileAsync.hasValue && profile != null &&
         (!profile.profileCompleted || profile.birthInfo == null)) {
       return Scaffold(
-        body: SafeArea(
-          child: _NoBirthInfoView(onBack: () => Navigator.of(context).pop()),
+        appBar: AppBar(
+          title: const Text('점성술 분석'),
+          centerTitle: false,
         ),
+        body: SafeArea(child: _NoBirthInfoView()),
       );
     }
 
+    // birth 변경 후 차트가 아직 갱신되지 않았는지 확인.
+    // activeChartVersion != birth.chartVersion → 재분석 진행 중 또는 필요.
+    final isStale = birth != null &&
+        profile != null &&
+        profile.activeChartVersion != null &&
+        profile.activeChartVersion != birth.chartVersion;
+
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('점성술 분석'),
+        centerTitle: false,
+      ),
       body: SafeArea(
-        child: asyncChart.when(
-          loading: () => const _ChartSkeleton(),
-          error: (error, _) => _ErrorView(message: '$error'),
-          // birth 가 null 일 수 없는 시점(chart data 도달 시)이지만 안전을 위해 null-check.
-          data: (chart) {
-            if (birth == null) return const _ChartSkeleton();
-            return _ChartContent(birth: birth, chart: chart);
-          },
+        child: Column(
+          children: [
+            // stale 배너 (birth 정보 변경 후 재분석 중)
+            if (isStale)
+              Material(
+                color: Colors.orange.withOpacity(0.12),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.refresh_rounded, size: 16, color: Colors.orange),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '출생 정보가 변경됐어요. 차트를 다시 분석 중이에요.',
+                          style: TextStyle(
+                            color: Colors.orange.shade800,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            Expanded(
+              child: asyncChart.when(
+                loading: () => const _ChartSkeleton(),
+                error: (error, _) => _ErrorView(message: '$error'),
+                data: (chart) {
+                  if (birth == null) return const _ChartSkeleton();
+                  return _ChartContent(birth: birth, chart: chart);
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -66,42 +107,19 @@ class _ChartContent extends StatelessWidget {
       physics: const ClampingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.lg,
-        AppSpacing.xl,
+        AppSpacing.lg,
         AppSpacing.lg,
         AppSpacing.xxl,
       ),
       children: [
-        const ScreenCodeChip(
-          code: 'ASTROLOGY-001',
-          label: '점성술 분석',
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        Row(
-          children: [
-            IconButton(
-              onPressed: () => Navigator.of(context).pop(),
-              icon: const Icon(Icons.arrow_back),
-            ),
-            const SizedBox(width: 4),
-            Text(
-              '점성술 분석',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontSize: 20,
-                  ),
-            ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.lg),
+        // ── 출생 차트 영역 (건드리지 않음) ─────────────────────────
         _BirthChartHeader(birth: birth),
         const SizedBox(height: AppSpacing.lg),
         _ChartPanel(chart: chart),
-        const SizedBox(height: AppSpacing.lg),
-        _Big3Panel(chart: chart),
-        const SizedBox(height: AppSpacing.lg),
-        _PlanetTable(chart: chart),
-        const SizedBox(height: AppSpacing.lg),
-        _AspectTable(chart: chart),
+
         const SizedBox(height: AppSpacing.xl),
+
+        // ── 상세 분석 ────────────────────────────────────────────
         Text(
           '상세 분석',
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -247,132 +265,6 @@ class _ChartPanel extends StatelessWidget {
   }
 }
 
-class _Big3Panel extends StatelessWidget {
-  const _Big3Panel({required this.chart});
-
-  final NatalChart chart;
-
-  @override
-  Widget build(BuildContext context) {
-    return Panel(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '나의 Big 3',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
-            children: [
-              _Big3Chip(label: '태양', value: zodiacNameKo(chart.sunSign)),
-              _Big3Chip(label: '달', value: zodiacNameKo(chart.moonSign)),
-              _Big3Chip(label: '상승', value: zodiacNameKo(chart.ascendantSign)),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Big3Chip extends StatelessWidget {
-  const _Big3Chip({
-    required this.label,
-    required this.value,
-  });
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: AppColors.canvas,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: AppColors.line),
-      ),
-      child: Text(
-        '$label: $value',
-        style: const TextStyle(
-          color: AppColors.inkMuted,
-          fontSize: 14,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-}
-
-class _PlanetTable extends StatelessWidget {
-  const _PlanetTable({required this.chart});
-
-  final NatalChart chart;
-
-  @override
-  Widget build(BuildContext context) {
-    return Panel(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '행성 정보',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          if (chart.planets.isEmpty)
-            const Text('표시할 행성 정보가 아직 없어요.')
-          else
-            ...chart.planets.map(
-              (planet) => KeyValueRow(
-                label: planetNameKo(planet.name),
-                value:
-                    '${zodiacNameKo(planet.sign)} · ${planet.degreeInSign.toStringAsFixed(1)}°'
-                    '${planet.house != null ? ' · ${planet.house}하우스' : ''}',
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AspectTable extends StatelessWidget {
-  const _AspectTable({required this.chart});
-
-  final NatalChart chart;
-
-  @override
-  Widget build(BuildContext context) {
-    return Panel(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '주요 각도',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          if (chart.aspects.isEmpty)
-            const Text('표시할 각도 정보가 아직 없어요.')
-          else
-            ...chart.aspects.take(6).map(
-              (aspect) => KeyValueRow(
-                label:
-                    '${planetNameKo(aspect.planetA)} · ${planetNameKo(aspect.planetB)}',
-                value: '${aspectNameKo(aspect.aspect)} · 오차 ${aspect.orb.toStringAsFixed(1)}°',
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
 class _InsightCard extends StatelessWidget {
   const _InsightCard({
     required this.title,
@@ -492,8 +384,7 @@ class _ErrorView extends StatelessWidget {
 
 /// 출생 정보 미입력 사용자에게 보여주는 가드 화면.
 class _NoBirthInfoView extends StatelessWidget {
-  const _NoBirthInfoView({required this.onBack});
-  final VoidCallback onBack;
+  const _NoBirthInfoView();
 
   @override
   Widget build(BuildContext context) {
@@ -501,18 +392,6 @@ class _NoBirthInfoView extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
         children: [
-          Row(
-            children: [
-              IconButton(
-                onPressed: onBack,
-                icon: const Icon(Icons.arrow_back),
-              ),
-              Text(
-                '점성술 분석',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-            ],
-          ),
           const Spacer(),
           const Icon(Icons.star_outline_rounded, size: 56, color: AppColors.inkSubtle),
           const SizedBox(height: AppSpacing.lg),

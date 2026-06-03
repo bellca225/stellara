@@ -1,16 +1,22 @@
-import 'package:flutter/foundation.dart';
+// lib/features/friends/presentation/friend_screen.dart
+//
+// 친구 관리 화면 — Figma 친구관리1/2/3 구조 기준
+//
+// 친구관리1: 내 친구 탭 — 친구 목록 + 즐겨찾기 카운트 + 궁합 보기
+// 친구관리2: 받은 요청 탭 — 요청 카드 + 시간 표시 + 수락/거절
+// 친구 추가: 하단 "친구 추가 요청" 버튼 → AddFriendScreen (별도 파일)
+
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/input/app_input_formatters.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/panel.dart';
-import '../../auth/application/auth_providers.dart';
 import '../../compatibility/presentation/match_screen.dart';
+import '../../users/application/user_providers.dart';
 import '../application/friend_providers.dart';
 import '../data/friend_repository.dart';
 import '../domain/friend.dart';
+import 'add_friend_screen.dart';
 
 class FriendScreen extends ConsumerStatefulWidget {
   const FriendScreen({super.key});
@@ -20,140 +26,34 @@ class FriendScreen extends ConsumerStatefulWidget {
 }
 
 class _FriendScreenState extends ConsumerState<FriendScreen> {
-  final _searchController = TextEditingController();
+  _FriendTab _tab = _FriendTab.friends;
 
-  bool _isSearching = false;
-  bool _isSendingRequest = false;
-  Map<String, dynamic>? _searchResult;
-  String? _searchError;
-  bool _showFriends = true;
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  // ── 친구 코드 검색 ──────────────────────────────────────────────
-  Future<void> _search() async {
-    final code = _searchController.text.trim().toUpperCase();
-    if (code.isEmpty) return;
-    if (code.length != 6) {
-      setState(() {
-        _searchResult = null;
-        _searchError = '친구 코드는 영문 대문자/숫자 6자리예요.';
-      });
-      return;
-    }
-
-    final myUid = ref.read(currentUserProvider)?.uid;
-
-    setState(() {
-      _isSearching = true;
-      _searchResult = null;
-      _searchError = null;
-    });
-
-    try {
-      final result = await ref
-          .read(friendRepositoryProvider)
-          .findUserByCode(code);
-
-      if (!mounted) return;
-
-      if (result == null) {
-        setState(() => _searchError = '해당 코드의 사용자를 찾을 수 없어요.');
-        return;
-      }
-
-      // 자기 자신 방지
-      if (result['uid'] == myUid) {
-        setState(() => _searchError = '자기 자신은 추가할 수 없어요.');
-        return;
-      }
-
-      setState(() => _searchResult = result);
-    } catch (_) {
-      if (mounted) setState(() => _searchError = '검색 중 오류가 발생했어요. 다시 시도해주세요.');
-    } finally {
-      if (mounted) setState(() => _isSearching = false);
-    }
-  }
-
-  // ── 친구 요청 전송 ──────────────────────────────────────────────
-  Future<void> _sendRequest(String toUid, String toNickname) async {
-    final user = ref.read(currentUserProvider);
-    if (user == null) return;
-
-    setState(() => _isSendingRequest = true);
-
-    try {
-      await ref
-          .read(friendRepositoryProvider)
-          .sendRequest(
-            fromUid: user.uid,
-            fromNickname: user.nickname,
-            fromSunSign: user.sunSign ?? '-',
-            toUid: toUid,
-          );
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('친구 요청을 보냈어요!')));
-      setState(() {
-        _searchResult = null;
-        _searchController.clear();
-      });
-    } on FriendError catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.message)));
-      }
-    } catch (e, st) {
-      // 실제 에러를 개발 로그에 출력해 디버깅에 활용
-      if (kDebugMode) {
-        debugPrint('[FriendScreen] sendRequest 실패: $e\n$st');
-      }
-      if (mounted) {
-        // Firestore 에러 메시지에서 원인을 추출해 사용자에게 표시
-        final msg = _friendlyError(e.toString());
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(msg)));
-      }
-    } finally {
-      if (mounted) setState(() => _isSendingRequest = false);
-    }
-  }
+  // 친구 목록 로컬 필터용 검색어
+  String _searchQuery = '';
 
   // ── 친구 요청 수락 ──────────────────────────────────────────────
   Future<void> _acceptRequest(FriendRequest request) async {
-    final user = ref.read(currentUserProvider);
-    if (user == null) return;
+    final uid = ref.read(currentUserProfileProvider).valueOrNull?.uid
+        ?? ref.read(currentUserIdProvider).valueOrNull;
+    if (uid == null) return;
 
     try {
-      await ref
-          .read(friendRepositoryProvider)
-          .acceptRequest(
-            requestId: request.requestId,
-            fromUid: request.fromUid,
-            toUid: user.uid,
-          );
+      await ref.read(friendRepositoryProvider).acceptRequest(
+        requestId: request.requestId,
+        fromUid: request.fromUid,
+        toUid: uid,
+      );
       ref.invalidate(friendListProvider);
       ref.invalidate(receivedRequestsProvider);
-
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('친구가 되었어요!')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('친구가 되었어요!')));
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('수락에 실패했어요. 다시 시도해주세요.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('수락에 실패했어요. 다시 시도해주세요.')),
+        );
       }
     }
   }
@@ -161,26 +61,22 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
   // ── 친구 요청 거절 ──────────────────────────────────────────────
   Future<void> _rejectRequest(FriendRequest request) async {
     try {
-      await ref
-          .read(friendRepositoryProvider)
-          .rejectRequest(request.requestId);
+      await ref.read(friendRepositoryProvider).rejectRequest(request.requestId);
       ref.invalidate(receivedRequestsProvider);
-
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('요청을 거절했어요.')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('요청을 거절했어요.')));
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('거절에 실패했어요. 다시 시도해주세요.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('거절에 실패했어요. 다시 시도해주세요.')),
+        );
       }
     }
   }
 
-  // ── 즐겨찾기 토글 ───────────────────────────────────────────────
+  // ── 즐겨찾기 토글 ──────────────────────────────────────────────
   Future<void> _toggleFavorite(Friend friend) async {
     try {
       await ref.read(toggleFavoriteProvider(friend).future);
@@ -194,280 +90,211 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
     }
   }
 
-  // Firestore/Firebase 에러 메시지를 사용자 친화적 문구로 변환
-  String _friendlyError(String raw) {
-    if (raw.contains('PERMISSION_DENIED') ||
-        raw.contains('permission-denied')) {
-      return '권한이 없어요. 로그아웃 후 다시 로그인해주세요.';
-    }
-    if (raw.contains('FAILED_PRECONDITION') ||
-        raw.contains('requires an index')) {
-      return '서버 설정 중이에요. 잠시 후 다시 시도해주세요.';
-    }
-    if (raw.contains('NOT_FOUND') || raw.contains('not-found')) {
-      return '존재하지 않는 사용자예요.';
-    }
-    if (raw.contains('UNAVAILABLE') || raw.contains('network')) {
-      return '네트워크 연결을 확인해주세요.';
-    }
-    return '요청 전송에 실패했어요. 잠시 후 다시 시도해주세요.';
-  }
-
   @override
   Widget build(BuildContext context) {
     final friendsAsync = ref.watch(friendListProvider);
     final requestsAsync = ref.watch(receivedRequestsProvider);
 
-    final friendCount = friendsAsync.valueOrNull?.length ?? 0;
+    final allFriends = friendsAsync.valueOrNull ?? <Friend>[];
     final requestCount = requestsAsync.valueOrNull?.length ?? 0;
 
+    // 검색 필터 적용
+    final filteredFriends = _searchQuery.isEmpty
+        ? allFriends
+        : allFriends
+            .where((f) => f.nickname.contains(_searchQuery))
+            .toList();
+
+    final favoriteCount = allFriends.where((f) => f.isFavorite).length;
+
     return Scaffold(
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg,
-            AppSpacing.xl,
-            AppSpacing.lg,
-            AppSpacing.xxl,
-          ),
-          children: [
-            const ScreenCodeChip(code: 'FRIEND-001', label: '친구 관리'),
-            const SizedBox(height: AppSpacing.lg),
-            Text('친구 관리', style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: AppSpacing.lg),
-
-            // ── 친구 코드 검색 ──────────────────────────────────
-            Panel(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    '친구 코드로 검색',
-                    style: TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _searchController,
-                          keyboardType: TextInputType.visiblePassword,
-                          textCapitalization: TextCapitalization.characters,
-                          autocorrect: false,
-                          enableSuggestions: false,
-                          maxLength: 6,
-                          inputFormatters: <TextInputFormatter>[
-                            FriendCodeTextFormatter(),
-                          ],
-                          decoration: const InputDecoration(
-                            hintText: '예: KAG6BC',
-                            helperText:
-                                '영문 대문자/숫자 6자리만 가능해요. 소문자는 자동으로 대문자로 바뀌어요.',
-                            counterText: '',
-                            prefixIcon: Icon(Icons.search_rounded),
-                          ),
-                          onSubmitted: (_) => _search(),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      SizedBox(
-                        width: 72,
-                        child: ElevatedButton(
-                          onPressed: _isSearching ? null : _search,
-                          child: _isSearching
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Text('검색'),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  if (_searchError != null) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      _searchError!,
-                      style: const TextStyle(color: Colors.red, fontSize: 13),
-                    ),
-                  ],
-
-                  if (_searchResult != null) ...[
-                    const SizedBox(height: 12),
-                    Builder(
-                      builder: (_) {
-                        final nickname =
-                            _searchResult!['nickname'] as String? ?? '?';
-                        final toUid = _searchResult!['uid'] as String? ?? '';
-                        final sunSign = _searchResult!['sunSign'] as String?;
-                        return Row(
-                          children: [
-                            _InitialBadge(
-                              initial: nickname.isNotEmpty ? nickname[0] : '?',
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    nickname,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                  if (sunSign != null)
-                                    Text(
-                                      sunSign,
-                                      style: const TextStyle(
-                                        color: AppColors.inkMuted,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                            SizedBox(
-                              width: 72,
-                              child: ElevatedButton(
-                                onPressed: _isSendingRequest
-                                    ? null
-                                    : () => _sendRequest(toUid, nickname),
-                                child: _isSendingRequest
-                                    ? const SizedBox(
-                                        width: 16,
-                                        height: 16,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                        ),
-                                      )
-                                    : const Text('요청'),
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                  ],
-                ],
+      appBar: AppBar(
+        title: const Text('친구 관리'),
+        centerTitle: false,
+      ),
+      body: Column(
+        children: [
+          // ── 검색바 ─────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: TextField(
+              onChanged: (v) => setState(() => _searchQuery = v.trim()),
+              decoration: InputDecoration(
+                hintText: _tab == _FriendTab.friends
+                    ? '친구 검색'
+                    : '아이디로 친구 검색',
+                prefixIcon: const Icon(Icons.search_rounded),
+                isDense: true,
               ),
             ),
+          ),
 
-            const SizedBox(height: AppSpacing.md),
-
-            // ── 탭 ─────────────────────────────────────────────
-            Row(
+          // ── 탭 ────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Row(
               children: [
-                _TabChip(
-                  label: '전체 친구 ($friendCount)',
-                  isSelected: _showFriends,
-                  onTap: () => setState(() => _showFriends = true),
+                Expanded(
+                  child: _TabButton(
+                    label: '내 친구 (${allFriends.length})',
+                    isSelected: _tab == _FriendTab.friends,
+                    onTap: () => setState(() => _tab = _FriendTab.friends),
+                  ),
                 ),
                 const SizedBox(width: 8),
-                _TabChip(
-                  label: '받은 요청 ($requestCount)',
-                  isSelected: !_showFriends,
-                  onTap: () => setState(() => _showFriends = false),
+                Expanded(
+                  child: _TabButton(
+                    label: '받은 요청 ($requestCount)',
+                    isSelected: _tab == _FriendTab.received,
+                    onTap: () => setState(() => _tab = _FriendTab.received),
+                  ),
                 ),
               ],
             ),
+          ),
 
-            const SizedBox(height: AppSpacing.md),
-
-            // ── 친구 목록 ───────────────────────────────────────
-            if (_showFriends)
-              friendsAsync.when(
-                loading: () => const Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-                error: (e, _) => Panel(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Text('친구 목록을 불러오지 못했어요: $e'),
-                  ),
-                ),
-                data: (friends) => friends.isEmpty
-                    ? const Panel(
-                        child: Padding(
-                          padding: EdgeInsets.all(24),
-                          child: Center(
-                            child: Text(
-                              '아직 친구가 없어요.\n코드로 검색해서 요청해보세요!',
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
+          // ── 콘텐츠 영역 ────────────────────────────────────────
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+              children: [
+                if (_tab == _FriendTab.friends) ...[
+                  // 즐겨찾기 카운터
+                  if (allFriends.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Text(
+                        '즐겨찾기 $favoriteCount/$kMaxFavorites',
+                        style: const TextStyle(
+                          color: AppColors.inkMuted,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
                         ),
-                      )
-                    : Panel(
-                        child: Column(
-                          children: [
-                            for (var i = 0; i < friends.length; i++) ...[
-                              _FriendRow(
-                                friend: friends[i],
-                                onFavorite: () => _toggleFavorite(friends[i]),
-                                onMatch: () => Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => MatchScreen(
-                                      initialFriendUid: friends[i].uid,
-                                    ),
+                      ),
+                    ),
+
+                  // 친구 목록
+                  friendsAsync.when(
+                    loading: () => const SizedBox(
+                      height: 120,
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+                    error: (e, _) => Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Text(
+                        '데이터를 불러오지 못했어요.\n(${e.toString().split('\n').first})',
+                        style: const TextStyle(color: AppColors.inkMuted, fontSize: 13),
+                      ),
+                    ),
+                    data: (_) => filteredFriends.isEmpty
+                        ? Panel(
+                            child: Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: Center(
+                                child: Text(
+                                  _searchQuery.isNotEmpty
+                                      ? '검색 결과가 없어요.'
+                                      : '아직 친구가 없어요.\n아래 버튼을 눌러 친구를 추가해보세요!',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    color: AppColors.inkMuted,
+                                    height: 1.5,
                                   ),
                                 ),
                               ),
-                              if (i != friends.length - 1)
-                                const Divider(height: 24),
-                            ],
-                          ],
-                        ),
-                      ),
-              )
-            else
-              requestsAsync.when(
-                loading: () => const Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-                error: (e, _) => Panel(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Text('요청 목록을 불러오지 못했어요: $e'),
+                            ),
+                          )
+                        : Panel(
+                            child: Column(
+                              children: [
+                                for (var i = 0; i < filteredFriends.length; i++) ...[
+                                  _FriendRow(
+                                    friend: filteredFriends[i],
+                                    onFavorite: () =>
+                                        _toggleFavorite(filteredFriends[i]),
+                                    onMatch: () =>
+                                        Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => MatchScreen(
+                                          initialFriendUid:
+                                              filteredFriends[i].uid,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  if (i != filteredFriends.length - 1)
+                                    const Divider(height: 1),
+                                ],
+                              ],
+                            ),
+                          ),
                   ),
-                ),
-                data: (requests) => requests.isEmpty
-                    ? const Panel(
-                        child: Padding(
-                          padding: EdgeInsets.all(24),
-                          child: Center(child: Text('받은 친구 요청이 없어요.')),
-                        ),
-                      )
-                    : Panel(
-                        child: Column(
-                          children: [
-                            for (var i = 0; i < requests.length; i++) ...[
-                              _RequestRow(
-                                request: requests[i],
-                                onAccept: () => _acceptRequest(requests[i]),
-                                onReject: () => _rejectRequest(requests[i]),
-                              ),
-                              if (i != requests.length - 1)
-                                const Divider(height: 24),
-                            ],
-                          ],
-                        ),
+                ] else ...[
+                  // ── 받은 요청 탭 ──────────────────────────────
+                  requestsAsync.when(
+                    loading: () => const SizedBox(
+                      height: 120,
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+                    error: (e, _) => Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Text(
+                        '데이터를 불러오지 못했어요.\n(${e.toString().split('\n').first})',
+                        style: const TextStyle(color: AppColors.inkMuted, fontSize: 13),
                       ),
+                    ),
+                    data: (requests) => requests.isEmpty
+                        ? const Panel(
+                            child: Padding(
+                              padding: EdgeInsets.all(24),
+                              child: Center(
+                                child: Text('받은 친구 요청이 없어요.'),
+                              ),
+                            ),
+                          )
+                        : Column(
+                            children: [
+                              for (final req in requests)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: _RequestCard(
+                                    request: req,
+                                    onAccept: () => _acceptRequest(req),
+                                    onReject: () => _rejectRequest(req),
+                                  ),
+                                ),
+                            ],
+                          ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+
+      // ── 친구 추가 요청 버튼 (하단 고정) ──────────────────────────
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+          child: SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton.icon(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const AddFriendScreen()),
               ),
-          ],
+              icon: const Icon(Icons.person_add_outlined, size: 20),
+              label: const Text('친구 추가 요청'),
+            ),
+          ),
         ),
       ),
     );
   }
 }
 
-// ── 서브 위젯 ───────────────────────────────────────────────────────
+// ── 서브 위젯 ─────────────────────────────────────────────────────
 
 class _FriendRow extends StatelessWidget {
   const _FriendRow({
@@ -482,56 +309,58 @@ class _FriendRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        _InitialBadge(initial: friend.initial),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                friend.nickname,
-                style: const TextStyle(fontWeight: FontWeight.w800),
-              ),
-              if (friend.sunSign.isNotEmpty && friend.sunSign != '-')
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        children: [
+          _InitialAvatar(initial: friend.initial),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Text(
-                  friend.sunSign,
-                  style: const TextStyle(
-                    color: AppColors.inkMuted,
-                    fontSize: 12,
-                  ),
+                  friend.nickname,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
-            ],
+                if (friend.sunSign.isNotEmpty && friend.sunSign != '-')
+                  Text(
+                    friend.sunSign,
+                    style: const TextStyle(
+                      color: AppColors.inkMuted,
+                      fontSize: 12,
+                    ),
+                  ),
+              ],
+            ),
           ),
-        ),
-        IconButton(
-          onPressed: onFavorite,
-          icon: Icon(
-            friend.isFavorite ? Icons.star_rounded : Icons.star_outline_rounded,
-            color: friend.isFavorite
-                ? const Color(0xFFFFB020)
-                : AppColors.inkSubtle,
+          IconButton(
+            onPressed: onFavorite,
+            icon: Icon(
+              friend.isFavorite
+                  ? Icons.star_rounded
+                  : Icons.star_outline_rounded,
+              color: friend.isFavorite
+                  ? const Color(0xFFFFB020)
+                  : AppColors.inkSubtle,
+            ),
           ),
-        ),
-        SizedBox(
-          width: 72,
-          child: OutlinedButton(
+          OutlinedButton(
             onPressed: onMatch,
             style: OutlinedButton.styleFrom(
-              padding: EdgeInsets.zero,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               textStyle: const TextStyle(fontSize: 13),
             ),
-            child: const Text('궁합'),
+            child: const Text('궁합 보기'),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
 
-class _RequestRow extends StatelessWidget {
-  const _RequestRow({
+class _RequestCard extends StatelessWidget {
+  const _RequestCard({
     required this.request,
     required this.onAccept,
     required this.onReject,
@@ -543,60 +372,72 @@ class _RequestRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            _InitialBadge(initial: request.initial),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    request.fromNickname,
-                    style: const TextStyle(fontWeight: FontWeight.w800),
-                  ),
-                  if (request.fromSunSign.isNotEmpty &&
-                      request.fromSunSign != '-')
+    return Panel(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _InitialAvatar(initial: request.initial),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      request.fromSunSign,
-                      style: const TextStyle(
-                        color: AppColors.inkMuted,
-                        fontSize: 12,
-                      ),
+                      request.fromNickname,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
-                ],
+                    if (request.fromSunSign.isNotEmpty &&
+                        request.fromSunSign != '-')
+                      Text(
+                        request.fromSunSign,
+                        style: const TextStyle(
+                          color: AppColors.inkMuted,
+                          fontSize: 12,
+                        ),
+                      ),
+                  ],
+                ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: ElevatedButton(
-                onPressed: onAccept,
-                child: const Text('✓ 수락'),
+              // 시간 표시 (X시간 전 / X일 전)
+              if (request.createdAt != null)
+                Text(
+                  _timeAgo(request.createdAt!),
+                  style: const TextStyle(
+                    color: AppColors.primaryLight,
+                    fontSize: 12,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: onAccept,
+                  child: const Text('✓ 수락'),
+                ),
               ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: OutlinedButton(
-                onPressed: onReject,
-                child: const Text('✕ 거절'),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: onReject,
+                  child: const Text('✕ 거절'),
+                ),
               ),
-            ),
-          ],
-        ),
-      ],
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
 
-class _TabChip extends StatelessWidget {
-  const _TabChip({
+class _TabButton extends StatelessWidget {
+  const _TabButton({
     required this.label,
     required this.isSelected,
     required this.onTap,
@@ -608,17 +449,19 @@ class _TabChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(999),
+    // Material + InkWell 조합은 Web에서 mouse_tracker assertion 유발
+    // GestureDetector(HitTestBehavior.opaque) 사용 — mouse region 생성 없음
+    return GestureDetector(
       onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.ink : AppColors.paper,
-          borderRadius: BorderRadius.circular(999),
+          color: isSelected ? AppColors.ink : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(color: AppColors.ink, width: 1.2),
         ),
+        alignment: Alignment.center,
         child: Text(
           label,
           style: TextStyle(
@@ -632,22 +475,38 @@ class _TabChip extends StatelessWidget {
   }
 }
 
-class _InitialBadge extends StatelessWidget {
-  const _InitialBadge({required this.initial});
+class _InitialAvatar extends StatelessWidget {
+  const _InitialAvatar({required this.initial});
 
   final String initial;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 48,
-      height: 48,
+      width: 44,
+      height: 44,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(color: AppColors.line, width: 1.6),
+        color: AppColors.canvas,
+        border: Border.all(color: AppColors.line, width: 1.5),
       ),
-      child: Text(initial, style: const TextStyle(fontWeight: FontWeight.w700)),
+      child: Text(
+        initial,
+        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+      ),
     );
   }
 }
+
+/// 상대 시간 표시 (예: "2시간 전", "1일 전")
+String _timeAgo(DateTime dt) {
+  final diff = DateTime.now().difference(dt);
+  if (diff.inMinutes < 1) return '방금 전';
+  if (diff.inHours < 1) return '${diff.inMinutes}분 전';
+  if (diff.inDays < 1) return '${diff.inHours}시간 전';
+  if (diff.inDays < 7) return '${diff.inDays}일 전';
+  return '${diff.inDays ~/ 7}주 전';
+}
+
+enum _FriendTab { friends, received }

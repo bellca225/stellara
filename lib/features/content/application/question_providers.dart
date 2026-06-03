@@ -78,60 +78,106 @@ typedef CustomQuestionRequest = ({
 /// 메인 질문 생성 provider — AI ON 시 GPT-4o-mini, OFF 시 로컬 자동 전환.
 final aiQuestionSetProvider =
     FutureProvider.family<List<QuestionItem>, AiQuestionRequest>((ref, req) {
-  return ref.watch(aiQuestionRepositoryProvider).generateAiQuestions(
-        myUid: req.myUid,
-        myNickname: req.myNickname,
-        myChart: req.myChart,
-        friendUid: req.friendUid,
-        friendNickname: req.friendNickname,
-        friendChart: req.friendChart,
-        synastry: req.synastry,
-        revision: req.revision,
-      );
-});
+      return ref
+          .watch(aiQuestionRepositoryProvider)
+          .generateAiQuestions(
+            myUid: req.myUid,
+            myNickname: req.myNickname,
+            myChart: req.myChart,
+            friendUid: req.friendUid,
+            friendNickname: req.friendNickname,
+            friendChart: req.friendChart,
+            synastry: req.synastry,
+            revision: req.revision,
+          );
+    });
+
+final aiSingleQuestionProvider =
+    FutureProvider.family<QuestionItem, AiQuestionRequest>((ref, req) async {
+      final questions = await ref
+          .watch(aiQuestionRepositoryProvider)
+          .generateAiQuestions(
+            myUid: req.myUid,
+            myNickname: req.myNickname,
+            myChart: req.myChart,
+            friendUid: req.friendUid,
+            friendNickname: req.friendNickname,
+            friendChart: req.friendChart,
+            synastry: req.synastry,
+            count: 1,
+            revision: req.revision,
+          );
+      return questions.first;
+    });
 
 /// 커스텀 질문 AI 해설 provider
 final aiCustomAnswerProvider =
     FutureProvider.family<QuestionItem, AiCustomAnswerRequest>((ref, req) {
-  return ref.watch(aiQuestionRepositoryProvider).generateCustomAnswer(
-        myNickname: req.myNickname,
-        myChart: req.myChart,
-        friendUid: req.friendUid,
-        friendNickname: req.friendNickname,
-        friendChart: req.friendChart,
-        synastry: req.synastry,
-        userPrompt: req.userPrompt,
-      );
-});
+      return ref
+          .watch(aiQuestionRepositoryProvider)
+          .generateCustomAnswer(
+            myNickname: req.myNickname,
+            myChart: req.myChart,
+            friendUid: req.friendUid,
+            friendNickname: req.friendNickname,
+            friendChart: req.friendChart,
+            synastry: req.synastry,
+            userPrompt: req.userPrompt,
+          );
+    });
 
 // ── 로컬 providers (하위 호환) ───────────────────────────────────────────────
 
 final localQuestionSetProvider =
     FutureProvider.family<List<QuestionItem>, LocalQuestionRequest>((
-  ref,
-  request,
-) {
-  return ref.watch(questionRepositoryProvider).generate(
-        providerPreference: 'local',
-        friendUid: request.friendUid,
-        friendName: request.friendName,
-        friendSign: request.friendSign,
-        mySign: request.mySign,
-        revision: request.revision,
-      );
-});
+      ref,
+      request,
+    ) {
+      return ref
+          .watch(questionRepositoryProvider)
+          .generate(
+            providerPreference: 'local',
+            friendUid: request.friendUid,
+            friendName: request.friendName,
+            friendSign: request.friendSign,
+            mySign: request.mySign,
+            count: 3,
+            revision: request.revision,
+          );
+    });
+
+final localSingleQuestionProvider =
+    FutureProvider.family<QuestionItem, LocalQuestionRequest>((
+      ref,
+      request,
+    ) async {
+      final questions = await ref
+          .watch(questionRepositoryProvider)
+          .generate(
+            providerPreference: 'local',
+            friendUid: request.friendUid,
+            friendName: request.friendName,
+            friendSign: request.friendSign,
+            mySign: request.mySign,
+            count: 1,
+            revision: request.revision,
+          );
+      return questions.first;
+    });
 
 final customQuestionProvider =
     FutureProvider.family<QuestionItem, CustomQuestionRequest>((ref, request) {
-  return ref.watch(questionRepositoryProvider).answerCustom(
-        providerPreference: 'local',
-        friendUid: request.friendUid,
-        friendName: request.friendName,
-        userPrompt: request.userPrompt,
-        friendSign: request.friendSign,
-        mySign: request.mySign,
-      );
-});
+      return ref
+          .watch(questionRepositoryProvider)
+          .answerCustom(
+            providerPreference: 'local',
+            friendUid: request.friendUid,
+            friendName: request.friendName,
+            userPrompt: request.userPrompt,
+            friendSign: request.friendSign,
+            mySign: request.mySign,
+          );
+    });
 
 // ── 편의 providers ───────────────────────────────────────────────────────────
 
@@ -143,8 +189,11 @@ final myUidProvider = Provider<String?>((ref) {
   return ref.watch(currentUserProvider)?.uid;
 });
 
+/// 화면에 표시할 내 이름. displayName → nickname → loginId 순 fallback.
 final myNicknameProvider = Provider<String?>((ref) {
-  return ref.watch(currentUserProvider)?.nickname;
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return null;
+  return user.effectiveDisplayName;
 });
 
 /// 나의 NatalChart — 화면에서 AI request 구성 시 편하게 사용

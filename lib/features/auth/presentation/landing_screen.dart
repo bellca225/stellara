@@ -2,16 +2,21 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-class LandingScreen extends StatefulWidget {
+import 'auth_entry_guard.dart';
+import 'login_screen.dart';
+import 'signup_screen.dart';
+
+class LandingScreen extends ConsumerStatefulWidget {
   const LandingScreen({super.key});
 
   @override
-  State<LandingScreen> createState() => _LandingScreenState();
+  ConsumerState<LandingScreen> createState() => _LandingScreenState();
 }
 
-class _LandingScreenState extends State<LandingScreen>
+class _LandingScreenState extends ConsumerState<LandingScreen>
     with TickerProviderStateMixin {
   late AnimationController _fadeCtrl;
   late AnimationController _glowCtrl;
@@ -42,6 +47,9 @@ class _LandingScreenState extends State<LandingScreen>
 
   @override
   Widget build(BuildContext context) {
+    final guarded = buildAuthEntryGuard(context, ref);
+    if (guarded != null) return guarded;
+
     return Scaffold(
       body: Stack(
         children: [
@@ -111,13 +119,21 @@ class _LandingScreenState extends State<LandingScreen>
                             _GlassButton(
                               label: '계정 만들기',
                               isPrimary: true,
-                              onTap: () {},
+                              onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const SignUpScreen(),
+                                ),
+                              ),
                             ),
                             const SizedBox(height: 12),
                             _GlassButton(
                               label: '로그인',
                               isPrimary: false,
-                              onTap: () {},
+                              onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const LoginScreen(),
+                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -167,10 +183,8 @@ class _StarFieldState extends State<_StarField>
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _ctrl,
-      builder: (_, __) => CustomPaint(
-        painter: _StarPainter(_ctrl.value),
-        child: Container(),
-      ),
+      builder: (_, __) =>
+          CustomPaint(painter: _StarPainter(_ctrl.value), child: Container()),
     );
   }
 }
@@ -219,7 +233,6 @@ class _StarPainter extends CustomPainter {
       final phase = (x * 0.7 + y * 0.3) / (size.width + size.height);
       final alpha =
           (base * (0.5 + 0.5 * math.sin((t + phase) * math.pi))).clamp(0.0, 1.0);
-
       final paint = Paint()
         ..color = Colors.white.withOpacity(alpha)
         ..maskFilter = r > 1.2
