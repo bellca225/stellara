@@ -18,7 +18,6 @@ import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../core/theme/app_theme.dart';
-import '../../../core/utils/astro_text.dart';
 import '../../../core/widgets/panel.dart';
 import '../application/horoscope_providers.dart';
 import '../domain/horoscope.dart';
@@ -34,7 +33,7 @@ class TodayScreen extends ConsumerWidget {
       child: SafeArea(
         child: asyncH.when(
           loading: () => const _LoadingSkeleton(),
-          error: (_, __) => const Center(
+          error: (error, stackTrace) => const Center(
             child: Text('오늘의 운세를 불러오지 못했어요.',
                 style: TextStyle(color: AppColors.inkMuted)),
           ),
@@ -121,9 +120,7 @@ class _HoroscopeBody extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Text(
-                horoscope.summary.isNotEmpty
-                    ? horoscope.summary
-                    : '오늘은 새로운 기회가 찾아올 수 있는 날입니다.\n열린 마음으로 변화를 받아들이세요.',
+                horoscope.summary,
                 style: const TextStyle(
                   color: AppColors.inkMuted,
                   height: 1.6,
@@ -151,7 +148,7 @@ class _HoroscopeBody extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                moodKo(horoscope.mood),
+                horoscope.mood,
                 style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w500,
@@ -177,7 +174,7 @@ class _HoroscopeBody extends StatelessWidget {
         // ── 숫자 카드 ────────────────────────────────────────────────
         _LuckyCard(
           label: '숫자',
-          value: _luckyNumbers(horoscope.luckyNumber),
+          value: _luckyNumbers(horoscope.luckyNumbers),
         ),
 
         const SizedBox(height: 10),
@@ -185,7 +182,7 @@ class _HoroscopeBody extends StatelessWidget {
         // ── 색상 카드 ────────────────────────────────────────────────
         _LuckyCard(
           label: '색상',
-          value: colorKo(horoscope.luckyColor),
+          value: horoscope.luckyColor,
         ),
 
         // ── 장소 카드 (데이터 있을 때만) ─────────────────────────────
@@ -214,18 +211,24 @@ class _HoroscopeBody extends StatelessWidget {
     );
   }
 
-  /// 행운 숫자를 3배수로 표시 (예: 7 → "7, 14, 21")
-  String _luckyNumbers(int n) {
-    if (n <= 0) return '-';
-    return '$n, ${n * 2}, ${n * 3}';
+  String _luckyNumbers(List<int> numbers) {
+    if (numbers.isEmpty) return '-';
+    return numbers.join(', ');
   }
 
   Future<void> _share(BuildContext ctx, Horoscope h) async {
-    final text = '✨ 오늘의 운세 (${DateFormat('yyyy년 M월 d일').format(h.date)})\n\n'
-        '${h.summary}\n\n'
-        '🎨 행운 색상: ${colorKo(h.luckyColor)}  '
-        '🔢 행운 숫자: ${_luckyNumbers(h.luckyNumber)}\n'
-        '#Stellara #오늘의운세';
+    final date = DateFormat('yyyy년 M월 d일').format(h.date);
+    final text = h.shareText.trim().isNotEmpty
+        ? '${h.shareText}\n\n'
+            '✨ 오늘의 운세 ($date)\n'
+            '🎨 행운 색상: ${h.luckyColor}\n'
+            '🔢 행운 숫자: ${_luckyNumbers(h.luckyNumbers)}\n'
+            '#Stellara #오늘의운세'
+        : '✨ 오늘의 운세 ($date)\n\n'
+            '${h.summary}\n\n'
+            '🎨 행운 색상: ${h.luckyColor}\n'
+            '🔢 행운 숫자: ${_luckyNumbers(h.luckyNumbers)}\n'
+            '#Stellara #오늘의운세';
     try {
       await Share.share(text);
     } catch (_) {

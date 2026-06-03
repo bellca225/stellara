@@ -25,7 +25,7 @@ import '../domain/question_item.dart';
 import 'question_repository.dart';
 
 // ── 시스템 프롬프트 ───────────────────────────────────────────────────────────
-const _kSystemPrompt = '''
+const _kQuestionSetSystemPrompt = '''
 당신은 점성술 기반 친구 관계 질문 생성 AI입니다.
 
 [역할]
@@ -61,10 +61,109 @@ const _kSystemPrompt = '''
 JSON 외 다른 텍스트는 절대 포함하지 마세요.
 ''';
 
+const _kRandomQuestionSystemPrompt = '''
+당신은 점성술 기반 친구 관계 질문 생성 AI입니다.
+
+[역할]
+두 사람의 점성술 데이터와 관계 맥락을 읽고, 친구끼리 공유하고 싶은 가볍고 창의적인 질문 딱 1개를 JSON으로 생성합니다.
+
+[톤]
+- 너무 진지하지 않고 재밌는 한국어
+- 친구 displayName만 사용하고 loginId는 절대 쓰지 않음
+- 질문만 보고도 웃기거나 답해보고 싶어야 함
+- 점성술 표현은 자연스럽게 녹이고, 겁주거나 단정하지 말 것
+
+[출력 형식]
+{
+  "question": "질문 텍스트 1개"
+}
+
+JSON 외 다른 텍스트는 절대 포함하지 마세요.
+''';
+
+const _kRandomAnswerSystemPrompt = '''
+당신은 점성술 기반 친구 관계 해설 AI입니다.
+
+[역할]
+이미 생성된 질문 1개와 두 사람의 점성술 데이터를 읽고, 그 질문에 대한 답변/해설을 JSON으로 생성합니다.
+
+[톤]
+- 가볍고 자연스럽고 재밌는 한국어
+- 태양/달/수성/금성/화성 등 실제 데이터 근거를 반드시 반영
+- 너무 무섭거나 단정적인 표현 금지
+- 친구끼리 공유해도 민망하지 않을 정도의 위트만 허용
+- 3~5문장, 마지막 한 문장은 살짝 웃기거나 여운 있게
+
+[출력 형식]
+{
+  "answer": "질문에 대한 점성술 기반 답변"
+}
+
+JSON 외 다른 텍스트는 절대 포함하지 마세요.
+''';
+
+const _kDailyHoroscopeSystemPrompt = '''
+당신은 개인 점성술 데이터를 바탕으로 오늘의 운세를 생성하는 AI입니다.
+
+[역할]
+사용자의 출생 차트와 오늘 날짜/시간대 정보를 읽고, 오늘 하루에 맞는 운세를 한국어 JSON으로 생성합니다.
+
+[규칙]
+- 반드시 제공된 점성술 데이터에 근거할 것
+- 막연한 범용 문구나 무서운 예언 금지
+- 너무 점잖은 상담체 말고, 부드럽고 자연스러운 한국어
+- luckyColor 는 한국어 색상명으로 반환
+- luckyPlace 는 한국어 장소명 또는 장소 묶음으로 반환
+- luckyNumbers 는 3개의 정수 배열로 반환
+- overall/emotion/advice/caution/shareText 는 짧고 읽기 쉽게
+
+[출력 형식]
+{
+  "overall": "전체 운세",
+  "emotion": "오늘의 감정 상태",
+  "luckyNumbers": [7, 14, 21],
+  "luckyColor": "보라색",
+  "luckyPlace": "카페, 도서관",
+  "advice": "오늘의 조언",
+  "caution": "주의할 점",
+  "shareText": "공유용 짧은 문구"
+}
+
+JSON 외 다른 텍스트는 절대 포함하지 마세요.
+''';
+
+const _kRandomQuestionPromptVersion = 'rq-question-v2';
+const _kRandomAnswerPromptVersion = 'rq-answer-v2';
+const _kDailyHoroscopePromptVersion = 'daily-horoscope-v2';
+
 // ── API 엔드포인트 ───────────────────────────────────────────────────────────
 const _kOpenAiChatEndpoint = 'https://api.openai.com/v1/chat/completions';
 const _kAnthropicChatEndpoint = 'https://api.anthropic.com/v1/messages';
 const _kAnthropicVersion = '2023-06-01';
+
+class AiDailyHoroscopePayload {
+  const AiDailyHoroscopePayload({
+    required this.overall,
+    required this.emotion,
+    required this.luckyNumbers,
+    required this.luckyColor,
+    required this.luckyPlace,
+    required this.advice,
+    required this.caution,
+    required this.shareText,
+    required this.promptVersion,
+  });
+
+  final String overall;
+  final String emotion;
+  final List<int> luckyNumbers;
+  final String luckyColor;
+  final String luckyPlace;
+  final String advice;
+  final String caution;
+  final String shareText;
+  final String promptVersion;
+}
 
 class AiQuestionRepository {
   AiQuestionRepository({QuestionRepository? localFallback})
@@ -72,6 +171,10 @@ class AiQuestionRepository {
 
   final QuestionRepository _local;
   final _client = HttpClientWrapper();
+
+  static String get randomQuestionPromptVersion => _kRandomQuestionPromptVersion;
+  static String get randomAnswerPromptVersion => _kRandomAnswerPromptVersion;
+  static String get dailyHoroscopePromptVersion => _kDailyHoroscopePromptVersion;
 
   // ── 공개 API ───────────────────────────────────────────────────────────────
 
@@ -175,7 +278,12 @@ class AiQuestionRepository {
           '이 질문에 대한 점성술 기반 해설을 JSON으로 생성해주세요.\n'
           'question 필드에는 사용자 질문을 그대로 쓰세요.';
 
-      final raw = await _sendRequest(userMessage);
+      final raw = await _sendRequest(
+        userMessage,
+        systemPrompt: _kQuestionSetSystemPrompt,
+        temperature: 0.9,
+        maxTokens: 400,
+      );
       final parsed = _parseResponse(raw);
 
       return QuestionItem(
@@ -201,6 +309,208 @@ class AiQuestionRepository {
     }
   }
 
+  Future<QuestionItem> generateSingleRandomQuestion({
+    required String myUid,
+    required String myNickname,
+    required NatalChart myChart,
+    required String friendUid,
+    required String friendNickname,
+    required NatalChart friendChart,
+    SynastryResult? synastry,
+    int revision = 0,
+  }) async {
+    if (!Env.aiRemoteEnabled || !_hasAnyApiKey()) {
+      return _localSingleFallback(
+        friendUid: friendUid,
+        friendNickname: friendNickname,
+        friendChart: friendChart,
+        myChart: myChart,
+        index: revision,
+      );
+    }
+
+    final type = _pickQuestionTypes(
+      1,
+      seed: myUid.hashCode ^ friendUid.hashCode ^ (revision * 41),
+    ).first;
+
+    try {
+      final context = _buildContext(
+        myNickname: myNickname,
+        myChart: myChart,
+        friendNickname: friendNickname,
+        friendChart: friendChart,
+        synastry: synastry,
+        questionType: type,
+      );
+      final userMessage =
+          '$context\n\n'
+          '[생성 규칙]\n'
+          '- 이번 revision: $revision\n'
+          '- 이전 질문과 최대한 다른 결의 질문 1개를 만드세요.\n'
+          '- question 필드만 채우세요.\n';
+
+      final raw = await _sendRequest(
+        userMessage,
+        systemPrompt: _kRandomQuestionSystemPrompt,
+        temperature: 1.0,
+        maxTokens: 220,
+      );
+      final parsed = _parseResponse(raw);
+      final prompt =
+          (parsed['question'] as String?)?.trim() ??
+          '$friendNickname와 함께 있으면 가장 재밌게 터질 상황은 뭐야?';
+
+      return QuestionItem(
+        id:
+            'ai-question-$friendUid-$revision-${DateTime.now().millisecondsSinceEpoch}',
+        prompt: prompt,
+        answer: '',
+        source: QuestionSource.remoteAi,
+        questionType: type,
+        generatedAt: DateTime.now(),
+      );
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[AiQuestionRepository] 단일 질문 생성 실패: $e\n$st');
+      }
+      return _localSingleFallback(
+        friendUid: friendUid,
+        friendNickname: friendNickname,
+        friendChart: friendChart,
+        myChart: myChart,
+        index: revision,
+      );
+    }
+  }
+
+  Future<QuestionItem> generateAnswerForQuestion({
+    required String myNickname,
+    required NatalChart myChart,
+    required String friendUid,
+    required String friendNickname,
+    required NatalChart friendChart,
+    required String questionPrompt,
+    SynastryResult? synastry,
+  }) async {
+    if (!Env.aiRemoteEnabled || !_hasAnyApiKey()) {
+      return _local.answerCustom(
+        providerPreference: 'local',
+        friendUid: friendUid,
+        friendName: friendNickname,
+        friendSign: friendChart.sunSign,
+        mySign: myChart.sunSign,
+        userPrompt: questionPrompt,
+      );
+    }
+
+    try {
+      final context = _buildContext(
+        myNickname: myNickname,
+        myChart: myChart,
+        friendNickname: friendNickname,
+        friendChart: friendChart,
+        synastry: synastry,
+        questionType: QuestionType.personalityReveal,
+      );
+      final userMessage =
+          '$context\n\n'
+          '[이미 생성된 질문]\n'
+          '$questionPrompt\n\n'
+          '이 질문에 대한 답변만 JSON으로 생성해주세요.';
+
+      final raw = await _sendRequest(
+        userMessage,
+        systemPrompt: _kRandomAnswerSystemPrompt,
+        temperature: 0.85,
+        maxTokens: 320,
+      );
+      final parsed = _parseResponse(raw);
+      final fallbackItem = await _local.answerCustom(
+        providerPreference: 'local',
+        friendUid: friendUid,
+        friendName: friendNickname,
+        friendSign: friendChart.sunSign,
+        mySign: myChart.sunSign,
+        userPrompt: questionPrompt,
+      );
+      final resolvedAnswer =
+          (parsed['answer'] as String?)?.trim().isNotEmpty ?? false
+          ? (parsed['answer'] as String).trim()
+          : fallbackItem.answer;
+
+      return QuestionItem(
+        id: 'ai-answer-$friendUid-${questionPrompt.hashCode}',
+        prompt: questionPrompt,
+        answer: resolvedAnswer,
+        source: QuestionSource.remoteAi,
+        questionType: QuestionType.personalityReveal,
+        generatedAt: DateTime.now(),
+      );
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[AiQuestionRepository] 질문 답변 생성 실패: $e\n$st');
+      }
+      return _local.answerCustom(
+        providerPreference: 'local',
+        friendUid: friendUid,
+        friendName: friendNickname,
+        friendSign: friendChart.sunSign,
+        mySign: myChart.sunSign,
+        userPrompt: questionPrompt,
+      );
+    }
+  }
+
+  Future<AiDailyHoroscopePayload> generateDailyHoroscope({
+    required String nickname,
+    required NatalChart chart,
+    required DateTime targetDate,
+    required String timezone,
+    String? placeName,
+  }) async {
+    if (!Env.aiRemoteEnabled || !_hasAnyApiKey()) {
+      throw StateError('AI horoscope unavailable');
+    }
+
+    final userMessage =
+        _buildDailyHoroscopeContext(
+          nickname: nickname,
+          chart: chart,
+          targetDate: targetDate,
+          timezone: timezone,
+          placeName: placeName,
+        );
+    final raw = await _sendRequest(
+      userMessage,
+      systemPrompt: _kDailyHoroscopeSystemPrompt,
+      temperature: 0.8,
+      maxTokens: 420,
+    );
+    final parsed = _parseResponse(raw);
+
+    final luckyNumbers = <int>[
+      for (final value in (parsed['luckyNumbers'] as List? ?? const []))
+        if (value is num) value.toInt(),
+    ];
+
+    if ((parsed['overall'] as String?)?.trim().isEmpty ?? true) {
+      throw const FormatException('overall missing');
+    }
+
+    return AiDailyHoroscopePayload(
+      overall: (parsed['overall'] as String).trim(),
+      emotion: (parsed['emotion'] as String? ?? '').trim(),
+      luckyNumbers: luckyNumbers,
+      luckyColor: (parsed['luckyColor'] as String? ?? '').trim(),
+      luckyPlace: (parsed['luckyPlace'] as String? ?? '').trim(),
+      advice: (parsed['advice'] as String? ?? '').trim(),
+      caution: (parsed['caution'] as String? ?? '').trim(),
+      shareText: (parsed['shareText'] as String? ?? '').trim(),
+      promptVersion: _kDailyHoroscopePromptVersion,
+    );
+  }
+
   // ── 내부 헬퍼 ──────────────────────────────────────────────────────────────
 
   Future<QuestionItem> _callOpenAi({
@@ -222,7 +532,12 @@ class AiQuestionRepository {
       questionType: questionType,
     );
 
-    final raw = await _sendRequest(context);
+    final raw = await _sendRequest(
+      context,
+      systemPrompt: _kQuestionSetSystemPrompt,
+      temperature: 0.9,
+      maxTokens: 400,
+    );
     final parsed = _parseResponse(raw);
 
     final id =
@@ -245,13 +560,24 @@ class AiQuestionRepository {
   bool _hasAnyApiKey() =>
       Env.openAiApiKey.isNotEmpty || Env.anthropicApiKey.isNotEmpty;
 
-  Future<String> _sendRequest(String userMessage) async {
+  Future<String> _sendRequest(
+    String userMessage, {
+    required String systemPrompt,
+    double temperature = 0.9,
+    int maxTokens = 400,
+  }) async {
     final order = _resolveProviderOrder();
     Exception? lastError;
 
     for (final provider in order) {
       try {
-        return await _callProvider(provider, userMessage);
+        return await _callProvider(
+          provider,
+          userMessage,
+          systemPrompt: systemPrompt,
+          temperature: temperature,
+          maxTokens: maxTokens,
+        );
       } catch (e) {
         if (kDebugMode) {
           debugPrint('[AiQuestionRepository] $provider 실패: $e → 다음 프로바이더 시도');
@@ -273,21 +599,30 @@ class AiQuestionRepository {
     }).toList();
   }
 
-  Future<String> _callProvider(String provider, String userMessage) async {
+  Future<String> _callProvider(
+    String provider,
+    String userMessage, {
+    required String systemPrompt,
+    required double temperature,
+    required int maxTokens,
+  }) async {
     switch (provider) {
       case 'openai':
         return _client.postOpenAi(
           apiKey: Env.openAiApiKey,
           model: Env.aiModelOpenAi,
-          systemPrompt: _kSystemPrompt,
+          systemPrompt: systemPrompt,
           userMessage: userMessage,
+          temperature: temperature,
+          maxTokens: maxTokens,
         );
       case 'anthropic':
         return _client.postAnthropic(
           apiKey: Env.anthropicApiKey,
           model: Env.aiModelAnthropic,
-          systemPrompt: _kSystemPrompt,
+          systemPrompt: systemPrompt,
           userMessage: userMessage,
+          maxTokens: maxTokens,
         );
       default:
         throw Exception('알 수 없는 AI 프로바이더: $provider');
@@ -486,6 +821,42 @@ class AiQuestionRepository {
     }
   }
 
+  String _buildDailyHoroscopeContext({
+    required String nickname,
+    required NatalChart chart,
+    required DateTime targetDate,
+    required String timezone,
+    String? placeName,
+  }) {
+    final buf = StringBuffer();
+    buf.writeln('=== 오늘의 운세 생성용 점성술 데이터 ===');
+    buf.writeln('이름: $nickname');
+    buf.writeln('날짜: ${targetDate.toIso8601String().split('T').first}');
+    buf.writeln('시간대: $timezone');
+    if (placeName != null && placeName.trim().isNotEmpty) {
+      buf.writeln('출생지: ${placeName.trim()}');
+    }
+    buf.writeln();
+    buf.writeln('[핵심 Big 3]');
+    buf.writeln(_formatBig3(chart));
+    final keyPlanets = _formatKeyPlanets(chart);
+    if (keyPlanets.isNotEmpty) {
+      buf.writeln('[주요 행성]');
+      buf.writeln(keyPlanets);
+    }
+    final aspects = chart.aspects.take(3).map(
+      (aspect) =>
+          '- ${_planetKo(aspect.planetA)} ${_aspectKo(aspect.aspect)} ${_planetKo(aspect.planetB)} (orb ${aspect.orb.toStringAsFixed(1)}°)',
+    );
+    if (aspects.isNotEmpty) {
+      buf.writeln('[주요 어스펙트]');
+      for (final aspect in aspects) {
+        buf.writeln(aspect);
+      }
+    }
+    return buf.toString();
+  }
+
   // ── 텍스트 변환 유틸 ────────────────────────────────────────────────────────
   String _signKo(String sign) => zodiacNameKo(sign.toLowerCase());
   String _planetKo(String planet) {
@@ -516,6 +887,8 @@ class HttpClientWrapper {
     required String model,
     required String systemPrompt,
     required String userMessage,
+    required double temperature,
+    required int maxTokens,
   }) async {
     if (kDebugMode) debugPrint('[OpenAI] 요청 시작: $model');
 
@@ -527,8 +900,8 @@ class HttpClientWrapper {
       },
       body: jsonEncode({
         'model': model,
-        'temperature': 0.9,
-        'max_tokens': 400,
+        'temperature': temperature,
+        'max_tokens': maxTokens,
         'messages': [
           {'role': 'system', 'content': systemPrompt},
           {'role': 'user', 'content': userMessage},
@@ -555,6 +928,7 @@ class HttpClientWrapper {
     required String model,
     required String systemPrompt,
     required String userMessage,
+    required int maxTokens,
   }) async {
     if (kDebugMode) debugPrint('[Anthropic] 요청 시작: $model');
 
@@ -567,7 +941,7 @@ class HttpClientWrapper {
       },
       body: jsonEncode({
         'model': model,
-        'max_tokens': 400,
+        'max_tokens': maxTokens,
         'system': systemPrompt,
         'messages': [
           {'role': 'user', 'content': userMessage},

@@ -9,9 +9,8 @@
 //   4) 질문/답변을 공유
 //
 // 구현 메모:
-//   - AI ON이면 natal chart + synastry context 기반으로 질문/답변 1세트를 생성한다.
-//   - 비용/속도 최적화를 위해 질문과 답변은 한 번에 생성해 두고,
-//     화면에서는 "답변 생성하기" 액션 시점에만 답변 카드를 노출한다.
+//   - AI ON이면 저장된 natal chart + synastry context 기반으로 질문/답변을 생성한다.
+//   - 질문과 답변은 분리 호출하고, Firestore 최신 세션 캐시를 먼저 재사용한다.
 //   - AI OFF 또는 차트/네트워크 이슈 시 로컬 질문 fallback으로 안전하게 동작한다.
 
 import 'package:flutter/material.dart';
@@ -33,6 +32,7 @@ import '../../users/application/user_providers.dart';
 import '../../users/domain/user_profile.dart';
 import '../application/question_providers.dart';
 import '../domain/question_item.dart';
+import '../domain/random_question_session.dart';
 
 class RandomQuestionScreen extends ConsumerStatefulWidget {
   const RandomQuestionScreen({super.key});
@@ -46,20 +46,122 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
   String? _selectedFriendUid;
   bool _hasRequestedQuestion = false;
   bool _showAnswer = false;
-  int _revision = 0;
+  bool _isGeneratingQuestion = false;
+  bool _isGeneratingAnswer = false;
+  RandomQuestionSession? _session;
 
-  void _requestNewQuestion(BuildContext context) {
+  Future<void> _requestNewQuestion(
+    BuildContext context, {
+    required Friend selectedFriend,
+    required String? myUid,
+    required String myNickname,
+    required String? mySign,
+    required NatalChart? myChart,
+    required String friendChartVersion,
+    required NatalChart? friendChart,
+    required SynastryResult? synastry,
+  }) async {
+    if (_isGeneratingQuestion) return;
     if (_selectedFriendUid == null) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('먼저 친구를 선택해주세요.')));
       return;
     }
+    if (myUid == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('로그인 정보를 다시 확인해주세요.')));
+      return;
+    }
+
     setState(() {
-      _hasRequestedQuestion = true;
+      _isGeneratingQuestion = true;
       _showAnswer = false;
-      _revision += 1;
     });
+
+    try {
+      final myChartVersion =
+          ref.read(currentBirthInfoProvider)?.chartVersion ?? 'missing-my-chart';
+      final session = await ref
+          .read(randomQuestionSessionRepositoryProvider)
+          .loadOrGenerateQuestion(
+            myUid: myUid,
+            myNickname: myNickname,
+            myChartVersion: myChartVersion,
+            friendUid: selectedFriend.uid,
+            friendNickname: selectedFriend.nickname,
+            friendChartVersion: friendChartVersion,
+            reuseExistingIfAvailable: !_hasRequestedQuestion,
+            mySign: mySign,
+            friendSign: selectedFriend.sunSign,
+            myChart: myChart,
+            friendChart: friendChart,
+            synastry: synastry,
+          );
+      if (!mounted) return;
+      setState(() {
+        _session = session;
+        _hasRequestedQuestion = true;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        this.context,
+      ).showSnackBar(const SnackBar(content: Text('질문을 생성하지 못했어요.')));
+    } finally {
+      if (mounted) {
+        setState(() => _isGeneratingQuestion = false);
+      }
+    }
+  }
+
+  Future<void> _requestAnswer(
+    BuildContext context, {
+    required String myNickname,
+    required String? mySign,
+    required String friendSign,
+    required NatalChart? myChart,
+    required NatalChart? friendChart,
+    required SynastryResult? synastry,
+  }) async {
+    final session = _session;
+    if (session == null || _isGeneratingAnswer) return;
+
+    if (session.hasAnswer) {
+      setState(() => _showAnswer = true);
+      return;
+    }
+
+    setState(() => _isGeneratingAnswer = true);
+
+    try {
+      final updated = await ref
+          .read(randomQuestionSessionRepositoryProvider)
+          .ensureAnswer(
+            session: session,
+            myNickname: myNickname,
+            mySign: mySign ?? '-',
+            friendSign: friendSign,
+            myChart: myChart,
+            friendChart: friendChart,
+            synastry: synastry,
+          );
+      if (!mounted) return;
+      setState(() {
+        _session = updated;
+        _showAnswer = true;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        this.context,
+      ).showSnackBar(const SnackBar(content: Text('답변을 생성하지 못했어요.')));
+    } finally {
+      if (mounted) {
+        setState(() => _isGeneratingAnswer = false);
+      }
+    }
   }
 
   Future<void> _shareQuestion(BuildContext context, QuestionItem? item) async {
@@ -87,6 +189,7 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
     final friendsAsync = ref.watch(friendListProvider);
     final myUid = ref.watch(myUidProvider);
     final myNickname = ref.watch(myNicknameProvider) ?? '나';
+    final mySign = ref.watch(mySunSignProvider);
 
     // ── AI ON일 때만 차트 로딩 — AI OFF면 Prokerala 호출 없음 ──────
     final aiEnabled = Env.aiRemoteEnabled;
@@ -169,8 +272,13 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
 
                 final friendChartAsync =
                     (aiEnabled && hasSelectedFriend && friendBirth != null)
-                    ? ref.watch(natalChartProvider(friendBirth))
-                    : const AsyncValue<NatalChart>.data(NatalChart.empty);
+                    ? ref.watch(
+                        friendStoredChartForQuestionProvider((
+                          uid: selectedFriend.uid,
+                          birth: friendBirth,
+                        )),
+                      )
+                    : const AsyncValue<NatalChart?>.data(null);
                 final friendChart = friendChartAsync.valueOrNull;
                 final isFriendChartLoading =
                     aiEnabled &&
@@ -204,50 +312,13 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
                     myChart != null &&
                     myChart != NatalChart.empty &&
                     friendChart != null &&
-                    friendChart != NatalChart.empty &&
                     myUid != null;
-
-                AsyncValue<QuestionItem>? questionAsync;
-                if (_hasRequestedQuestion && hasSelectedFriend) {
-                  if (!aiEnabled) {
-                    questionAsync = ref.watch(
-                      localSingleQuestionProvider((
-                        friendUid: selectedFriend.uid,
-                        friendName: selectedFriend.nickname,
-                        friendSign: selectedFriend.sunSign,
-                        mySign: ref.watch(mySunSignProvider),
-                        revision: _revision,
-                      )),
-                    );
-                  } else if (canUseAi) {
-                    questionAsync = ref.watch(
-                      aiSingleQuestionProvider((
-                        myUid: myUid,
-                        myNickname: myNickname,
-                        myChart: myChart,
-                        friendUid: selectedFriend.uid,
-                        friendNickname: selectedFriend.nickname,
-                        friendChart: friendChart,
-                        synastry: synastry,
-                        revision: _revision,
-                      )),
-                    );
-                  } else if (myChartAsync.isLoading || isFriendChartLoading) {
-                    questionAsync = const AsyncValue<QuestionItem>.loading();
-                  } else {
-                    questionAsync = ref.watch(
-                      localSingleQuestionProvider((
-                        friendUid: selectedFriend.uid,
-                        friendName: selectedFriend.nickname,
-                        friendSign: selectedFriend.sunSign,
-                        mySign: ref.watch(mySunSignProvider),
-                        revision: _revision,
-                      )),
-                    );
-                  }
-                }
-                final generatedQuestion = questionAsync?.valueOrNull;
-                final isQuestionLoading = questionAsync?.isLoading ?? false;
+                final generatedQuestion = _session?.question;
+                final isQuestionLoading =
+                    _isGeneratingQuestion ||
+                    (_hasRequestedQuestion &&
+                        _session == null &&
+                        (myChartAsync.isLoading || isFriendChartLoading));
 
                 return Column(
                   children: [
@@ -280,7 +351,7 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
                                 _selectedFriendUid = value;
                                 _hasRequestedQuestion = false;
                                 _showAnswer = false;
-                                _revision = 0;
+                                _session = null;
                               });
                             },
                           ),
@@ -323,6 +394,20 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
                                 ),
                               ),
                             ),
+                          if (aiEnabled &&
+                              !isFriendChartLoading &&
+                              friendBirth != null &&
+                              friendChart == null)
+                            const Padding(
+                              padding: EdgeInsets.only(top: 8),
+                              child: Text(
+                                '이 친구의 저장된 점성술 분석이 아직 없어요.\n로컬 질문으로 대체됩니다.',
+                                style: TextStyle(
+                                  color: AppColors.inkMuted,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                     ),
@@ -333,9 +418,24 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
                       children: [
                         Expanded(
                           child: OutlinedButton.icon(
-                            onPressed: isQuestionLoading
+                            onPressed:
+                                isQuestionLoading ||
+                                    _isGeneratingAnswer ||
+                                    !hasSelectedFriend
                                 ? null
-                                : () => _requestNewQuestion(context),
+                                : () => _requestNewQuestion(
+                                    context,
+                                    selectedFriend: selectedFriend,
+                                    myUid: myUid,
+                                    myNickname: myNickname,
+                                    mySign: mySign,
+                                    myChart: myChart,
+                                    friendChartVersion:
+                                        friendBirth?.chartVersion ??
+                                        'missing-friend-chart',
+                                    friendChart: canUseAi ? friendChart : null,
+                                    synastry: synastry,
+                                  ),
                             icon: const Icon(Icons.refresh_rounded, size: 18),
                             label: const Text('새 질문'),
                           ),
@@ -382,39 +482,34 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
                           textAlign: TextAlign.center,
                         ),
                       )
-                    else if (questionAsync == null || questionAsync.isLoading)
+                    else if (isQuestionLoading)
                       const _SingleQuestionLoadingCard()
-                    else if (questionAsync.hasError)
-                      Panel(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              '질문을 불러오지 못했어요.',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(height: AppSpacing.sm),
-                            Text(
-                              '${questionAsync.error}',
-                              style: const TextStyle(
-                                color: AppColors.inkMuted,
-                                height: 1.5,
-                              ),
-                            ),
-                          ],
+                    else if (generatedQuestion == null)
+                      const Panel(
+                        child: Text(
+                          '질문을 준비하지 못했어요. 다시 시도해주세요.',
+                          style: TextStyle(
+                            color: AppColors.inkMuted,
+                            fontSize: 16,
+                            height: 1.5,
+                          ),
+                          textAlign: TextAlign.center,
                         ),
                       )
                     else ...[
                       _QuestionPromptCard(
-                        item: generatedQuestion!,
-                        onRevealAnswer: () {
-                          setState(() => _showAnswer = true);
-                        },
+                        item: generatedQuestion,
+                        onRevealAnswer: () => _requestAnswer(
+                          context,
+                          myNickname: myNickname,
+                          mySign: mySign,
+                          friendSign: selectedFriend.sunSign,
+                          myChart: canUseAi ? myChart : null,
+                          friendChart: canUseAi ? friendChart : null,
+                          synastry: synastry,
+                        ),
                         showAnswerButton: !_showAnswer,
+                        isLoadingAnswer: _isGeneratingAnswer,
                       ),
                       if (_showAnswer) ...[
                         const SizedBox(height: AppSpacing.md),
@@ -448,11 +543,13 @@ class _QuestionPromptCard extends StatelessWidget {
     required this.item,
     required this.onRevealAnswer,
     required this.showAnswerButton,
+    required this.isLoadingAnswer,
   });
 
   final QuestionItem item;
   final VoidCallback onRevealAnswer;
   final bool showAnswerButton;
+  final bool isLoadingAnswer;
 
   @override
   Widget build(BuildContext context) {
@@ -474,9 +571,17 @@ class _QuestionPromptCard extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: onRevealAnswer,
-                icon: const Icon(Icons.auto_awesome, size: 18),
-                label: const Text('답변 생성하기'),
+                onPressed: isLoadingAnswer ? null : onRevealAnswer,
+                icon: isLoadingAnswer
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.auto_awesome, size: 18),
+                label: Text(
+                  isLoadingAnswer ? '답변 생성 중...' : '답변 생성하기',
+                ),
               ),
             ),
           ],

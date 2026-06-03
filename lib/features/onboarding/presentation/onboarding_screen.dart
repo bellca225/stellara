@@ -55,6 +55,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   final _placeResolver = PlaceResolver();
 
+  String _initialName = '';
+  DateTime? _initialDate;
+  TimeOfDay? _initialTime;
+  bool _initialTimeUnknown = false;
+  String _initialPlace = '';
+
   @override
   void initState() {
     super.initState();
@@ -77,6 +83,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       }
       _placeCtrl.text = b.placeName ?? '';
     }
+    _initialName = _nameCtrl.text.trim();
+    _initialDate = _selectedDate;
+    _initialTime = _selectedTime;
+    _initialTimeUnknown = _timeUnknown;
+    _initialPlace = _placeCtrl.text.trim();
   }
 
   @override
@@ -327,117 +338,184 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     }
   }
 
+  bool get _hasUnsavedChanges {
+    final currentName = _nameCtrl.text.trim();
+    final currentPlace = _placeCtrl.text.trim();
+    final currentTime = _selectedTime;
+    final sameTime =
+        currentTime?.hour == _initialTime?.hour &&
+        currentTime?.minute == _initialTime?.minute;
+    return currentName != _initialName ||
+        _selectedDate != _initialDate ||
+        !sameTime ||
+        _timeUnknown != _initialTimeUnknown ||
+        currentPlace != _initialPlace;
+  }
+
+  Future<bool> _confirmDiscardIfNeeded() async {
+    if (!widget.isEditing || !_hasUnsavedChanges) {
+      return true;
+    }
+    final shouldLeave = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('수정 내용을 나갈까요?'),
+        content: const Text('저장하지 않은 변경 내용은 사라져요.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('계속 수정'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('나가기'),
+          ),
+        ],
+      ),
+    );
+    return shouldLeave ?? false;
+  }
+
+  Future<void> _handleBackToMyPage() async {
+    final canLeave = await _confirmDiscardIfNeeded();
+    if (!mounted || !canLeave) return;
+    Navigator.of(context).pop(false);
+  }
+
   // ── UI ──────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF0A0A1F), Color(0xFF08235F)],
+    return PopScope<bool>(
+      canPop: !widget.isEditing || !_hasUnsavedChanges,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        final canLeave = await _confirmDiscardIfNeeded();
+        if (!mounted || !canLeave) return;
+        Navigator.of(context).pop(false);
+      },
+      child: Scaffold(
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFF0A0A1F), Color(0xFF08235F)],
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Column(
-              children: [
-                const SizedBox(height: 32),
-
-                // 아이콘
-                Container(
-                  width: 72,
-                  height: 72,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF1A5FD4),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.calendar_month_rounded,
-                    color: Colors.white,
-                    size: 32,
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                Text(
-                  widget.isEditing ? '출생 정보 수정' : '별자리의 초대',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  // 마이페이지 수정 모드는 step 1~3(1-based: 1~3 of 3)
-                  widget.isEditing
-                      ? 'Step ${_step} of 3'
-                      : 'Step ${_step + 1} of 4',
-                  style: const TextStyle(
-                    color: Color(0xFF5B9BFF),
-                    fontSize: 14,
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-
-                // 진행 바 (4칸, 수정 모드 3칸)
-                Row(
-                  children: List.generate(widget.isEditing ? 3 : 4, (i) {
-                    final filled = widget.isEditing
-                        ? i < _step  // step 1~3 기준
-                        : i <= _step;
-                    final last = i == (widget.isEditing ? 2 : 3);
-                    return Expanded(
-                      child: Container(
-                        height: 3,
-                        margin: EdgeInsets.only(right: last ? 0 : 4),
-                        decoration: BoxDecoration(
-                          color: filled
-                              ? const Color(0xFF1A5FD4)
-                              : Colors.white12,
-                          borderRadius: BorderRadius.circular(2),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Column(
+                children: [
+                  if (widget.isEditing)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: IconButton(
+                        onPressed: _isSubmitting ? null : _handleBackToMyPage,
+                        icon: const Icon(
+                          Icons.arrow_back_ios_new_rounded,
+                          color: Colors.white,
                         ),
+                        tooltip: '마이페이지로 돌아가기',
                       ),
-                    );
-                  }),
-                ),
+                    )
+                  else
+                    const SizedBox(height: 32),
 
-                const SizedBox(height: 32),
-
-                // 스텝 카드
-                Expanded(
-                  child: _StepCard(
-                    step: _step,
-                    nameCtrl: _nameCtrl,
-                    nameError: _nameError,
-                    selectedDate: _selectedDate,
-                    selectedTime: _selectedTime,
-                    timeUnknown: _timeUnknown,
-                    placeCtrl: _placeCtrl,
-                    error: _error,
-                    onPickDate: _pickDate,
-                    onPickTime: _pickTime,
-                    onToggleTimeUnknown: (v) => setState(() { _timeUnknown = v; if (v) _selectedTime = null; }),
+                  // 아이콘
+                  Container(
+                    width: 72,
+                    height: 72,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF1A5FD4),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.calendar_month_rounded,
+                      color: Colors.white,
+                      size: 32,
+                    ),
                   ),
-                ),
 
-                const SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
-                // 버튼
-                _StepButtons(
-                  step: _step,
-                  isSubmitting: _isSubmitting,
-                  onNext: _next,
-                  onPrev: _prev,
-                ),
+                  Text(
+                    widget.isEditing ? '출생 정보 수정' : '별자리의 초대',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    // 마이페이지 수정 모드는 step 1~3(1-based: 1~3 of 3)
+                    widget.isEditing
+                        ? 'Step ${_step} of 3'
+                        : 'Step ${_step + 1} of 4',
+                    style: const TextStyle(
+                      color: Color(0xFF5B9BFF),
+                      fontSize: 14,
+                    ),
+                  ),
 
-                const SizedBox(height: 32),
-              ],
+                  const SizedBox(height: 20),
+
+                  // 진행 바 (4칸, 수정 모드 3칸)
+                  Row(
+                    children: List.generate(widget.isEditing ? 3 : 4, (i) {
+                      final filled = widget.isEditing ? i < _step : i <= _step;
+                      final last = i == (widget.isEditing ? 2 : 3);
+                      return Expanded(
+                        child: Container(
+                          height: 3,
+                          margin: EdgeInsets.only(right: last ? 0 : 4),
+                          decoration: BoxDecoration(
+                            color: filled
+                                ? const Color(0xFF1A5FD4)
+                                : Colors.white12,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  // 스텝 카드
+                  Expanded(
+                    child: _StepCard(
+                      step: _step,
+                      nameCtrl: _nameCtrl,
+                      nameError: _nameError,
+                      selectedDate: _selectedDate,
+                      selectedTime: _selectedTime,
+                      timeUnknown: _timeUnknown,
+                      placeCtrl: _placeCtrl,
+                      error: _error,
+                      onPickDate: _pickDate,
+                      onPickTime: _pickTime,
+                      onToggleTimeUnknown: (v) => setState(() {
+                        _timeUnknown = v;
+                        if (v) _selectedTime = null;
+                      }),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // 버튼
+                  _StepButtons(
+                    step: _step,
+                    isSubmitting: _isSubmitting,
+                    onNext: _next,
+                    onPrev: _prev,
+                  ),
+
+                  const SizedBox(height: 32),
+                ],
+              ),
             ),
           ),
         ),

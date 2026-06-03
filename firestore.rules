@@ -145,6 +145,18 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // ── randomQuestionSessions: 친구 랜덤 질문/답변 캐시 ──────────
+    // 두 사용자 조합별 최신 질문 세션 1개를 저장한다.
+    match /randomQuestionSessions/{docId} {
+      allow get: if isSignedIn()
+        && request.auth.uid in resource.data.userIds;
+      allow list: if isSignedIn();
+      allow create, update: if isSignedIn()
+        && request.auth.uid in request.resource.data.userIds
+        && request.resource.data.userIds.size() == 2;
+      allow delete: if false;
+    }
+
     // ── 그 외 문서/컬렉션 ────────────────────────────────────────
     // 명시되지 않은 모든 경로는 기본 거부 (rules_version='2' 기본 동작)
   }

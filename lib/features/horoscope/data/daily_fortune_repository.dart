@@ -25,16 +25,36 @@ class DailyFortuneRepository {
         final snap = await _col.doc(docId).get();
         final data = snap.data();
         if (data == null) continue;
+        final luckyNumbers = <int>[
+          for (final value in (data['luckyNumbers'] as List? ?? const []))
+            if (value is num) value.toInt(),
+        ];
+        final legacyLuckyNumber = (data['luckyNumber'] as num?)?.toInt();
+        if (luckyNumbers.isEmpty &&
+            legacyLuckyNumber != null &&
+            legacyLuckyNumber > 0) {
+          luckyNumbers.addAll([
+            legacyLuckyNumber,
+            legacyLuckyNumber * 2,
+            legacyLuckyNumber * 3,
+          ]);
+        }
         return Horoscope(
           signSlug: data['signSlug'] as String? ?? signSlug,
           signName: data['signName'] as String? ?? signSlug,
           date: DateTime.tryParse(data['date'] as String? ?? '') ?? date,
           summary: data['summary'] as String? ?? '',
           luckyColor: data['luckyColor'] as String? ?? '-',
-          luckyNumber: (data['luckyNumber'] as num?)?.toInt() ?? 0,
+          luckyNumbers: luckyNumbers,
           mood: data['mood'] as String? ?? '-',
           luckyPlace:
               data['luckyPlace'] as String? ?? data['lucky_place'] as String?,
+          advice: data['advice'] as String? ?? '',
+          caution: data['caution'] as String? ?? '',
+          shareText: data['shareText'] as String? ?? '',
+          promptVersion: data['promptVersion'] as String?,
+          chartVersion: data['chartVersion'] as String?,
+          utcOffset: data['utcOffset'] as String?,
         );
       }
       return null;
@@ -49,6 +69,8 @@ class DailyFortuneRepository {
     String source = 'live',
     String? chartVersion,
     String? utcOffset,
+    Map<String, dynamic>? birthSnapshot,
+    Map<String, dynamic>? analysisSnapshot,
   }) async {
     final docId = _docId(
       uid,
@@ -66,11 +88,18 @@ class DailyFortuneRepository {
         'summary': horoscope.summary,
         'luckyColor': horoscope.luckyColor,
         'luckyNumber': horoscope.luckyNumber,
+        'luckyNumbers': horoscope.luckyNumbers,
         'mood': horoscope.mood,
         'luckyPlace': horoscope.luckyPlace,
+        'advice': horoscope.advice,
+        'caution': horoscope.caution,
+        'shareText': horoscope.shareText,
         'source': source,
-        'chartVersion': chartVersion,
-        'utcOffset': utcOffset,
+        'promptVersion': horoscope.promptVersion,
+        'chartVersion': chartVersion ?? horoscope.chartVersion,
+        'utcOffset': utcOffset ?? horoscope.utcOffset,
+        'birthSnapshot': birthSnapshot,
+        'analysisSnapshot': analysisSnapshot,
         'cachedAt': FieldValue.serverTimestamp(),
       });
     } catch (_) {

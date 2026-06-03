@@ -64,8 +64,29 @@ class QuestionItem {
   /// 생성 시각 — 캐시 만료 계산용
   final DateTime? generatedAt;
 
+  bool get hasAnswer => answer.trim().isNotEmpty;
   bool get isCustom => source == QuestionSource.localCustom;
   bool get isAiGenerated => source == QuestionSource.remoteAi;
+
+  QuestionItem copyWith({
+    String? id,
+    String? prompt,
+    String? answer,
+    QuestionSource? source,
+    QuestionType? questionType,
+    String? sessionId,
+    DateTime? generatedAt,
+  }) {
+    return QuestionItem(
+      id: id ?? this.id,
+      prompt: prompt ?? this.prompt,
+      answer: answer ?? this.answer,
+      source: source ?? this.source,
+      questionType: questionType ?? this.questionType,
+      sessionId: sessionId ?? this.sessionId,
+      generatedAt: generatedAt ?? this.generatedAt,
+    );
+  }
 
   Map<String, dynamic> toJson() => {
         'id': id,
