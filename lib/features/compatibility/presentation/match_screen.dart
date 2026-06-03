@@ -14,7 +14,6 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/panel.dart';
-import '../../astrology/application/astrology_providers.dart';
 import '../../friends/application/friend_providers.dart';
 import '../../friends/domain/friend.dart';
 import '../../users/application/user_providers.dart';
@@ -224,20 +223,19 @@ class _MatchResultBody extends ConsumerWidget {
               _DetailCard(
                 label: '감정',
                 score: result.emotionScore,
-                description: _scoreDescription('감정', result.emotionScore),
+                description: result.emotionalMatch,
               ),
               const SizedBox(height: 10),
               _DetailCard(
                 label: '대화',
                 score: result.communicationScore,
-                description:
-                    _scoreDescription('대화', result.communicationScore),
+                description: result.communicationStyle,
               ),
               const SizedBox(height: 10),
               _DetailCard(
                 label: '연애',
                 score: result.romanceScore,
-                description: _scoreDescription('연애', result.romanceScore),
+                description: result.romanticMatch,
               ),
               const SizedBox(height: 16),
 
@@ -413,26 +411,5 @@ class _DetailCard extends StatelessWidget {
         ],
       ),
     );
-  }
-}
-
-// ── 점수 기반 설명 텍스트 ──────────────────────────────────────────
-
-String _scoreDescription(String category, int score) {
-  switch (category) {
-    case '감정':
-      if (score >= 80) return '서로의 감정을 잘 이해하고 공감합니다';
-      if (score >= 60) return '감정적 교류가 자연스럽게 이루어집니다';
-      return '감정 표현에 서로 노력이 필요해요';
-    case '대화':
-      if (score >= 80) return '대화가 끊이지 않고 자연스럽게 이어집니다';
-      if (score >= 60) return '대화 흐름이 비교적 잘 맞아요';
-      return '대화 방식의 차이를 줄여나가면 좋아요';
-    case '연애':
-      if (score >= 80) return '로맨틱한 분위기를 만들 수 있습니다';
-      if (score >= 60) return '연애 감각이 잘 맞는 편이에요';
-      return '서로의 방식을 이해하면 더 가까워질 수 있어요';
-    default:
-      return '';
   }
 }

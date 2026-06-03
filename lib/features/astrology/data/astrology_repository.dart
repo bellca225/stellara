@@ -19,6 +19,7 @@ import '../domain/birth_info.dart';
 import '../domain/natal_chart.dart';
 import '../fixtures/natal_chart_fixture.dart';
 import 'chart_repository.dart';
+import 'natal_chart_mapper.dart';
 import 'prokerala_api.dart';
 
 class AstrologyRepository {
@@ -93,7 +94,7 @@ class AstrologyRepository {
     }
     try {
       final json = await _api.fetchNatalChart(birth);
-      final chart = _parseNatalChart(json);
+      final chart = NatalChartMapper.fromJson(json);
       if (kDebugMode) {
         // ignore: avoid_print
         print('[AstrologyRepository] L4 API 응답 파싱 완료 '
@@ -152,83 +153,4 @@ class AstrologyRepository {
     return chart;
   }
 
-  // ── JSON → NatalChart 매핑 ────────────────────────────────────
-  // Prokerala 응답 포맷이 확정되지 않아 방어적으로 작성한다.
-  // 키가 없으면 기본값을 쓰고, 타입이 다르면 무시.
-  NatalChart _parseNatalChart(Map<String, dynamic> json) {
-    final data = (json['data'] as Map?) ?? json;
-    final planetsRaw = (data['planet_position'] as List?) ??
-        (data['planets'] as List?) ??
-        const [];
-    final housesRaw = (data['houses'] as List?) ??
-        (data['house_cusps'] as List?) ??
-        const [];
-    final aspectsRaw = (data['aspects'] as List?) ?? const [];
-
-    final planets = <Planet>[];
-    for (final p in planetsRaw) {
-      if (p is! Map) continue;
-      final name = (p['name'] ?? p['planet'] ?? '').toString();
-      final sign = (p['sign'] ?? p['zodiac'] ?? '-').toString();
-      final degree = _toDouble(p['degree'] ?? p['longitude']);
-      final house = _toInt(p['house']);
-      if (name.isEmpty) continue;
-      planets.add(Planet(name: name, sign: sign, degree: degree, house: house));
-    }
-
-    final houses = <HouseCusp>[];
-    for (final h in housesRaw) {
-      if (h is! Map) continue;
-      houses.add(HouseCusp(
-        house: _toInt(h['house'] ?? h['number']) ?? 0,
-        degree: _toDouble(h['degree'] ?? h['cusp']),
-        sign: (h['sign'] ?? '-').toString(),
-      ));
-    }
-
-    final aspects = <Aspect>[];
-    for (final a in aspectsRaw) {
-      if (a is! Map) continue;
-      aspects.add(Aspect(
-        planetA: (a['planet_a'] ?? a['planet1'] ?? '').toString(),
-        planetB: (a['planet_b'] ?? a['planet2'] ?? '').toString(),
-        aspect: (a['aspect'] ?? a['type'] ?? '').toString(),
-        orb: _toDouble(a['orb']),
-      ));
-    }
-
-    String findSign(String planet) => planets
-        .firstWhere(
-          (p) => p.name.toLowerCase() == planet.toLowerCase(),
-          orElse: () => const Planet(name: '-', sign: '-', degree: 0),
-        )
-        .sign;
-
-    final ascendantSign = (data['ascendant'] is Map)
-        ? (data['ascendant']['sign'] ?? '-').toString()
-        : findSign('Ascendant');
-
-    return NatalChart(
-      planets: planets,
-      houses: houses,
-      aspects: aspects,
-      ascendantSign:
-          ascendantSign == '-' ? findSign('Ascendant') : ascendantSign,
-      sunSign: findSign('Sun'),
-      moonSign: findSign('Moon'),
-    );
-  }
-
-  static double _toDouble(Object? v) {
-    if (v is num) return v.toDouble();
-    if (v is String) return double.tryParse(v) ?? 0.0;
-    return 0.0;
-  }
-
-  static int? _toInt(Object? v) {
-    if (v is int) return v;
-    if (v is num) return v.toInt();
-    if (v is String) return int.tryParse(v);
-    return null;
-  }
 }
