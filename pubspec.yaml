@@ -56,6 +56,9 @@ dependencies:
   # dio는 astrology feature 전용이므로 cross-feature 오염 방지 목적으로 분리.
   http: ^1.2.0
 
+  # 일부 디자인 화면에서 SVG 아이콘 렌더링.
+  flutter_svg: ^2.0.10+1
+
   # 커스텀 폰트 (Sulphur Point 등 Google Fonts 사용).
   google_fonts: ^6.2.1
 
