@@ -94,6 +94,7 @@ class _AuthGateState extends ConsumerState<_AuthGate> {
         return;
       }
       if (current.loginId == profile.loginId &&
+          current.displayName == profile.displayName &&
           current.nickname == profile.nickname &&
           current.friendCode == profile.friendCode &&
           current.profileCompleted == profile.profileCompleted &&
@@ -102,6 +103,7 @@ class _AuthGateState extends ConsumerState<_AuthGate> {
       }
       ref.read(currentUserProvider.notifier).state = current.copyWith(
         loginId: profile.loginId,
+        displayName: profile.displayName,
         nickname: profile.nickname,
         friendCode: profile.friendCode,
         profileCompleted: profile.profileCompleted,

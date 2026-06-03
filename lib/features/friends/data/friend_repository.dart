@@ -174,11 +174,17 @@ class FriendRepository {
         if (!userDoc.exists) continue;
         final data = userDoc.data()!;
 
+        // displayName 우선, 없으면 nickname fallback
+        final friendDisplayName = (data['displayName'] as String?)?.trim();
+        final friendNickname = (data['nickname'] as String?)?.trim() ?? '';
+        final effectiveName = (friendDisplayName?.isNotEmpty == true)
+            ? friendDisplayName!
+            : (friendNickname.isNotEmpty ? friendNickname : friendUid);
+
         friends.add(Friend(
           uid: friendUid,
-          nickname: data['nickname'] as String? ?? '',
+          nickname: effectiveName,
           friendCode: data['friendCode'] as String? ?? '',
-          // sunSign: users/{uid} 에 denormalized 저장 (차트 생성 시 업데이트)
           sunSign: data['sunSign'] as String? ?? '-',
           isFavorite: favoriteIds.contains(friendUid),
         ));

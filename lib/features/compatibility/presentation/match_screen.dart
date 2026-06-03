@@ -65,7 +65,7 @@ class _MatchScreenState extends ConsumerState<MatchScreen> {
                   if (me == null)
                     const Text('내 출생 정보가 아직 없어요. 온보딩 또는 마이페이지에서 먼저 입력해주세요.')
                   else ...[
-                    KeyValueRow(label: '닉네임', value: me.nickname),
+                    KeyValueRow(label: '이름', value: me.nickname),
                     KeyValueRow(
                       label: '생년월일',
                       value:

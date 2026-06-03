@@ -36,6 +36,7 @@ class AuthRepository {
   Future<AppUser> signUp({
     required String loginId,
     required String password,
+    String? displayName,
   }) async {
     final id = loginId.toLowerCase().trim();
 
@@ -74,7 +75,10 @@ class AuthRepository {
         txn.set(userRef, {
           'uid': uid,
           'loginId': id,
-          'nickname': id, // 초기 닉네임 = 아이디, 온보딩에서 수정 가능
+          // displayName: 온보딩 이름 step 에서 입력. 회원가입 시점엔 미입력.
+          if (displayName != null && displayName.trim().isNotEmpty)
+            'displayName': displayName.trim(),
+          'nickname': id, // 기존 호환 유지. displayName 이 없으면 nickname fallback
           'friendCode': friendCode,
           'profileCompleted': false,
           'authProvider': 'email',
@@ -94,6 +98,7 @@ class AuthRepository {
       return AppUser(
         uid: uid,
         loginId: id,
+        displayName: displayName?.trim().isNotEmpty == true ? displayName!.trim() : null,
         nickname: id,
         friendCode: friendCode,
         profileCompleted: false,

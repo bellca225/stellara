@@ -143,8 +143,11 @@ final myUidProvider = Provider<String?>((ref) {
   return ref.watch(currentUserProvider)?.uid;
 });
 
+/// 화면에 표시할 내 이름. displayName → nickname → loginId 순 fallback.
 final myNicknameProvider = Provider<String?>((ref) {
-  return ref.watch(currentUserProvider)?.nickname;
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return null;
+  return user.effectiveDisplayName;
 });
 
 /// 나의 NatalChart — 화면에서 AI request 구성 시 편하게 사용
