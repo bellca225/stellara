@@ -48,6 +48,8 @@ dependencies:
 
   # Anonymous Auth refreshToken 저장 → 재설치 후 UID 변경 감지.
   flutter_secure_storage: ^9.2.2
+  flutter_svg: ^2.3.0
+  google_fonts: ^8.1.0
 
 dev_dependencies:
   flutter_test:
