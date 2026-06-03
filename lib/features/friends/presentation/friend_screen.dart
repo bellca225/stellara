@@ -182,7 +182,7 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
                       ),
                     ),
                     error: (e, _) => Panel(
-                      child: Text('친구 목록을 불러오지 못했어요: $e'),
+                      child: _FriendErrorView(error: e),
                     ),
                     data: (_) => filteredFriends.isEmpty
                         ? Panel(
@@ -237,7 +237,7 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
                       ),
                     ),
                     error: (e, _) => Panel(
-                      child: Text('요청 목록을 불러오지 못했어요: $e'),
+                      child: _FriendErrorView(error: e),
                     ),
                     data: (requests) => requests.isEmpty
                         ? const Panel(
@@ -445,27 +445,32 @@ class _TabButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.ink : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.ink, width: 1.2),
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? AppColors.paper : AppColors.ink,
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
+    // AnimatedContainer + GestureDetector 조합은 ListView 안에서
+    // mouse_tracker assertion을 유발함 → InkWell + 일반 Container로 교체
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.ink : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.ink, width: 1.2),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: TextStyle(
+              color: isSelected ? AppColors.paper : AppColors.ink,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       ),
-    );
+    );  // InkWell, Material
   }
 }
 
@@ -504,3 +509,44 @@ String _timeAgo(DateTime dt) {
 }
 
 enum _FriendTab { friends, received }
+
+/// Firestore 오류를 사용자에게 알리는 위젯.
+/// PERMISSION_DENIED 시 Rules 미배포 안내도 포함.
+class _FriendErrorView extends StatelessWidget {
+  const _FriendErrorView({required this.error});
+
+  final Object error;
+
+  @override
+  Widget build(BuildContext context) {
+    final msg = error.toString();
+    final isPermission =
+        msg.contains('PERMISSION_DENIED') || msg.contains('permission-denied');
+
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '데이터를 불러오지 못했어요.',
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 6),
+          if (isPermission)
+            const Text(
+              'Firestore 권한 오류입니다.\n'
+              '아직 Rules를 배포하지 않으셨다면:\n'
+              'firebase deploy --only firestore:rules',
+              style: TextStyle(color: AppColors.inkMuted, fontSize: 12, height: 1.5),
+            )
+          else
+            Text(
+              msg,
+              style: const TextStyle(color: AppColors.inkMuted, fontSize: 12),
+            ),
+        ],
+      ),
+    );
+  }
+}

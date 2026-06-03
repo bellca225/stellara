@@ -1,6 +1,7 @@
 // lib/features/friends/data/friend_repository.dart
 //
 // 친구 관계 Firestore 클라이언트 wrapper.
+import 'package:flutter/foundation.dart';
 //
 // SDD T16/T17/T18/T19 기준 구현:
 //   - 친구 코드 검색: friendCodes/{code} 단건 조회
@@ -110,8 +111,9 @@ class FriendRepository {
       return snap.docs
           .map((d) => FriendRequest.fromMap(d.id, d.data()))
           .toList();
-    } catch (_) {
-      return [];
+    } catch (e, st) {
+      debugPrint('[FriendRepository] getReceivedRequests 실패: $e\n$st');
+      rethrow;  // UI에서 error 상태로 표시 (조용히 삼키지 않음)
     }
   }
 
@@ -190,8 +192,9 @@ class FriendRepository {
         ));
       }
       return friends;
-    } catch (_) {
-      return [];
+    } catch (e, st) {
+      debugPrint('[FriendRepository] getFriends 실패: $e\n$st');
+      rethrow;  // UI에서 error 상태로 표시
     }
   }
 
