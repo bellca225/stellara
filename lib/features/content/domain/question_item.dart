@@ -99,9 +99,9 @@ class QuestionItem {
       };
 
   factory QuestionItem.fromJson(Map<String, dynamic> json) => QuestionItem(
-        id: json['id'] as String,
-        prompt: json['prompt'] as String,
-        answer: json['answer'] as String,
+        id: json['id'] as String? ?? '',
+        prompt: json['prompt'] as String? ?? '',
+        answer: json['answer'] as String? ?? '',
         source: QuestionSource.values.firstWhere(
           (s) => s.name == json['source'],
           orElse: () => QuestionSource.localPreset,

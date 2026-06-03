@@ -45,7 +45,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   // 네이티브 Picker로 선택된 값 (TextField 대신)
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
-  bool _timeUnknown = false; // 출생 시간 모름 토글
 
   // 출생지 (자유 텍스트 유지 — geocoding 연동)
   final _placeCtrl = TextEditingController();
@@ -58,7 +57,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   String _initialName = '';
   DateTime? _initialDate;
   TimeOfDay? _initialTime;
-  bool _initialTimeUnknown = false;
   String _initialPlace = '';
 
   @override
@@ -74,19 +72,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     final b = widget.initialBirthInfo;
     if (b != null) {
       _selectedDate = b.dateTime;
-      final hour = b.dateTime.hour;
-      final minute = b.dateTime.minute;
-      if (hour == 0 && minute == 0) {
-        _timeUnknown = true;
-      } else {
-        _selectedTime = TimeOfDay(hour: hour, minute: minute);
-      }
+      _selectedTime = TimeOfDay(
+        hour: b.dateTime.hour,
+        minute: b.dateTime.minute,
+      );
       _placeCtrl.text = b.placeName ?? '';
     }
     _initialName = _nameCtrl.text.trim();
     _initialDate = _selectedDate;
     _initialTime = _selectedTime;
-    _initialTimeUnknown = _timeUnknown;
     _initialPlace = _placeCtrl.text.trim();
   }
 
@@ -151,7 +145,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         child: child!,
       ),
     );
-    if (picked != null) setState(() { _selectedTime = picked; _timeUnknown = false; });
+    if (picked != null) setState(() => _selectedTime = picked);
   }
 
   // ── 다음 스텝으로 ───────────────────────────────────────────────
@@ -176,7 +170,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         }
         setState(() => _step = 2);
       case 2:
-        // 시간은 선택사항 — "모름" 또는 선택 완료면 다음으로
+        if (_selectedTime == null) {
+          setState(() => _error = '출생 시간을 선택해주세요.');
+          return;
+        }
         setState(() => _step = 3);
       case 3:
         _submit();
@@ -201,9 +198,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         return;
       }
 
-      // ── 2. 출생 시간 (선택사항 — 모름이면 00:00) ──────────────────
-      final hour = (_timeUnknown || _selectedTime == null) ? 0 : _selectedTime!.hour;
-      final minute = (_timeUnknown || _selectedTime == null) ? 0 : _selectedTime!.minute;
+      // ── 2. 출생 시간 (필수값 — step 2에서 이미 검증됨) ───────────
+      if (_selectedTime == null) {
+        setState(() => _error = '출생 시간을 선택해주세요.');
+        return;
+      }
+      final hour = _selectedTime!.hour;
+      final minute = _selectedTime!.minute;
 
       final dt = DateTime(
         _selectedDate!.year, _selectedDate!.month, _selectedDate!.day,
@@ -348,7 +349,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     return currentName != _initialName ||
         _selectedDate != _initialDate ||
         !sameTime ||
-        _timeUnknown != _initialTimeUnknown ||
         currentPlace != _initialPlace;
   }
 
@@ -491,15 +491,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       nameError: _nameError,
                       selectedDate: _selectedDate,
                       selectedTime: _selectedTime,
-                      timeUnknown: _timeUnknown,
                       placeCtrl: _placeCtrl,
                       error: _error,
                       onPickDate: _pickDate,
                       onPickTime: _pickTime,
-                      onToggleTimeUnknown: (v) => setState(() {
-                        _timeUnknown = v;
-                        if (v) _selectedTime = null;
-                      }),
                     ),
                   ),
 
@@ -532,12 +527,10 @@ class _StepCard extends StatelessWidget {
     this.nameError,
     required this.selectedDate,
     required this.selectedTime,
-    required this.timeUnknown,
     required this.placeCtrl,
     required this.error,
     required this.onPickDate,
     required this.onPickTime,
-    required this.onToggleTimeUnknown,
   });
 
   final int step;
@@ -545,12 +538,10 @@ class _StepCard extends StatelessWidget {
   final String? nameError;
   final DateTime? selectedDate;
   final TimeOfDay? selectedTime;
-  final bool timeUnknown;
   final TextEditingController placeCtrl;
   final String? error;
   final VoidCallback onPickDate;
   final VoidCallback onPickTime;
-  final ValueChanged<bool> onToggleTimeUnknown;
 
   static const _cardDecoration = BoxDecoration(
     color: Color(0xD90D1830),
@@ -627,55 +618,21 @@ class _StepCard extends StatelessWidget {
             ),
           ],
 
-          // ── Step 2: 출생 시간 TimePicker + 모름 토글 ─────────────
+          // ── Step 2: 출생 시간 TimePicker (필수) ──────────────────
           if (step == 2) ...[
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('출생 시간', style: TextStyle(color: Colors.white70, fontSize: 14)),
-                Row(
-                  children: [
-                    const Text('모름', style: TextStyle(color: Colors.white38, fontSize: 13)),
-                    const SizedBox(width: 4),
-                    Switch(
-                      value: timeUnknown,
-                      onChanged: onToggleTimeUnknown,
-                      activeColor: const Color(0xFF1A5FD4),
-                    ),
-                  ],
-                ),
-              ],
+            const Text('출생 시간', style: TextStyle(color: Colors.white70, fontSize: 14)),
+            const SizedBox(height: 8),
+            _PickerButton(
+              icon: Icons.access_time_rounded,
+              label: selectedTime == null
+                  ? '시간 선택'
+                  : selectedTime!.format(context),
+              selected: selectedTime != null,
+              onTap: onPickTime,
             ),
             const SizedBox(height: 8),
-            if (!timeUnknown)
-              _PickerButton(
-                icon: Icons.access_time_rounded,
-                label: selectedTime == null
-                    ? '시간 선택'
-                    : selectedTime!.format(context),
-                selected: selectedTime != null,
-                onTap: onPickTime,
-              )
-            else
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.04),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white12),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.access_time_rounded, color: Colors.white24, size: 20),
-                    SizedBox(width: 8),
-                    Text('시간 모름 — 상승 별자리 계산 제한됨',
-                        style: TextStyle(color: Colors.white38, fontSize: 13)),
-                  ],
-                ),
-              ),
-            const SizedBox(height: 8),
             const Text(
-              '정확한 출생 시간은 상승 별자리(Ascendant)에 영향을 줘요.',
+              '정확한 출생 시간은 상승 별자리(Ascendant) 계산에 필요해요.',
               style: TextStyle(color: Colors.white38, fontSize: 12),
             ),
           ],

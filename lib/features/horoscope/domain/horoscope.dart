@@ -79,13 +79,13 @@ class Horoscope {
     }
 
     return Horoscope(
-      signSlug: json['signSlug'] as String,
-      signName: json['signName'] as String,
-      date: DateTime.parse(json['date'] as String),
-      summary: json['summary'] as String,
-      luckyColor: json['luckyColor'] as String,
+      signSlug: json['signSlug'] as String? ?? '',
+      signName: json['signName'] as String? ?? '',
+      date: DateTime.tryParse(json['date'] as String? ?? '') ?? DateTime.now(),
+      summary: json['summary'] as String? ?? '',
+      luckyColor: json['luckyColor'] as String? ?? '-',
       luckyNumbers: numbers,
-      mood: json['mood'] as String,
+      mood: json['mood'] as String? ?? '-',
       luckyPlace: json['luckyPlace'] as String?,
       advice: json['advice'] as String? ?? '',
       caution: json['caution'] as String? ?? '',

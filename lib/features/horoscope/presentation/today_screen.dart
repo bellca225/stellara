@@ -33,9 +33,24 @@ class TodayScreen extends ConsumerWidget {
       child: SafeArea(
         child: asyncH.when(
           loading: () => const _LoadingSkeleton(),
-          error: (error, stackTrace) => const Center(
-            child: Text('오늘의 운세를 불러오지 못했어요.',
-                style: TextStyle(color: AppColors.inkMuted)),
+          error: (error, stackTrace) => Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  error is StateError
+                      ? error.message
+                      : '오늘의 운세를 불러오지 못했어요.',
+                  style: const TextStyle(color: AppColors.inkMuted),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed: () => ref.invalidate(todayHoroscopeProvider),
+                  child: const Text('다시 시도'),
+                ),
+              ],
+            ),
           ),
           data: (h) => _HoroscopeBody(horoscope: h),
         ),

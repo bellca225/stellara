@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 
 import '../../../core/cache/disk_cache.dart';
+import '../../../core/env/env.dart';
 import '../../../core/utils/astro_text.dart';
 import '../../astrology/domain/birth_info.dart';
 import '../../astrology/domain/natal_chart.dart';
@@ -40,32 +41,45 @@ class HoroscopeRepository {
     final keyDate = _resolveTargetDate(date, birthInfo.utcOffset);
     final cacheKey = _cacheKey(signSlug, keyDate);
 
+    // ── L2: DiskCache ────────────────────────────────────────────────────────
     final cached = _cache.getJson(cacheKey);
     if (cached != null) {
       try {
-        return Horoscope.fromJson(cached);
-      } catch (e) {
-        if (kDebugMode) {
-          print('[HoroscopeRepository] L2 디코드 실패 → L3 fallback: $e');
+        final h = Horoscope.fromJson(cached);
+        if (_isCacheUsable(h)) {
+          if (kDebugMode) print('[HoroscopeRepository] L2 캐시 hit (${h.promptVersion})');
+          return h;
         }
+        // local-derived 캐시 + AI 사용 가능 → 재생성
+        if (kDebugMode) print('[HoroscopeRepository] L2 캐시 skip (local-derived) → AI 재생성');
+        await _cache.remove(cacheKey);
+      } catch (e) {
+        if (kDebugMode) print('[HoroscopeRepository] L2 디코드 실패 → 재생성: $e');
+        await _cache.remove(cacheKey);
       }
     }
 
+    // ── L3: Firestore 캐시 ────────────────────────────────────────────────────
     final currentUid = _currentUid;
     if (currentUid != null) {
-      final firestoreHoroscope = await _firestoreCache.get(
-        uid: currentUid,
-        signSlug: signSlug,
-        date: keyDate,
-        chartVersion: _activeChartVersion ?? birthInfo.chartVersion,
-      );
-      if (firestoreHoroscope != null) {
-        await _cache.putJson(
-          cacheKey,
-          firestoreHoroscope.toJson(),
-          source: 'firestore',
+      try {
+        final firestoreHoroscope = await _firestoreCache.get(
+          uid: currentUid,
+          signSlug: signSlug,
+          date: keyDate,
+          chartVersion: _activeChartVersion ?? birthInfo.chartVersion,
         );
-        return firestoreHoroscope;
+        if (firestoreHoroscope != null) {
+          if (_isCacheUsable(firestoreHoroscope)) {
+            if (kDebugMode) print('[HoroscopeRepository] L3 Firestore 캐시 hit (${firestoreHoroscope.promptVersion})');
+            await _cache.putJson(cacheKey, firestoreHoroscope.toJson(), source: 'firestore');
+            return firestoreHoroscope;
+          }
+          // local-derived Firestore 캐시 + AI 사용 가능 → 재생성
+          if (kDebugMode) print('[HoroscopeRepository] L3 Firestore 캐시 skip (local-derived) → AI 재생성');
+        }
+      } catch (e) {
+        if (kDebugMode) print('[HoroscopeRepository] L3 Firestore read 실패 (스킵): $e');
       }
     }
 
@@ -112,7 +126,11 @@ class HoroscopeRepository {
       return horoscope;
     } catch (e, st) {
       if (kDebugMode) {
-        print('[HoroscopeRepository] AI daily 실패 → local fallback: $e\n$st');
+        if (e is AiQuotaExceededException) {
+          print('[HoroscopeRepository] AI quota 초과 (${e.provider}) → local fallback');
+        } else {
+          print('[HoroscopeRepository] AI daily 실패 → local fallback: $e\n$st');
+        }
       }
       final fallback = _buildLocalFallback(
         signSlug: signSlug,
@@ -139,6 +157,17 @@ class HoroscopeRepository {
       }
       return fallback;
     }
+  }
+
+  /// 캐시된 운세를 그대로 사용할지 판단.
+  ///
+  /// - AI로 생성된 운세(`daily-horoscope-v*`)  → 재사용
+  /// - local-derived / null / 구버전            → AI 사용 가능하면 재생성
+  bool _isCacheUsable(Horoscope h) {
+    final pv = h.promptVersion ?? '';
+    if (pv.startsWith('daily-horoscope-v')) return true;
+    // local-derived 이거나 promptVersion 없는 구버전 → AI 켜져 있으면 재생성
+    return !Env.aiRemoteEnabled;
   }
 
   String _cacheKey(String signSlug, DateTime date) {

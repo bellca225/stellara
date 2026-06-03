@@ -31,6 +31,7 @@ import '../../friends/presentation/friend_screen.dart';
 import '../../users/application/user_providers.dart';
 import '../../users/domain/user_profile.dart';
 import '../application/question_providers.dart';
+import '../data/ai_question_repository.dart';
 import '../domain/question_item.dart';
 import '../domain/random_question_session.dart';
 
@@ -104,11 +105,14 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
         _session = session;
         _hasRequestedQuestion = true;
       });
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
+      final message = e is AiQuotaExceededException
+          ? 'AI 사용량이 초과되어 기본 결과를 보여드릴게요.'
+          : '질문을 생성하지 못했어요.';
       ScaffoldMessenger.of(
         this.context,
-      ).showSnackBar(const SnackBar(content: Text('질문을 생성하지 못했어요.')));
+      ).showSnackBar(SnackBar(content: Text(message)));
     } finally {
       if (mounted) {
         setState(() => _isGeneratingQuestion = false);
@@ -152,11 +156,14 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
         _session = updated;
         _showAnswer = true;
       });
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
+      final message = e is AiQuotaExceededException
+          ? 'AI 사용량이 초과되어 기본 결과를 보여드릴게요.'
+          : '답변을 생성하지 못했어요.';
       ScaffoldMessenger.of(
         this.context,
-      ).showSnackBar(const SnackBar(content: Text('답변을 생성하지 못했어요.')));
+      ).showSnackBar(SnackBar(content: Text(message)));
     } finally {
       if (mounted) {
         setState(() => _isGeneratingAnswer = false);
@@ -379,8 +386,9 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
                                 ],
                               ),
                             ),
-                          // 친구 출생정보 없음 안내
+                          // 친구 출생정보 없음 안내 — 친구를 선택했고 프로필 로드가 끝난 뒤에만 표시
                           if (aiEnabled &&
+                              hasSelectedFriend &&
                               !isFriendChartLoading &&
                               friendProfileAsync.hasValue &&
                               friendBirth == null)
@@ -395,6 +403,7 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
                               ),
                             ),
                           if (aiEnabled &&
+                              hasSelectedFriend &&
                               !isFriendChartLoading &&
                               friendBirth != null &&
                               friendChart == null)

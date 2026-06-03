@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../astrology/domain/natal_chart.dart';
 import '../../compatibility/domain/synastry_result.dart';
@@ -204,15 +205,22 @@ class RandomQuestionSessionRepository {
       return updated;
     }
 
+    // Firestore에서 최신 상태 재확인 (이미 다른 기기에서 답변이 생성됐을 수 있음)
+    // permission-denied 등 실패 시 스킵하고 AI 호출로 진행
     if (session.docId != null) {
-      final current = await _col.doc(session.docId).get();
-      final data = current.data();
-      if (data != null) {
-        final latest = RandomQuestionSession.fromJson(data, docId: current.id);
-        if (latest.hasAnswer) return latest;
+      try {
+        final current = await _col.doc(session.docId).get();
+        final data = current.data();
+        if (data != null) {
+          final latest = RandomQuestionSession.fromJson(data, docId: current.id);
+          if (latest.hasAnswer) return latest;
+        }
+      } catch (e) {
+        if (kDebugMode) debugPrint('[RandomQuestionSession] ensureAnswer Firestore read 실패 (스킵): $e');
       }
     }
 
+    // generateAnswerForQuestion은 내부적으로 로컬 fallback이 있어 항상 QuestionItem을 반환
     final answerItem = await _aiRepository.generateAnswerForQuestion(
       myNickname: myNickname,
       myChart: myChart,
@@ -232,6 +240,7 @@ class RandomQuestionSessionRepository {
       promptVersion:
           '${session.promptVersion}|${AiQuestionRepository.randomAnswerPromptVersion}',
     );
+    // _persist 실패는 비치명 — 답변은 메모리에서 정상 표시됨
     if (session.docId != null) {
       await _persist(updated);
     }
@@ -241,7 +250,13 @@ class RandomQuestionSessionRepository {
   Future<void> _persist(RandomQuestionSession session) async {
     final docId = session.docId;
     if (docId == null) return;
-    await _col.doc(docId).set(session.toJson());
+    try {
+      await _col.doc(docId).set(session.toJson());
+    } catch (e) {
+      // Firestore 저장 실패는 치명적이지 않음 — 세션은 메모리에서 정상 동작 유지.
+      // (권한 오류, 네트워크 오류 등)
+      if (kDebugMode) debugPrint('[RandomQuestionSession] _persist 실패 (비치명): $e');
+    }
   }
 
   RandomQuestionSession _buildEphemeralSession({

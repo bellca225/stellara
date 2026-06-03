@@ -24,6 +24,19 @@ import '../../compatibility/domain/synastry_result.dart';
 import '../domain/question_item.dart';
 import 'question_repository.dart';
 
+// ── JSON 전용 출력 강제 지시 (모든 프롬프트 끝에 공통 적용) ──────────────────
+// gemini-2.5-flash 등 일부 모델이 responseMimeType 설정을 무시하고
+// "Here is the JSON:" 같은 자연어를 앞에 붙이는 현상을 방지한다.
+const _kJsonOnlyInstruction = '''
+
+[출력 규칙 — 반드시 준수]
+- 응답은 반드시 순수 JSON 객체 하나만 반환한다.
+- "Here is", "Sure", "Certainly" 등 설명문을 절대 포함하지 않는다.
+- markdown 코드블록(```json ... ```)을 절대 사용하지 않는다.
+- JSON 앞뒤에 어떤 텍스트도 붙이지 않는다.
+- Return ONLY the raw JSON object. No explanations. No markdown. No code fences.
+''';
+
 // ── 시스템 프롬프트 ───────────────────────────────────────────────────────────
 const _kQuestionSetSystemPrompt = '''
 당신은 점성술 기반 친구 관계 질문 생성 AI입니다.
@@ -52,14 +65,9 @@ const _kQuestionSetSystemPrompt = '''
 - 두 사람의 조합에서 나오는 특성을 구체적으로 묘사
 - 3~5문장, 마지막 문장은 살짝 웃길 것
 
-[출력 형식 - 반드시 이 JSON만 반환]
-{
-  "question": "질문 텍스트 (1~2문장, 구체적이고 흥미로운)",
-  "answer": "해설 텍스트 (3~5문장, 점성술 근거 포함, 유머 포함)"
-}
-
-JSON 외 다른 텍스트는 절대 포함하지 마세요.
-''';
+[출력 형식]
+{"question": "질문 텍스트", "answer": "해설 텍스트"}
+$_kJsonOnlyInstruction''';
 
 const _kRandomQuestionSystemPrompt = '''
 당신은 점성술 기반 친구 관계 질문 생성 AI입니다.
@@ -74,12 +82,8 @@ const _kRandomQuestionSystemPrompt = '''
 - 점성술 표현은 자연스럽게 녹이고, 겁주거나 단정하지 말 것
 
 [출력 형식]
-{
-  "question": "질문 텍스트 1개"
-}
-
-JSON 외 다른 텍스트는 절대 포함하지 마세요.
-''';
+{"question": "질문 텍스트 1개"}
+$_kJsonOnlyInstruction''';
 
 const _kRandomAnswerSystemPrompt = '''
 당신은 점성술 기반 친구 관계 해설 AI입니다.
@@ -95,12 +99,8 @@ const _kRandomAnswerSystemPrompt = '''
 - 3~5문장, 마지막 한 문장은 살짝 웃기거나 여운 있게
 
 [출력 형식]
-{
-  "answer": "질문에 대한 점성술 기반 답변"
-}
-
-JSON 외 다른 텍스트는 절대 포함하지 마세요.
-''';
+{"answer": "질문에 대한 점성술 기반 답변"}
+$_kJsonOnlyInstruction''';
 
 const _kDailyHoroscopeSystemPrompt = '''
 당신은 개인 점성술 데이터를 바탕으로 오늘의 운세를 생성하는 AI입니다.
@@ -118,19 +118,8 @@ const _kDailyHoroscopeSystemPrompt = '''
 - overall/emotion/advice/caution/shareText 는 짧고 읽기 쉽게
 
 [출력 형식]
-{
-  "overall": "전체 운세",
-  "emotion": "오늘의 감정 상태",
-  "luckyNumbers": [7, 14, 21],
-  "luckyColor": "보라색",
-  "luckyPlace": "카페, 도서관",
-  "advice": "오늘의 조언",
-  "caution": "주의할 점",
-  "shareText": "공유용 짧은 문구"
-}
-
-JSON 외 다른 텍스트는 절대 포함하지 마세요.
-''';
+{"overall":"전체 운세","emotion":"감정 상태","luckyNumbers":[7,14,21],"luckyColor":"보라색","luckyPlace":"카페","advice":"조언","caution":"주의","shareText":"공유 문구"}
+$_kJsonOnlyInstruction''';
 
 const _kRandomQuestionPromptVersion = 'rq-question-v2';
 const _kRandomAnswerPromptVersion = 'rq-answer-v2';
@@ -140,6 +129,9 @@ const _kDailyHoroscopePromptVersion = 'daily-horoscope-v2';
 const _kOpenAiChatEndpoint = 'https://api.openai.com/v1/chat/completions';
 const _kAnthropicChatEndpoint = 'https://api.anthropic.com/v1/messages';
 const _kAnthropicVersion = '2023-06-01';
+// Gemini: generateContent endpoint. {model}과 {apiKey}는 런타임에 치환.
+const _kGeminiEndpointTemplate =
+    'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}';
 
 class AiDailyHoroscopePayload {
   const AiDailyHoroscopePayload({
@@ -284,7 +276,7 @@ class AiQuestionRepository {
         temperature: 0.9,
         maxTokens: 400,
       );
-      final parsed = _parseResponse(raw);
+      final parsed = _parseResponseOrWrapRaw(raw, 'answer');
 
       return QuestionItem(
         id: 'ai-custom-$friendUid-${userPrompt.hashCode}',
@@ -356,7 +348,7 @@ class AiQuestionRepository {
         temperature: 1.0,
         maxTokens: 220,
       );
-      final parsed = _parseResponse(raw);
+      final parsed = _parseResponseOrWrapRaw(raw, 'question');
       final prompt =
           (parsed['question'] as String?)?.trim() ??
           '$friendNickname와 함께 있으면 가장 재밌게 터질 상황은 뭐야?';
@@ -425,7 +417,7 @@ class AiQuestionRepository {
         temperature: 0.85,
         maxTokens: 320,
       );
-      final parsed = _parseResponse(raw);
+      final parsed = _parseResponseOrWrapRaw(raw, 'answer');
       final fallbackItem = await _local.answerCustom(
         providerPreference: 'local',
         friendUid: friendUid,
@@ -487,19 +479,26 @@ class AiQuestionRepository {
       temperature: 0.8,
       maxTokens: 420,
     );
-    final parsed = _parseResponse(raw);
+    final parsed = _parseResponseOrWrapRaw(raw, 'overall');
 
+    // luckyNumbers: int 또는 string 숫자 모두 처리
     final luckyNumbers = <int>[
       for (final value in (parsed['luckyNumbers'] as List? ?? const []))
-        if (value is num) value.toInt(),
-    ];
+        if (value is num)
+          value.toInt()
+        else if (value is String)
+          int.tryParse(value) ?? -1,
+    ]..removeWhere((n) => n <= 0);
 
-    if ((parsed['overall'] as String?)?.trim().isEmpty ?? true) {
+    final overall = (parsed['overall'] as String?)?.trim() ?? '';
+    if (overall.isEmpty) {
+      // JSON 파싱은 됐지만 overall 필드가 없거나 비어있음 → local fallback으로 전환
+      if (kDebugMode) debugPrint('[AiResponseParser] overall 필드 없음 → horoscope fallback');
       throw const FormatException('overall missing');
     }
 
     return AiDailyHoroscopePayload(
-      overall: (parsed['overall'] as String).trim(),
+      overall: overall,
       emotion: (parsed['emotion'] as String? ?? '').trim(),
       luckyNumbers: luckyNumbers,
       luckyColor: (parsed['luckyColor'] as String? ?? '').trim(),
@@ -538,7 +537,7 @@ class AiQuestionRepository {
       temperature: 0.9,
       maxTokens: 400,
     );
-    final parsed = _parseResponse(raw);
+    final parsed = _parseResponseOrWrapRaw(raw, 'question');
 
     final id =
         'ai-$friendUid-$revision-${questionType.name}-${DateTime.now().millisecondsSinceEpoch}';
@@ -554,11 +553,15 @@ class AiQuestionRepository {
   }
 
   // ── 멀티 프로바이더 fallback chain ─────────────────────────────────────────
-  // Env.aiProviderOrder 순서대로 시도: openai → anthropic → local
-  // 각 프로바이더가 실패하면 다음으로 자동 전환. 모두 실패 시 예외 던짐.
+  // Env.aiProviderOrder 순서대로 시도: gemini → openai → anthropic → local
+  // - AiQuotaExceededException 은 상위 catch에서 사용자 토스트 표시 후 fallback.
+  // - 다른 예외는 다음 프로바이더로 자동 전환.
+  // - 모든 프로바이더 실패 시 예외 던짐 → 호출부에서 local fallback 처리.
 
   bool _hasAnyApiKey() =>
-      Env.openAiApiKey.isNotEmpty || Env.anthropicApiKey.isNotEmpty;
+      Env.geminiApiKey.isNotEmpty ||
+      Env.openAiApiKey.isNotEmpty ||
+      Env.anthropicApiKey.isNotEmpty;
 
   Future<String> _sendRequest(
     String userMessage, {
@@ -578,6 +581,17 @@ class AiQuestionRepository {
           temperature: temperature,
           maxTokens: maxTokens,
         );
+      } on AiQuotaExceededException {
+        // quota 초과는 다음 provider로 넘기되, 예외 타입 그대로 전파해
+        // 호출 스택 위쪽(화면 catch)에서 토스트를 띄울 수 있게 한다.
+        if (kDebugMode) {
+          debugPrint(
+            '[AiQuestionRepository] $provider quota 초과 → 다음 프로바이더 시도',
+          );
+        }
+        // 다음 provider가 없으면 quota 예외가 사용자에게 전달되어야 하므로
+        // lastError에 기록하되 루프 계속.
+        lastError = AiQuotaExceededException(provider);
       } catch (e) {
         if (kDebugMode) {
           debugPrint('[AiQuestionRepository] $provider 실패: $e → 다음 프로바이더 시도');
@@ -593,6 +607,7 @@ class AiQuestionRepository {
     final order = Env.aiProviderOrder;
     // 키 없는 프로바이더 제거
     return order.where((p) {
+      if (p == 'gemini') return Env.geminiApiKey.isNotEmpty;
       if (p == 'openai') return Env.openAiApiKey.isNotEmpty;
       if (p == 'anthropic') return Env.anthropicApiKey.isNotEmpty;
       return false;
@@ -607,6 +622,15 @@ class AiQuestionRepository {
     required int maxTokens,
   }) async {
     switch (provider) {
+      case 'gemini':
+        return _client.postGemini(
+          apiKey: Env.geminiApiKey,
+          model: Env.aiModelGemini,
+          systemPrompt: systemPrompt,
+          userMessage: userMessage,
+          temperature: temperature,
+          maxTokens: maxTokens,
+        );
       case 'openai':
         return _client.postOpenAi(
           apiKey: Env.openAiApiKey,
@@ -629,18 +653,63 @@ class AiQuestionRepository {
     }
   }
 
-  /// GPT 응답 JSON 파싱. 마크다운 코드블록 감싸진 경우도 처리.
+  /// AI 응답에서 JSON 객체를 안정적으로 추출·파싱한다.
+  ///
+  /// 처리 순서:
+  ///   1. trim
+  ///   2. ` ```json ... ``` ` 마크다운 코드블록 제거
+  ///   3. 첫 `{` ~ 마지막 `}` 사이 JSON 객체 부분만 추출
+  ///      → "Here is the JSON: {...}" 같은 자연어 앞에 붙는 케이스 처리
+  ///   4. jsonDecode 시도
+  ///   5. 실패 시 [FormatException] throw → 호출부에서 fallback 처리
   Map<String, dynamic> _parseResponse(String raw) {
-    // ```json ... ``` 블록 제거
-    var cleaned = raw.trim();
-    if (cleaned.startsWith('```')) {
-      final firstNewline = cleaned.indexOf('\n');
-      final lastFence = cleaned.lastIndexOf('```');
-      if (firstNewline != -1 && lastFence > firstNewline) {
-        cleaned = cleaned.substring(firstNewline + 1, lastFence).trim();
-      }
+    if (kDebugMode) {
+      final preview = raw.length > 120 ? '${raw.substring(0, 120)}…' : raw;
+      debugPrint('[AiResponseParser] raw(${raw.length}자) preview: $preview');
     }
-    return jsonDecode(cleaned) as Map<String, dynamic>;
+
+    var cleaned = raw.trim();
+
+    // Step 1: 마크다운 코드블록 제거
+    if (cleaned.contains('```')) {
+      cleaned = cleaned.replaceAll(RegExp(r'```(?:json)?\s*'), '').trim();
+    }
+
+    // Step 2: 첫 { ~ 마지막 } 사이만 추출 (앞뒤 자연어 제거)
+    final start = cleaned.indexOf('{');
+    final end = cleaned.lastIndexOf('}');
+    if (start != -1 && end > start) {
+      cleaned = cleaned.substring(start, end + 1);
+    }
+
+    try {
+      final result = jsonDecode(cleaned) as Map<String, dynamic>;
+      if (kDebugMode) debugPrint('[AiResponseParser] JSON 파싱 성공');
+      return result;
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[AiResponseParser] JSON 파싱 실패: $e');
+      }
+      rethrow;
+    }
+  }
+
+  /// [_parseResponse] 실패 시 raw text를 단일 필드로 재활용하는 fallback 파서.
+  ///
+  /// Gemini/OpenAI가 JSON 포맷을 완전히 무시하고 자연어만 반환한 경우,
+  /// 해당 텍스트를 [fieldName] 필드 값으로 감싸서 반환한다.
+  /// 예: fieldName='question' → {"question": "...raw text..."}
+  Map<String, dynamic> _parseResponseOrWrapRaw(String raw, String fieldName) {
+    try {
+      return _parseResponse(raw);
+    } catch (_) {
+      // JSON 파싱 완전 실패 → raw text를 필드 값으로 사용
+      final text = raw.trim();
+      if (kDebugMode) {
+        debugPrint('[AiResponseParser] fallback — raw text를 "$fieldName" 필드로 사용');
+      }
+      return {fieldName: text};
+    }
   }
 
   /// 질문 타입 풀에서 seed 기반으로 중복 없이 count개 선택
@@ -879,8 +948,130 @@ class AiQuestionRepository {
 // ── HTTP 래퍼 ─────────────────────────────────────────────────────────────────
 // `http` 패키지 사용 — Android/iOS/Web 모두 지원.
 // dio는 astrology feature 전용이므로 cross-feature 오염 방지 목적으로 분리.
+//
+// ⚠️ 보안 주의: 현재 세 API 모두 Flutter 클라이언트에서 직접 호출합니다.
+//    .env 파일이 flutter_assets에 번들되어 APK/IPA 추출 시 키 노출 위험이 있습니다.
+//    TODO: 프로덕션 배포 전 Firebase Functions 또는 백엔드 프록시로 이전 권장.
 
 class HttpClientWrapper {
+  // ── Gemini generateContent API ────────────────────────────────────────────
+  // 공식 문서: https://ai.google.dev/api/generate-content
+  // 모델: gemini-2.0-flash (기본), gemini-1.5-pro 등 변경 가능.
+  // systemInstruction + user contents 구조 사용.
+  Future<String> postGemini({
+    required String apiKey,
+    required String model,
+    required String systemPrompt,
+    required String userMessage,
+    required double temperature,
+    required int maxTokens,
+  }) async {
+    if (kDebugMode) debugPrint('[Gemini] 요청 시작: $model');
+
+    final url = _kGeminiEndpointTemplate
+        .replaceFirst('{model}', model)
+        .replaceFirst('{apiKey}', apiKey);
+
+    final response = await http.post(
+      Uri.parse(url),
+      headers: {'Content-Type': 'application/json; charset=utf-8'},
+      body: jsonEncode({
+        'systemInstruction': {
+          'parts': [
+            {'text': systemPrompt},
+          ],
+        },
+        'contents': [
+          {
+            'role': 'user',
+            'parts': [
+              {'text': userMessage},
+            ],
+          },
+        ],
+        'generationConfig': {
+          'temperature': temperature,
+          'maxOutputTokens': maxTokens,
+          // 순수 JSON만 반환 — 마크다운 코드블록(```json ... ```) 감싸기 방지
+          'responseMimeType': 'application/json',
+          // gemini-2.5-flash 등 thinking 모델에서 thinkingBudget=0 으로 thinking 비활성화.
+          // thinking 모드가 활성화되면 responseMimeType 이 무시되고
+          // "Here is the JSON requested:" 같은 자연어 preamble이 앞에 붙는다.
+          // thinking 을 끄면 JSON 강제 설정이 정상 동작한다.
+          // non-thinking 모델에서는 이 필드가 무시된다.
+          'thinkingConfig': {
+            'thinkingBudget': 0,
+          },
+        },
+      }),
+    );
+
+    if (response.statusCode == 429) {
+      // Gemini quota 초과 (RESOURCE_EXHAUSTED)
+      if (kDebugMode) {
+        debugPrint('[Gemini] 429 quota 초과: ${response.body}');
+      }
+      throw AiQuotaExceededException('gemini');
+    }
+
+    if (response.statusCode == 404) {
+      // 모델명이 잘못됐거나 deprecated된 경우 → OpenAI fallback으로 넘어가도록 일반 예외 throw.
+      // 사용자에게는 노출하지 않고 개발 로그에만 남긴다.
+      if (kDebugMode) {
+        debugPrint(
+          '[Gemini] 404 모델 미지원: $model\n'
+          '→ .env의 AI_MODEL_GEMINI_DEFAULT 값을 확인하세요.\n'
+          '→ 지원 모델 목록: https://ai.google.dev/gemini-api/docs/models',
+        );
+      }
+      throw Exception('Gemini 모델($model) 미지원 — OpenAI fallback');
+    }
+
+    if (response.statusCode != 200) {
+      throw Exception('Gemini API 오류 ${response.statusCode}: ${response.body}');
+    }
+
+    final Map<String, dynamic> json;
+    try {
+      json = jsonDecode(response.body) as Map<String, dynamic>;
+    } catch (_) {
+      throw Exception('Gemini 응답 body 파싱 실패: ${response.body.substring(0, response.body.length.clamp(0, 200))}');
+    }
+
+    // safety filter 등으로 candidates 가 없는 경우 처리
+    final candidates = json['candidates'] as List<dynamic>?;
+    if (candidates == null || candidates.isEmpty) {
+      // promptFeedback 에 blockReason 이 있으면 로그 출력
+      final feedback = json['promptFeedback'] as Map<String, dynamic>?;
+      final blockReason = feedback?['blockReason'] as String?;
+      if (kDebugMode) {
+        debugPrint('[Gemini] candidates 없음. blockReason=${blockReason ?? 'none'}');
+      }
+      throw Exception('Gemini 응답에 candidates가 없습니다 (blockReason=$blockReason)');
+    }
+
+    // candidates[0].content.parts[0].text 안전 추출
+    final firstCandidate = candidates.first as Map<String, dynamic>?;
+    final finishReason = firstCandidate?['finishReason'] as String?;
+    final contentMap = firstCandidate?['content'] as Map<String, dynamic>?;
+    final parts = contentMap?['parts'] as List<dynamic>?;
+    final firstPart = (parts != null && parts.isNotEmpty)
+        ? parts.first as Map<String, dynamic>?
+        : null;
+    final textRaw = firstPart?['text'];
+
+    if (textRaw == null) {
+      if (kDebugMode) {
+        debugPrint('[Gemini] text 추출 실패. finishReason=$finishReason candidate=$firstCandidate');
+      }
+      throw Exception('Gemini 응답에서 text를 추출할 수 없습니다 (finishReason=$finishReason)');
+    }
+
+    final text = textRaw.toString();
+    if (kDebugMode) debugPrint('[Gemini] 응답 완료 (${text.length}자)');
+    return text;
+  }
+
   // ── OpenAI Chat Completions ────────────────────────────────────────────────
   Future<String> postOpenAi({
     required String apiKey,
@@ -909,14 +1100,33 @@ class HttpClientWrapper {
       }),
     );
 
+    if (response.statusCode == 429) {
+      // OpenAI quota 초과 (insufficient_quota 또는 rate limit)
+      if (kDebugMode) {
+        debugPrint('[OpenAI] 429 quota 초과: ${response.body}');
+      }
+      throw AiQuotaExceededException('openai');
+    }
+
     if (response.statusCode != 200) {
       throw Exception('OpenAI API 오류 ${response.statusCode}: ${response.body}');
     }
 
-    final json = jsonDecode(response.body) as Map<String, dynamic>;
-    final choices = json['choices'] as List<dynamic>;
-    final content =
-        (choices.first as Map<String, dynamic>)['message']['content'] as String;
+    final Map<String, dynamic> json;
+    try {
+      json = jsonDecode(response.body) as Map<String, dynamic>;
+    } catch (_) {
+      throw Exception('OpenAI 응답 body 파싱 실패');
+    }
+    final choices = json['choices'] as List<dynamic>?;
+    if (choices == null || choices.isEmpty) {
+      throw Exception('OpenAI 응답에 choices가 없습니다');
+    }
+    final message = (choices.first as Map<String, dynamic>)['message'] as Map<String, dynamic>?;
+    final content = message?['content']?.toString() ?? '';
+    if (content.isEmpty) {
+      throw Exception('OpenAI 응답 content가 비어있습니다');
+    }
 
     if (kDebugMode) debugPrint('[OpenAI] 응답 완료 (${content.length}자)');
     return content;
@@ -949,16 +1159,49 @@ class HttpClientWrapper {
       }),
     );
 
+    if (response.statusCode == 429) {
+      if (kDebugMode) {
+        debugPrint('[Anthropic] 429 quota 초과: ${response.body}');
+      }
+      throw AiQuotaExceededException('anthropic');
+    }
+
     if (response.statusCode != 200) {
       throw Exception('Anthropic API 오류 ${response.statusCode}: ${response.body}');
     }
 
-    final json = jsonDecode(response.body) as Map<String, dynamic>;
-    final contentList = json['content'] as List<dynamic>;
-    final content =
-        (contentList.first as Map<String, dynamic>)['text'] as String;
+    final Map<String, dynamic> json;
+    try {
+      json = jsonDecode(response.body) as Map<String, dynamic>;
+    } catch (_) {
+      throw Exception('Anthropic 응답 body 파싱 실패');
+    }
+    final contentList = json['content'] as List<dynamic>?;
+    if (contentList == null || contentList.isEmpty) {
+      throw Exception('Anthropic 응답에 content가 없습니다');
+    }
+    final content = (contentList.first as Map<String, dynamic>?)?['text']?.toString() ?? '';
+    if (content.isEmpty) {
+      throw Exception('Anthropic 응답 text가 비어있습니다');
+    }
 
     if (kDebugMode) debugPrint('[Anthropic] 응답 완료 (${content.length}자)');
     return content;
   }
+}
+
+// ── 예외 클래스 ───────────────────────────────────────────────────────────────
+
+/// AI 프로바이더의 사용량(quota/rate limit) 초과를 나타내는 예외.
+///
+/// HTTP 429 응답 시 던져지며, 화면 catch 블록에서 사용자 친화적 토스트를 표시하는 데 사용됩니다.
+/// [provider]: 초과가 발생한 프로바이더 이름 ('gemini' | 'openai' | 'anthropic')
+class AiQuotaExceededException implements Exception {
+  const AiQuotaExceededException(this.provider);
+
+  final String provider;
+
+  @override
+  String toString() =>
+      'AiQuotaExceededException: $provider API 사용량이 초과되었습니다 (HTTP 429).';
 }
