@@ -112,7 +112,9 @@ ThemeData buildAppTheme() {
         backgroundColor: AppColors.primary,
         foregroundColor: AppColors.ink,
         elevation: 0,
-        minimumSize: const Size.fromHeight(52),
+        // Size.fromHeight(52) sets width=double.infinity, which breaks
+        // buttons placed directly inside Row/Flex children.
+        minimumSize: const Size(64, 52),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.button),
         ),
@@ -124,7 +126,8 @@ ThemeData buildAppTheme() {
       style: OutlinedButton.styleFrom(
         foregroundColor: AppColors.ink,
         side: const BorderSide(color: AppColors.glassBorder, width: 1),
-        minimumSize: const Size.fromHeight(52),
+        // Keep the 52px tap target height without forcing infinite width.
+        minimumSize: const Size(64, 52),
         backgroundColor: AppColors.glass,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.button),
