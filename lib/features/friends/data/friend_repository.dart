@@ -112,8 +112,10 @@ class FriendRepository {
           .map((d) => FriendRequest.fromMap(d.id, d.data()))
           .toList();
     } catch (e, st) {
+      // rethrow 하면 FutureProvider error 상태 → 재평가 루프 → freeze
+      // 로그만 남기고 빈 배열 반환 (Rules 미배포 시 PERMISSION_DENIED도 여기서 처리)
       debugPrint('[FriendRepository] getReceivedRequests 실패: $e\n$st');
-      rethrow;  // UI에서 error 상태로 표시 (조용히 삼키지 않음)
+      return [];
     }
   }
 
@@ -194,7 +196,7 @@ class FriendRepository {
       return friends;
     } catch (e, st) {
       debugPrint('[FriendRepository] getFriends 실패: $e\n$st');
-      rethrow;  // UI에서 error 상태로 표시
+      return [];
     }
   }
 

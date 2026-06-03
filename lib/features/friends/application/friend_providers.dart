@@ -22,13 +22,13 @@ final friendCodeRepositoryProvider = Provider<FriendCodeRepository>(
 
 /// 현재 사용자의 친구 목록. FRIEND-001, MAIN-001 에서 사용.
 /// invalidate() 하면 Firestore 재조회.
+// ref.read 사용 — repository를 watch하면 연쇄 재평가 루프 발생
 final friendListProvider = FutureProvider<List<Friend>>((ref) async {
-  final profileAsync = ref.watch(currentUserProfileProvider);
-  final profile = profileAsync.valueOrNull;
-  if (profile == null) return [];
-  return ref
-      .watch(friendRepositoryProvider)
-      .getFriends(profile.uid, profile.favoriteIds);
+  final uid = ref.watch(currentUserIdProvider).valueOrNull;
+  if (uid == null) return [];
+  final favoriteIds =
+      ref.watch(currentUserProfileProvider).valueOrNull?.favoriteIds ?? [];
+  return ref.read(friendRepositoryProvider).getFriends(uid, favoriteIds);
 });
 
 /// 즐겨찾기된 친구만 반환. 메인 화면 오빗 표시에 사용.
@@ -40,12 +40,9 @@ final favoriteFriendsProvider = Provider<List<Friend>>((ref) {
 
 /// 받은 친구 요청 목록.
 final receivedRequestsProvider = FutureProvider<List<FriendRequest>>((ref) async {
-  final profileAsync = ref.watch(currentUserProfileProvider);
-  final profile = profileAsync.valueOrNull;
-  if (profile == null) return [];
-  return ref
-      .watch(friendRepositoryProvider)
-      .getReceivedRequests(profile.uid);
+  final uid = ref.watch(currentUserIdProvider).valueOrNull;
+  if (uid == null) return [];
+  return ref.read(friendRepositoryProvider).getReceivedRequests(uid);
 });
 
 /// 내가 보낸 pending 친구 요청 목록.
@@ -54,7 +51,7 @@ final receivedRequestsProvider = FutureProvider<List<FriendRequest>>((ref) async
 final sentRequestsProvider = FutureProvider<List<SentRequest>>((ref) async {
   final uid = ref.watch(currentUserIdProvider).valueOrNull;
   if (uid == null) return [];
-  return ref.watch(friendRepositoryProvider).getSentRequests(uid);
+  return ref.read(friendRepositoryProvider).getSentRequests(uid);
 });
 
 /// 보낸 요청 취소. 완료 후 호출 측에서 sentRequestsProvider 를 invalidate 해야 함.
