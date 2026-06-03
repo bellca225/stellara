@@ -11,6 +11,7 @@ import '../../astrology/domain/birth_info.dart';
 import '../../onboarding/presentation/onboarding_screen.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../auth/presentation/landing_screen.dart';
+import '../../users/application/user_providers.dart';
 
 class MyPageScreen extends ConsumerWidget {
   const MyPageScreen({super.key});
@@ -19,10 +20,11 @@ class MyPageScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final birth = ref.watch(currentBirthInfoProvider);
     final asyncChart = ref.watch(myNatalChartProvider);
+    final profile = ref.watch(currentUserProfileProvider).valueOrNull;
     // birth 가 null 이면(profile 로딩 중 / birthInfo 미입력) demo 값으로 표시.
     final birthDisplay = birth ?? BirthInfo.demo();
     final user = ref.watch(currentUserProvider);
-    final friendCode = user?.friendCode ?? 'AQU2024';
+    final friendCode = (profile?.friendCode ?? user?.friendCode ?? '').trim();
 
     return StarBackground(
       child: SafeArea(
@@ -101,7 +103,7 @@ class MyPageScreen extends ConsumerWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          friendCode,
+                          friendCode.isNotEmpty ? friendCode : '—',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 28,
@@ -113,6 +115,14 @@ class MyPageScreen extends ConsumerWidget {
                       IconButton(
                         tooltip: '복사',
                         onPressed: () {
+                          if (friendCode.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('친구 코드가 아직 없어요. 친구 관리에서 생성해주세요.'),
+                              ),
+                            );
+                            return;
+                          }
                           Clipboard.setData(ClipboardData(text: friendCode));
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('친구 코드가 복사되었습니다')),
@@ -126,6 +136,14 @@ class MyPageScreen extends ConsumerWidget {
                       IconButton(
                         tooltip: '공유',
                         onPressed: () async {
+                          if (friendCode.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('친구 코드가 아직 없어요. 친구 관리에서 생성해주세요.'),
+                              ),
+                            );
+                            return;
+                          }
                           try {
                             await Share.share(
                               'Stellara에서 함께 별자리 궁합 봐요! 🌟\n'
@@ -136,7 +154,9 @@ class MyPageScreen extends ConsumerWidget {
                           } catch (_) {
                             if (context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('공유를 지원하지 않는 환경이에요.')),
+                                const SnackBar(
+                                  content: Text('공유를 지원하지 않는 환경이에요.'),
+                                ),
                               );
                             }
                           }
@@ -149,7 +169,7 @@ class MyPageScreen extends ConsumerWidget {
                     ],
                   ),
                   const Text(
-                    '친구에게 이 코드를 공유하고 함께 별자리를 탐색해보세요',
+                    '친구 코드가 있으면 친구에게 공유하고 함께 별자리를 탐색해보세요',
                     style: TextStyle(color: AppColors.inkMuted, height: 1.45),
                   ),
                 ],
@@ -210,8 +230,7 @@ class MyPageScreen extends ConsumerWidget {
                   ref.read(currentUserProvider.notifier).state = null;
                   if (context.mounted) {
                     Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(
-                          builder: (_) => const LandingScreen()),
+                      MaterialPageRoute(builder: (_) => const LandingScreen()),
                       (_) => false, // 스택 전체 제거
                     );
                   }

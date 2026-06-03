@@ -12,6 +12,7 @@ import '../../../core/input/app_input_formatters.dart';
 import '../application/auth_providers.dart';
 import '../data/auth_repository.dart';
 import '../data/login_id_repository.dart';
+import 'auth_entry_guard.dart';
 import '../../onboarding/presentation/onboarding_screen.dart';
 
 class SignUpScreen extends ConsumerStatefulWidget {
@@ -76,10 +77,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
     setState(() => _isLoading = true);
     try {
-      final user = await AuthRepository().signUp(
-        loginId: id,
-        password: pw,
-      );
+      final user = await AuthRepository().signUp(loginId: id, password: pw);
 
       if (!mounted) return;
       // Provider 에 세션 저장
@@ -133,6 +131,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final guarded = buildAuthEntryGuard(context, ref);
+    if (guarded != null) return guarded;
+
     return Scaffold(
       body: Stack(
         children: [
@@ -169,225 +170,236 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
           SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Column(
-              children: [
-                const SizedBox(height: 48),
+              child: Column(
+                children: [
+                  const SizedBox(height: 48),
 
-                // 아이콘
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF1A5FD4),
-                    shape: BoxShape.circle,
+                  // 아이콘
+                  Container(
+                    width: 80,
+                    height: 80,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF1A5FD4),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.person_add_rounded,
+                      color: Colors.white,
+                      size: 36,
+                    ),
                   ),
-                  child: const Icon(
-                    Icons.person_add_rounded,
-                    color: Colors.white,
-                    size: 36,
-                  ),
-                ),
 
-                const SizedBox(height: 24),
-                const Text(
-                  '계정 만들기',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 28,
-                    fontWeight: FontWeight.w700,
+                  const SizedBox(height: 24),
+                  const Text(
+                    '계정 만들기',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Stellara에 오신 것을 환영합니다',
-                  style: TextStyle(color: Colors.white54, fontSize: 14),
-                ),
-
-                const SizedBox(height: 40),
-
-                // 입력 폼
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0D1830).withOpacity(0.8),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white12),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Stellara에 오신 것을 환영합니다',
+                    style: TextStyle(color: Colors.white54, fontSize: 14),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // 아이디
-                      const Text(
-                        '아이디',
-                        style: TextStyle(color: Colors.white70, fontSize: 14),
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: _idCtrl,
-                        onChanged: _onIdChanged,
-                        keyboardType: TextInputType.emailAddress,
-                        textCapitalization: TextCapitalization.none,
-                        autocorrect: false,
-                        enableSuggestions: false,
-                        inputFormatters: <TextInputFormatter>[
-                          LoginIdTextFormatter(),
+
+                  const SizedBox(height: 40),
+
+                  // 입력 폼
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0D1830).withOpacity(0.8),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.white12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // 아이디
+                        const Text(
+                          '아이디',
+                          style: TextStyle(color: Colors.white70, fontSize: 14),
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _idCtrl,
+                          onChanged: _onIdChanged,
+                          keyboardType: TextInputType.emailAddress,
+                          textCapitalization: TextCapitalization.none,
+                          autocorrect: false,
+                          enableSuggestions: false,
+                          inputFormatters: <TextInputFormatter>[
+                            LoginIdTextFormatter(),
+                          ],
+                          style: const TextStyle(color: Colors.white),
+                          decoration: _inputDecoration('아이디를 입력하세요.'),
+                        ),
+                        if (_idError != null) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            _idError!,
+                            style: const TextStyle(
+                              color: Colors.redAccent,
+                              fontSize: 12,
+                            ),
+                          ),
                         ],
-                        style: const TextStyle(color: Colors.white),
-                        decoration: _inputDecoration('아이디를 입력하세요.'),
-                      ),
-                      if (_idError != null) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          _idError!,
-                          style: const TextStyle(
-                              color: Colors.redAccent, fontSize: 12),
+
+                        const SizedBox(height: 16),
+
+                        // 비밀번호
+                        const Text(
+                          '비밀번호',
+                          style: TextStyle(color: Colors.white70, fontSize: 14),
                         ),
-                      ],
-
-                      const SizedBox(height: 16),
-
-                      // 비밀번호
-                      const Text(
-                        '비밀번호',
-                        style: TextStyle(color: Colors.white70, fontSize: 14),
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: _pwCtrl,
-                        obscureText: _obscurePw,
-                        onChanged: (_) {
-                          if (_pwError != null) setState(() => _pwError = null);
-                        },
-                        style: const TextStyle(color: Colors.white),
-                        decoration: _inputDecoration('').copyWith(
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscurePw
-                                  ? Icons.visibility_off
-                                  : Icons.visibility,
-                              color: Colors.white38,
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _pwCtrl,
+                          obscureText: _obscurePw,
+                          onChanged: (_) {
+                            if (_pwError != null) {
+                              setState(() => _pwError = null);
+                            }
+                          },
+                          style: const TextStyle(color: Colors.white),
+                          decoration: _inputDecoration('').copyWith(
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscurePw
+                                    ? Icons.visibility_off
+                                    : Icons.visibility,
+                                color: Colors.white38,
+                              ),
+                              onPressed: () =>
+                                  setState(() => _obscurePw = !_obscurePw),
                             ),
-                            onPressed: () =>
-                                setState(() => _obscurePw = !_obscurePw),
                           ),
                         ),
-                      ),
 
-                      const SizedBox(height: 16),
+                        const SizedBox(height: 16),
 
-                      // 비밀번호 확인
-                      const Text(
-                        '비밀번호 확인',
-                        style: TextStyle(color: Colors.white70, fontSize: 14),
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: _pwConfirmCtrl,
-                        obscureText: _obscurePwConfirm,
-                        onChanged: (_) {
-                          if (_pwError != null) setState(() => _pwError = null);
-                        },
-                        style: const TextStyle(color: Colors.white),
-                        decoration: _inputDecoration('').copyWith(
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscurePwConfirm
-                                  ? Icons.visibility_off
-                                  : Icons.visibility,
-                              color: Colors.white38,
+                        // 비밀번호 확인
+                        const Text(
+                          '비밀번호 확인',
+                          style: TextStyle(color: Colors.white70, fontSize: 14),
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _pwConfirmCtrl,
+                          obscureText: _obscurePwConfirm,
+                          onChanged: (_) {
+                            if (_pwError != null) {
+                              setState(() => _pwError = null);
+                            }
+                          },
+                          style: const TextStyle(color: Colors.white),
+                          decoration: _inputDecoration('').copyWith(
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscurePwConfirm
+                                    ? Icons.visibility_off
+                                    : Icons.visibility,
+                                color: Colors.white38,
+                              ),
+                              onPressed: () => setState(
+                                () => _obscurePwConfirm = !_obscurePwConfirm,
+                              ),
                             ),
-                            onPressed: () => setState(
-                                () => _obscurePwConfirm = !_obscurePwConfirm),
                           ),
                         ),
-                      ),
-                      if (_pwError != null) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          _pwError!,
-                          style: const TextStyle(
-                              color: Colors.redAccent, fontSize: 12),
-                        ),
-                      ],
-
-                      if (_generalError != null) ...[
-                        const SizedBox(height: 12),
-                        Text(
-                          _generalError!,
-                          style: const TextStyle(
-                              color: Colors.redAccent, fontSize: 13),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-
-                      const SizedBox(height: 24),
-
-                      // 계정 만들기 버튼
-                      SizedBox(
-                        width: double.infinity,
-                        height: 52,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF1A5FD4),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30),
+                        if (_pwError != null) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            _pwError!,
+                            style: const TextStyle(
+                              color: Colors.redAccent,
+                              fontSize: 12,
                             ),
-                            elevation: 0,
                           ),
-                          onPressed: _isLoading ? null : _submit,
-                          child: _isLoading
-                              ? const SizedBox(
-                                  width: 22,
-                                  height: 22,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
+                        ],
+
+                        if (_generalError != null) ...[
+                          const SizedBox(height: 12),
+                          Text(
+                            _generalError!,
+                            style: const TextStyle(
+                              color: Colors.redAccent,
+                              fontSize: 13,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+
+                        const SizedBox(height: 24),
+
+                        // 계정 만들기 버튼
+                        SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF1A5FD4),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                              elevation: 0,
+                            ),
+                            onPressed: _isLoading ? null : _submit,
+                            child: _isLoading
+                                ? const SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Text(
+                                    '계정 만들기',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
-                                )
-                              : const Text(
-                                  '계정 만들기',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // 이미 계정이 있으신가요?
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text(
+                        '이미 계정이 있으신가요? ',
+                        style: TextStyle(color: Colors.white54),
+                      ),
+                      GestureDetector(
+                        onTap: () => Navigator.of(context).pop(),
+                        child: const Text(
+                          '로그인',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            decoration: TextDecoration.underline,
+                            decorationColor: Colors.white,
+                          ),
                         ),
                       ),
                     ],
                   ),
-                ),
 
-                const SizedBox(height: 24),
-
-                // 이미 계정이 있으신가요?
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text(
-                      '이미 계정이 있으신가요? ',
-                      style: TextStyle(color: Colors.white54),
-                    ),
-                    GestureDetector(
-                      onTap: () => Navigator.of(context).pop(),
-                      child: const Text(
-                        '로그인',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                          decoration: TextDecoration.underline,
-                          decorationColor: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 32),
-              ],
+                  const SizedBox(height: 32),
+                ],
+              ),
             ),
           ),
-        ),
         ],
       ),
     );
@@ -407,8 +419,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
         borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: Color(0xFF1A5FD4), width: 1.5),
       ),
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     );
   }
 }

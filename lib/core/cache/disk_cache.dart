@@ -133,6 +133,19 @@ class CacheKeys {
     return 'daily.$signSlug.$ymd';
   }
 
+  /// 로그인 사용자 기준 오늘의 운세 캐시 키.
+  /// birth 정보가 바뀌면 chartVersion 이 달라져 자동 cache miss 된다.
+  static String dailyForUser(
+    String uid,
+    String signSlug,
+    String chartVersion,
+    DateTime date,
+  ) {
+    String pad(int n) => n.toString().padLeft(2, '0');
+    final ymd = '${date.year}${pad(date.month)}${pad(date.day)}';
+    return 'daily.$uid.$chartVersion.$signSlug.$ymd';
+  }
+
   /// synastry 키.
   /// pairKey + chartPairVersion 조합을 사용해
   /// 사용자 쌍이 같더라도 출생 정보 변경 시 자동 cache miss 되도록 한다.

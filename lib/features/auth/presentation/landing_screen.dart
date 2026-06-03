@@ -1,19 +1,21 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'auth_entry_guard.dart';
 import 'login_screen.dart';
 import 'signup_screen.dart';
 
-class LandingScreen extends StatefulWidget {
+class LandingScreen extends ConsumerStatefulWidget {
   const LandingScreen({super.key});
 
   @override
-  State<LandingScreen> createState() => _LandingScreenState();
+  ConsumerState<LandingScreen> createState() => _LandingScreenState();
 }
 
-class _LandingScreenState extends State<LandingScreen>
+class _LandingScreenState extends ConsumerState<LandingScreen>
     with TickerProviderStateMixin {
   late AnimationController _fadeCtrl;
   late AnimationController _glowCtrl;
@@ -44,6 +46,9 @@ class _LandingScreenState extends State<LandingScreen>
 
   @override
   Widget build(BuildContext context) {
+    final guarded = buildAuthEntryGuard(context, ref);
+    if (guarded != null) return guarded;
+
     return Scaffold(
       body: Stack(
         children: [
@@ -158,10 +163,8 @@ class _StarFieldState extends State<_StarField>
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _ctrl,
-      builder: (_, __) => CustomPaint(
-        painter: _StarPainter(_ctrl.value),
-        child: Container(),
-      ),
+      builder: (_, __) =>
+          CustomPaint(painter: _StarPainter(_ctrl.value), child: Container()),
     );
   }
 }
@@ -172,12 +175,15 @@ class _StarPainter extends CustomPainter {
 
   static final List<List<double>> _stars = () {
     final rng = math.Random(42);
-    return List.generate(200, (_) => [
-          rng.nextDouble(),
-          rng.nextDouble(),
-          rng.nextDouble() * 1.4 + 0.4,
-          rng.nextDouble() * 0.65 + 0.35,
-        ]);
+    return List.generate(
+      200,
+      (_) => [
+        rng.nextDouble(),
+        rng.nextDouble(),
+        rng.nextDouble() * 1.4 + 0.4,
+        rng.nextDouble() * 0.65 + 0.35,
+      ],
+    );
   }();
 
   @override
@@ -197,8 +203,8 @@ class _StarPainter extends CustomPainter {
       final r = s[2];
       final base = s[3];
       final phase = (x + y) / (size.width + size.height);
-      final alpha =
-          (base * (0.55 + 0.45 * math.sin((t + phase) * math.pi))).clamp(0.0, 1.0);
+      final alpha = (base * (0.55 + 0.45 * math.sin((t + phase) * math.pi)))
+          .clamp(0.0, 1.0);
       final paint = Paint()
         ..color = Colors.white.withOpacity(alpha)
         ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.5);

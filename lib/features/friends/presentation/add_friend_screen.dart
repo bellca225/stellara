@@ -28,6 +28,7 @@ class _AddFriendScreenState extends ConsumerState<AddFriendScreen> {
 
   bool _isSearching = false;
   bool _isSending = false;
+  bool _isIssuingCode = false;
   Map<String, dynamic>? _searchResult;
   String? _error;
 
@@ -58,8 +59,9 @@ class _AddFriendScreenState extends ConsumerState<AddFriendScreen> {
     });
 
     try {
-      final result =
-          await ref.read(friendRepositoryProvider).findUserByCode(code);
+      final result = await ref
+          .read(friendRepositoryProvider)
+          .findUserByCode(code);
       if (!mounted) return;
 
       if (result == null) {
@@ -86,16 +88,18 @@ class _AddFriendScreenState extends ConsumerState<AddFriendScreen> {
 
     setState(() => _isSending = true);
     try {
-      await ref.read(friendRepositoryProvider).sendRequest(
+      await ref
+          .read(friendRepositoryProvider)
+          .sendRequest(
             fromUid: uid,
             fromNickname: profile?.effectiveDisplayName ?? '',
             fromSunSign: profile?.sunSign ?? '-',
             toUid: toUid,
           );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('친구 요청을 보냈어요!')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('친구 요청을 보냈어요!')));
       setState(() {
         _searchResult = null;
         _codeCtrl.clear();
@@ -104,8 +108,9 @@ class _AddFriendScreenState extends ConsumerState<AddFriendScreen> {
       ref.invalidate(sentRequestsProvider);
     } on FriendError catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     } catch (e) {
       if (mounted) {
@@ -118,16 +123,54 @@ class _AddFriendScreenState extends ConsumerState<AddFriendScreen> {
     }
   }
 
+  Future<void> _copyMyCode(String code) async {
+    if (code.trim().isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('복사할 친구 코드가 아직 없어요.')));
+      return;
+    }
+    await Clipboard.setData(ClipboardData(text: code));
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('내 친구 코드가 복사되었습니다.')));
+  }
+
+  Future<void> _issueMyCode() async {
+    final uid = ref.read(currentUserIdProvider).valueOrNull;
+    if (uid == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('로그인 정보를 확인할 수 없어요.')));
+      return;
+    }
+
+    setState(() => _isIssuingCode = true);
+    try {
+      final code = await ref.read(friendCodeRepositoryProvider).issue(uid);
+      ref.invalidate(currentUserProfileProvider);
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('친구 코드가 생성되었습니다: $code')));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('친구 코드 생성에 실패했어요. 다시 시도해주세요.')),
+      );
+    } finally {
+      if (mounted) setState(() => _isIssuingCode = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final profile = ref.watch(currentUserProfileProvider).valueOrNull;
     final myCode = profile?.friendCode ?? '';
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('친구 관리'),
-        centerTitle: false,
-      ),
+      appBar: AppBar(title: const Text('친구 관리'), centerTitle: false),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -136,10 +179,7 @@ class _AddFriendScreenState extends ConsumerState<AddFriendScreen> {
             child: const Text(
               '친구의 코드를 입력하여 친구 요청을 보낼 수 있습니다.\n'
               '친구가 수락하면 함께 궁합을 볼 수 있습니다.',
-              style: TextStyle(
-                color: AppColors.inkMuted,
-                height: 1.5,
-              ),
+              style: TextStyle(color: AppColors.inkMuted, height: 1.5),
             ),
           ),
           const SizedBox(height: 20),
@@ -184,7 +224,9 @@ class _AddFriendScreenState extends ConsumerState<AddFriendScreen> {
                           width: 18,
                           height: 18,
                           child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white),
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         )
                       : const Icon(Icons.search_rounded),
                 ),
@@ -199,13 +241,14 @@ class _AddFriendScreenState extends ConsumerState<AddFriendScreen> {
               child: Row(
                 children: [
                   _Avatar(
-                    initial: (_searchResult!['displayName'] as String? ??
+                    initial:
+                        (_searchResult!['displayName'] as String? ??
                                 _searchResult!['nickname'] as String? ??
                                 '?')
                             .isNotEmpty
                         ? (_searchResult!['displayName'] as String? ??
-                                _searchResult!['nickname'] as String? ??
-                                '?')[0]
+                              _searchResult!['nickname'] as String? ??
+                              '?')[0]
                         : '?',
                   ),
                   const SizedBox(width: 12),
@@ -236,7 +279,8 @@ class _AddFriendScreenState extends ConsumerState<AddFriendScreen> {
                       onPressed: _isSending
                           ? null
                           : () => _sendRequest(
-                              _searchResult!['uid'] as String? ?? ''),
+                              _searchResult!['uid'] as String? ?? '',
+                            ),
                       child: _isSending
                           ? const SizedBox(
                               width: 16,
@@ -258,30 +302,59 @@ class _AddFriendScreenState extends ConsumerState<AddFriendScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  '내 친구 코드',
-                  style: TextStyle(
-                    color: AppColors.inkMuted,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        '내 친구 코드',
+                        style: TextStyle(
+                          color: AppColors.inkMuted,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    if (myCode.isNotEmpty)
+                      IconButton(
+                        tooltip: '복사',
+                        onPressed: () => _copyMyCode(myCode),
+                        icon: const Icon(
+                          Icons.copy_all_outlined,
+                          color: AppColors.primaryLight,
+                        ),
+                      ),
+                  ],
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  myCode.isNotEmpty ? myCode : '—',
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 3,
+                if (myCode.isNotEmpty)
+                  Text(
+                    myCode,
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 3,
+                    ),
+                  )
+                else
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: _isIssuingCode ? null : _issueMyCode,
+                      child: _isIssuingCode
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('내 친구 코드 만들기'),
+                    ),
                   ),
-                ),
                 const SizedBox(height: 6),
-                const Text(
-                  '이 코드를 친구에게 공유하세요',
-                  style: TextStyle(
-                    color: AppColors.inkSubtle,
-                    fontSize: 13,
-                  ),
+                Text(
+                  myCode.isNotEmpty
+                      ? '이 코드를 친구에게 공유하세요'
+                      : '친구 추가용 코드를 먼저 생성해주세요',
+                  style: TextStyle(color: AppColors.inkSubtle, fontSize: 13),
                 ),
               ],
             ),

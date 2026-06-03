@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/input/app_input_formatters.dart';
 import '../application/auth_providers.dart';
 import '../data/auth_repository.dart';
+import 'auth_entry_guard.dart';
 import '../presentation/signup_screen.dart';
 import '../../onboarding/app_shell.dart';
 import '../../onboarding/presentation/onboarding_screen.dart';
@@ -77,6 +78,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final guarded = buildAuthEntryGuard(context, ref);
+    if (guarded != null) return guarded;
+
     return Scaffold(
       body: Stack(
         children: [
@@ -245,7 +249,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           Text(
                             _error!,
                             style: const TextStyle(
-                                color: Colors.redAccent, fontSize: 13),
+                              color: Colors.redAccent,
+                              fontSize: 13,
+                            ),
                             textAlign: TextAlign.center,
                           ),
                         ],
@@ -299,7 +305,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       GestureDetector(
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(
-                              builder: (_) => const SignUpScreen()),
+                            builder: (_) => const SignUpScreen(),
+                          ),
                         ),
                         child: const Text(
                           '계정 만들기',
@@ -348,8 +355,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: Color(0xFF1A5FD4), width: 1.5),
       ),
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     );
   }
 }
