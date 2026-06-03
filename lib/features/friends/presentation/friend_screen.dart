@@ -7,6 +7,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../auth/application/auth_providers.dart';
 import '../application/friend_providers.dart';
 import '../domain/friend.dart';
+import '../../compatibility/presentation/match_screen.dart';
 
 const _svgBack = '''
 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -490,7 +491,12 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
                           child: _FriendCard(
                             friend: f,
                             onFavorite: () => _toggleFavorite(f),
-                            onCompatibility: () {},
+                            onCompatibility: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    MatchScreen(initialFriendUid: f.uid),
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -502,7 +508,12 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
                         child: _FriendCard(
                           friend: f,
                           onFavorite: () => _toggleFavorite(f),
-                          onCompatibility: () {},
+                          onCompatibility: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  MatchScreen(initialFriendUid: f.uid),
+                            ),
+                          ),
                         ),
                       ),
                     ),

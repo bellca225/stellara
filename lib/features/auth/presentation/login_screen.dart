@@ -1,19 +1,23 @@
-// lib/features/auth/presentation/login_screen.dart
-//
-// 로그인 화면. 디자이너 목업 기준.
-// CSS/스타일은 디자인 담당자가 다듬을 예정.
-
+﻿import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../core/input/app_input_formatters.dart';
 import '../application/auth_providers.dart';
 import '../data/auth_repository.dart';
-import 'auth_entry_guard.dart';
-import '../presentation/signup_screen.dart';
+import 'signup_screen.dart';
 import '../../onboarding/app_shell.dart';
 import '../../onboarding/presentation/onboarding_screen.dart';
+
+const _svgLogin = '''
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M19.9988 3.99976H25.3318C26.039 3.99976 26.7172 4.28069 27.2173 4.78076C27.7173 5.28082 27.9983 5.95906 27.9983 6.66626V25.3318C27.9983 26.039 27.7173 26.7172 27.2173 27.2173C26.7172 27.7173 26.039 27.9983 25.3318 27.9983H19.9988" stroke="white" stroke-width="2.6665" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M13.3325 22.6652L19.9988 15.999L13.3325 9.33275" stroke="white" stroke-width="2.6665" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M19.9988 15.999H3.99976" stroke="white" stroke-width="2.6665" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+''';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -40,26 +44,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _login() async {
     final id = _idCtrl.text.trim();
     final pw = _pwCtrl.text;
-
     if (id.isEmpty || pw.isEmpty) {
       setState(() => _error = '아이디와 비밀번호를 입력해주세요.');
       return;
     }
-
     setState(() {
       _isLoading = true;
       _error = null;
     });
-
     try {
       final user = await AuthRepository().signInWithId(
         loginId: id,
         password: pw,
       );
-
       if (!mounted) return;
       ref.read(currentUserProvider.notifier).state = user;
-
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => user.profileCompleted
@@ -78,27 +77,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final guarded = buildAuthEntryGuard(context, ref);
-    if (guarded != null) return guarded;
-
     return Scaffold(
       body: Stack(
         children: [
-          // 배경 그라디언트
           Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [Color(0xFF0A0A1F), Color(0xFF08235F)],
+                colors: [
+                  Color(0xFF060618),
+                  Color(0xFF0A0F2E),
+                  Color(0xFF0D1F5C),
+                ],
+                stops: [0.0, 0.5, 1.0],
               ),
             ),
           ),
-          // 별 배경
           ...List.generate(40, (i) {
             final x = (i * 137.5) % 100;
             final y = (i * 97.3) % 100;
-            final size = (i % 3 + 1).toDouble();
+            final size = (i % 3 + 1) * 0.6;
             final opacity = (i % 5 + 3) / 10;
             return Positioned(
               left: x / 100 * MediaQuery.of(context).size.width,
@@ -116,124 +115,98 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
             );
           }),
-          // 콘텐츠
           SafeArea(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
+              padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Column(
                 children: [
                   const SizedBox(height: 48),
-
-                  // 아이콘
                   Container(
                     width: 80,
                     height: 80,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF1A5FD4),
+                    decoration: BoxDecoration(
                       shape: BoxShape.circle,
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFF2B7FFF), Color(0xFF155DFC)],
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF2B7FFF).withOpacity(0.4),
+                          blurRadius: 20,
+                        ),
+                      ],
                     ),
-                    child: const Icon(
-                      Icons.login_rounded,
-                      color: Colors.white,
-                      size: 36,
+                    child: Center(
+                      child: SvgPicture.string(
+                        _svgLogin,
+                        width: 32,
+                        height: 32,
+                      ),
                     ),
                   ),
-
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
                   const Text(
                     '로그인',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 28,
+                      fontSize: 24,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'Stellara에 다시 오신 것을 환영합니다',
-                    style: TextStyle(color: Colors.white54, fontSize: 14),
+                    'Stellarara에 다시 오신 것을 환영합니다',
+                    style: TextStyle(color: Color(0xFF8EC5FF), fontSize: 14),
                   ),
-
-                  const SizedBox(height: 40),
-
-                  // 입력 폼
+                  const SizedBox(height: 32),
                   Container(
-                    padding: const EdgeInsets.all(24),
+                    padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0D1830).withOpacity(0.8),
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0x22FFFFFF), Color(0x11FFFFFF)],
+                      ),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.white12),
+                      border: Border.all(color: Colors.white.withOpacity(0.12)),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          '아이디',
-                          style: TextStyle(color: Colors.white70, fontSize: 14),
-                        ),
+                        _fieldLabel('아이디'),
                         const SizedBox(height: 8),
-                        TextField(
+                        _inputField(
                           controller: _idCtrl,
-                          keyboardType: TextInputType.emailAddress,
-                          textCapitalization: TextCapitalization.none,
-                          autocorrect: false,
-                          enableSuggestions: false,
-                          inputFormatters: <TextInputFormatter>[
-                            LoginIdTextFormatter(),
-                          ],
-                          style: const TextStyle(color: Colors.white),
-                          decoration: _inputDecoration('아이디를 입력하세요.'),
+                          hint: '아이디를 입력하세요.',
                           onSubmitted: (_) => _login(),
+                          inputFormatters: [LoginIdTextFormatter()],
                         ),
-
                         const SizedBox(height: 16),
-
-                        const Text(
-                          '비밀번호',
-                          style: TextStyle(color: Colors.white70, fontSize: 14),
-                        ),
+                        _fieldLabel('비밀번호'),
                         const SizedBox(height: 8),
-                        TextField(
+                        _inputField(
                           controller: _pwCtrl,
-                          obscureText: _obscurePw,
-                          style: const TextStyle(color: Colors.white),
-                          decoration: _inputDecoration('').copyWith(
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _obscurePw
-                                    ? Icons.visibility_off
-                                    : Icons.visibility,
-                                color: Colors.white38,
-                              ),
-                              onPressed: () =>
-                                  setState(() => _obscurePw = !_obscurePw),
-                            ),
-                          ),
+                          hint: '',
+                          obscure: _obscurePw,
                           onSubmitted: (_) => _login(),
+                          suffix: IconButton(
+                            icon: Icon(
+                              _obscurePw
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                              color: Colors.white38,
+                              size: 20,
+                            ),
+                            onPressed: () =>
+                                setState(() => _obscurePw = !_obscurePw),
+                          ),
                         ),
-
                         Align(
                           alignment: Alignment.centerRight,
                           child: TextButton(
-                            onPressed: () {
-                              showDialog<void>(
-                                context: context,
-                                builder: (_) => AlertDialog(
-                                  title: const Text('비밀번호 찾기'),
-                                  content: const Text(
-                                    '비밀번호 재설정은 현재 준비 중이에요.\n'
-                                    '아이디를 기억하고 계신다면 개발팀에 문의해 주세요.',
-                                  ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () =>
-                                          Navigator.of(context).pop(),
-                                      child: const Text('확인'),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
+                            onPressed: () {},
                             child: const Text(
                               '비밀번호를 잊으셨나요?',
                               style: TextStyle(
@@ -243,7 +216,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ),
                           ),
                         ),
-
                         if (_error != null) ...[
                           const SizedBox(height: 4),
                           Text(
@@ -255,74 +227,77 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             textAlign: TextAlign.center,
                           ),
                         ],
-
                         const SizedBox(height: 8),
-
                         SizedBox(
                           width: double.infinity,
                           height: 52,
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF1A5FD4),
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30),
+                          child: GestureDetector(
+                            onTap: _isLoading ? null : _login,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [
+                                    Color(0xFF2B7FFF),
+                                    Color(0xFF155DFC),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(0.15),
+                                  width: 0.636,
+                                ),
                               ),
-                              elevation: 0,
+                              child: Center(
+                                child: _isLoading
+                                    ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : const Text(
+                                        '로그인',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                              ),
                             ),
-                            onPressed: _isLoading ? null : _login,
-                            child: _isLoading
-                                ? const SizedBox(
-                                    width: 22,
-                                    height: 22,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : const Text(
-                                    '로그인',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
                           ),
                         ),
                       ],
                     ),
                   ),
-
-                  const SizedBox(height: 24),
-
+                  const SizedBox(height: 18),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Text(
                         '계정이 없으신가요? ',
-                        style: TextStyle(color: Colors.white54),
+                        style: TextStyle(color: Colors.white54, fontSize: 13),
                       ),
                       GestureDetector(
                         onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const SignUpScreen(),
-                          ),
+                          MaterialPageRoute(builder: (_) => SignUpScreen()),
                         ),
                         child: const Text(
                           '계정 만들기',
                           style: TextStyle(
-                            color: Colors.white,
+                            color: Color(0xFF5B9BFF),
+                            fontSize: 13,
                             fontWeight: FontWeight.w700,
                             decoration: TextDecoration.underline,
-                            decorationColor: Colors.white,
+                            decorationColor: Color(0xFF5B9BFF),
                           ),
                         ),
                       ),
                     ],
                   ),
-
-                  const SizedBox(height: 16),
-
+                  const SizedBox(height: 8),
                   TextButton(
                     onPressed: () => Navigator.of(context).maybePop(),
                     child: const Text(
@@ -330,7 +305,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       style: TextStyle(color: Colors.white38, fontSize: 13),
                     ),
                   ),
-
                   const SizedBox(height: 32),
                 ],
               ),
@@ -341,21 +315,54 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  InputDecoration _inputDecoration(String hint) {
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: const TextStyle(color: Colors.white24),
-      filled: true,
-      fillColor: Colors.white.withOpacity(0.07),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide.none,
+  Widget _fieldLabel(String text) => Text(
+    text,
+    style: const TextStyle(
+      color: Color(0xFF8EC5FF),
+      fontSize: 13,
+      fontWeight: FontWeight.w500,
+    ),
+  );
+
+  Widget _inputField({
+    required TextEditingController controller,
+    required String hint,
+    bool obscure = false,
+    ValueChanged<String>? onChanged,
+    ValueChanged<String>? onSubmitted,
+    List<TextInputFormatter>? inputFormatters,
+    Widget? suffix,
+  }) {
+    return TextField(
+      controller: controller,
+      obscureText: obscure,
+      onChanged: onChanged,
+      onSubmitted: onSubmitted,
+      inputFormatters: inputFormatters,
+      style: const TextStyle(color: Colors.white, fontSize: 15),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: const TextStyle(color: Color(0x668EC5FF)),
+        filled: true,
+        fillColor: Colors.white.withOpacity(0.07),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF2B7FFF), width: 1.5),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
+        suffixIcon: suffix,
       ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFF1A5FD4), width: 1.5),
-      ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     );
   }
 }
