@@ -6,8 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/input/app_input_formatters.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/panel.dart';
-import '../../auth/application/auth_providers.dart';
 import '../../compatibility/presentation/match_screen.dart';
+import '../../users/application/user_providers.dart';
 import '../application/friend_providers.dart';
 import '../data/friend_repository.dart';
 import '../domain/friend.dart';
@@ -26,7 +26,7 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
   bool _isSendingRequest = false;
   Map<String, dynamic>? _searchResult;
   String? _searchError;
-  bool _showFriends = true;
+  _FriendTab _tab = _FriendTab.friends;
 
   @override
   void dispose() {
@@ -46,7 +46,7 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
       return;
     }
 
-    final myUid = ref.read(currentUserProvider)?.uid;
+    final myUid = ref.read(currentUserIdProvider).valueOrNull;
 
     setState(() {
       _isSearching = true;
@@ -82,8 +82,15 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
 
   // ── 친구 요청 전송 ──────────────────────────────────────────────
   Future<void> _sendRequest(String toUid, String toNickname) async {
-    final user = ref.read(currentUserProvider);
-    if (user == null) return;
+    // currentUserProfileProvider 우선 → StateProvider fallback (로그인 복구 안전성)
+    final profile = ref.read(currentUserProfileProvider).valueOrNull;
+    final uid = profile?.uid ?? ref.read(currentUserIdProvider).valueOrNull;
+    if (uid == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('로그인 정보를 확인할 수 없어요. 다시 로그인해주세요.')),
+      );
+      return;
+    }
 
     setState(() => _isSendingRequest = true);
 
@@ -91,9 +98,9 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
       await ref
           .read(friendRepositoryProvider)
           .sendRequest(
-            fromUid: user.uid,
-            fromNickname: user.nickname,
-            fromSunSign: user.sunSign ?? '-',
+            fromUid: uid,
+            fromNickname: profile?.nickname ?? '',
+            fromSunSign: profile?.sunSign ?? '-',
             toUid: toUid,
           );
 
@@ -130,8 +137,9 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
 
   // ── 친구 요청 수락 ──────────────────────────────────────────────
   Future<void> _acceptRequest(FriendRequest request) async {
-    final user = ref.read(currentUserProvider);
-    if (user == null) return;
+    final uid = ref.read(currentUserProfileProvider).valueOrNull?.uid
+        ?? ref.read(currentUserIdProvider).valueOrNull;
+    if (uid == null) return;
 
     try {
       await ref
@@ -139,7 +147,7 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
           .acceptRequest(
             requestId: request.requestId,
             fromUid: request.fromUid,
-            toUid: user.uid,
+            toUid: uid,
           );
       ref.invalidate(friendListProvider);
       ref.invalidate(receivedRequestsProvider);
@@ -213,13 +221,33 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
     return '요청 전송에 실패했어요. 잠시 후 다시 시도해주세요.';
   }
 
+  // ── 보낸 요청 취소 ──────────────────────────────────────────────
+  Future<void> _cancelRequest(SentRequest request) async {
+    try {
+      await ref.read(friendRepositoryProvider).cancelRequest(request.requestId);
+      ref.invalidate(sentRequestsProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('요청을 취소했어요.')));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('취소에 실패했어요. 다시 시도해주세요.')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final friendsAsync = ref.watch(friendListProvider);
     final requestsAsync = ref.watch(receivedRequestsProvider);
+    final sentAsync = ref.watch(sentRequestsProvider);
 
     final friendCount = friendsAsync.valueOrNull?.length ?? 0;
     final requestCount = requestsAsync.valueOrNull?.length ?? 0;
+    final sentCount = sentAsync.valueOrNull?.length ?? 0;
 
     return Scaffold(
       body: SafeArea(
@@ -360,26 +388,35 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
             const SizedBox(height: AppSpacing.md),
 
             // ── 탭 ─────────────────────────────────────────────
-            Row(
-              children: [
-                _TabChip(
-                  label: '전체 친구 ($friendCount)',
-                  isSelected: _showFriends,
-                  onTap: () => setState(() => _showFriends = true),
-                ),
-                const SizedBox(width: 8),
-                _TabChip(
-                  label: '받은 요청 ($requestCount)',
-                  isSelected: !_showFriends,
-                  onTap: () => setState(() => _showFriends = false),
-                ),
-              ],
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _TabChip(
+                    label: '전체 친구 ($friendCount)',
+                    isSelected: _tab == _FriendTab.friends,
+                    onTap: () => setState(() => _tab = _FriendTab.friends),
+                  ),
+                  const SizedBox(width: 8),
+                  _TabChip(
+                    label: '받은 요청 ($requestCount)',
+                    isSelected: _tab == _FriendTab.received,
+                    onTap: () => setState(() => _tab = _FriendTab.received),
+                  ),
+                  const SizedBox(width: 8),
+                  _TabChip(
+                    label: '보낸 요청 ($sentCount)',
+                    isSelected: _tab == _FriendTab.sent,
+                    onTap: () => setState(() => _tab = _FriendTab.sent),
+                  ),
+                ],
+              ),
             ),
 
             const SizedBox(height: AppSpacing.md),
 
-            // ── 친구 목록 ───────────────────────────────────────
-            if (_showFriends)
+            // ── 탭 콘텐츠 ──────────────────────────────────────
+            if (_tab == _FriendTab.friends)
               friendsAsync.when(
                 loading: () => const Padding(
                   padding: EdgeInsets.all(24),
@@ -425,7 +462,7 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
                         ),
                       ),
               )
-            else
+            else if (_tab == _FriendTab.received)
               requestsAsync.when(
                 loading: () => const Padding(
                   padding: EdgeInsets.all(24),
@@ -454,6 +491,40 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
                                 onReject: () => _rejectRequest(requests[i]),
                               ),
                               if (i != requests.length - 1)
+                                const Divider(height: 24),
+                            ],
+                          ],
+                        ),
+                      ),
+              )
+            else
+              sentAsync.when(
+                loading: () => const Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+                error: (e, _) => Panel(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text('보낸 요청을 불러오지 못했어요: $e'),
+                  ),
+                ),
+                data: (sentList) => sentList.isEmpty
+                    ? const Panel(
+                        child: Padding(
+                          padding: EdgeInsets.all(24),
+                          child: Center(child: Text('보낸 친구 요청이 없어요.')),
+                        ),
+                      )
+                    : Panel(
+                        child: Column(
+                          children: [
+                            for (var i = 0; i < sentList.length; i++) ...[
+                              _SentRequestRow(
+                                request: sentList[i],
+                                onCancel: () => _cancelRequest(sentList[i]),
+                              ),
+                              if (i != sentList.length - 1)
                                 const Divider(height: 24),
                             ],
                           ],
@@ -651,3 +722,55 @@ class _InitialBadge extends StatelessWidget {
     );
   }
 }
+
+// ── 보낸 요청 행 ────────────────────────────────────────────────────
+
+class _SentRequestRow extends StatelessWidget {
+  const _SentRequestRow({
+    required this.request,
+    required this.onCancel,
+  });
+
+  final SentRequest request;
+  final VoidCallback onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        _InitialBadge(initial: request.initial),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                request.toNickname,
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+              const Text(
+                '수락 대기 중',
+                style: TextStyle(color: AppColors.inkMuted, fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(
+          width: 72,
+          child: OutlinedButton(
+            onPressed: onCancel,
+            style: OutlinedButton.styleFrom(
+              padding: EdgeInsets.zero,
+              textStyle: const TextStyle(fontSize: 13),
+            ),
+            child: const Text('취소'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── 탭 열거형 ───────────────────────────────────────────────────────
+
+enum _FriendTab { friends, received, sent }

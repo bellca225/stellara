@@ -12,7 +12,7 @@
 // SDD 4.1 중 Cloud Functions 경로는 Blaze 전환 시 이전. 현재는 클라이언트 직접 처리.
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../domain/friend.dart';
+import '../domain/friend.dart'; // Friend, FriendRequest, SentRequest
 
 class FriendRepository {
   final _db = FirebaseFirestore.instance;
@@ -187,6 +187,42 @@ class FriendRepository {
     } catch (_) {
       return [];
     }
+  }
+
+  // ── 보낸 친구 요청 목록 (pending) ────────────────────────────
+  /// fromUid == uid, status == pending 인 요청을 조회한다.
+  /// toUid 로 users/{toUid} 를 1건씩 조회해 nickname 을 채운다.
+  /// 기존 인덱스 fromUid+status 재사용.
+  Future<List<SentRequest>> getSentRequests(String uid) async {
+    try {
+      final snap = await _db
+          .collection('friendRequests')
+          .where('fromUid', isEqualTo: uid)
+          .where('status', isEqualTo: 'pending')
+          .get();
+
+      final results = <SentRequest>[];
+      for (final doc in snap.docs) {
+        final toUid = doc.data()['toUid'] as String? ?? '';
+        String toNickname = '';
+        if (toUid.isNotEmpty) {
+          final userDoc = await _db.collection('users').doc(toUid).get();
+          toNickname = userDoc.data()?['nickname'] as String? ?? toUid;
+        }
+        results.add(SentRequest.fromMap(doc.id, doc.data(), toNickname: toNickname));
+      }
+      return results;
+    } catch (_) {
+      return [];
+    }
+  }
+
+  // ── 보낸 친구 요청 취소 ───────────────────────────────────────
+  Future<void> cancelRequest(String requestId) async {
+    await _db.collection('friendRequests').doc(requestId).update({
+      'status': 'cancelled',
+      'actedAt': FieldValue.serverTimestamp(),
+    });
   }
 
   // ── 즐겨찾기 업데이트 ─────────────────────────────────────────

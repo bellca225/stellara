@@ -33,16 +33,50 @@ class AstrologyScreen extends ConsumerWidget {
       );
     }
 
+    // birth 변경 후 차트가 아직 갱신되지 않았는지 확인.
+    // activeChartVersion != birth.chartVersion → 재분석 진행 중 또는 필요.
+    final isStale = birth != null &&
+        profile != null &&
+        profile.activeChartVersion != null &&
+        profile.activeChartVersion != birth.chartVersion;
+
     return Scaffold(
       body: SafeArea(
-        child: asyncChart.when(
-          loading: () => const _ChartSkeleton(),
-          error: (error, _) => _ErrorView(message: '$error'),
-          // birth 가 null 일 수 없는 시점(chart data 도달 시)이지만 안전을 위해 null-check.
-          data: (chart) {
-            if (birth == null) return const _ChartSkeleton();
-            return _ChartContent(birth: birth, chart: chart);
-          },
+        child: Column(
+          children: [
+            if (isStale)
+              Material(
+                color: Colors.orange.withOpacity(0.12),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.refresh_rounded, size: 16, color: Colors.orange),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '출생 정보가 변경됐어요. 차트를 다시 분석 중이에요.',
+                          style: TextStyle(
+                            color: Colors.orange.shade800,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            Expanded(
+              child: asyncChart.when(
+                loading: () => const _ChartSkeleton(),
+                error: (error, _) => _ErrorView(message: '$error'),
+                data: (chart) {
+                  if (birth == null) return const _ChartSkeleton();
+                  return _ChartContent(birth: birth, chart: chart);
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );

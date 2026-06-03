@@ -64,3 +64,41 @@ class FriendRequest {
     );
   }
 }
+
+/// 내가 보낸 친구 요청 (pending 상태).
+class SentRequest {
+  const SentRequest({
+    required this.requestId,
+    required this.toUid,
+    required this.toNickname,
+    required this.status,
+    this.createdAt,
+  });
+
+  final String requestId;
+  final String toUid;
+
+  /// friendRequests.toUid 기준 역조회한 닉네임 (users/{toUid}.nickname).
+  final String toNickname;
+
+  final String status;
+  final DateTime? createdAt;
+
+  String get initial => toNickname.isNotEmpty ? toNickname[0] : '?';
+
+  factory SentRequest.fromMap(
+    String id,
+    Map<String, dynamic> map, {
+    String toNickname = '',
+  }) {
+    return SentRequest(
+      requestId: id,
+      toUid: map['toUid'] as String? ?? '',
+      toNickname: toNickname,
+      status: map['status'] as String? ?? 'pending',
+      createdAt: map['createdAt'] != null
+          ? DateTime.tryParse(map['createdAt'].toString())
+          : null,
+    );
+  }
+}

@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../auth/application/auth_providers.dart';
-import '../../users/application/user_providers.dart';
+import '../../users/application/user_providers.dart'; // currentUserIdProvider, currentUserProfileProvider
 import '../data/friend_code_repository.dart';
 import '../data/friend_repository.dart';
 import '../domain/friend.dart';
@@ -46,6 +46,21 @@ final receivedRequestsProvider = FutureProvider<List<FriendRequest>>((ref) async
   return ref
       .watch(friendRepositoryProvider)
       .getReceivedRequests(profile.uid);
+});
+
+/// 내가 보낸 pending 친구 요청 목록.
+///
+/// 수락/거절/취소 후 `ref.invalidate(sentRequestsProvider)` 로 갱신.
+final sentRequestsProvider = FutureProvider<List<SentRequest>>((ref) async {
+  final uid = ref.watch(currentUserIdProvider).valueOrNull;
+  if (uid == null) return [];
+  return ref.watch(friendRepositoryProvider).getSentRequests(uid);
+});
+
+/// 보낸 요청 취소. 완료 후 호출 측에서 sentRequestsProvider 를 invalidate 해야 함.
+final cancelRequestProvider =
+    FutureProvider.family<void, String>((ref, requestId) async {
+  await ref.read(friendRepositoryProvider).cancelRequest(requestId);
 });
 
 /// 즐겨찾기 토글.

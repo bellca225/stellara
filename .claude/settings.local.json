@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C /Users/nywoo/proj/stellara remote -v)",
+      "Bash(gh repo *)"
+    ]
+  }
+}
