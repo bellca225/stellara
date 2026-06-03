@@ -1,6 +1,7 @@
 // lib/features/friends/domain/friend.dart
 //
 // 친구 관계 도메인 모델.
+import 'package:cloud_firestore/cloud_firestore.dart';
 //
 // SDD 8.3 스키마 기준:
 //   - sunSign 은 users/{uid} 에 denormalized 저장 (출생 차트 생성 시 업데이트)
@@ -58,9 +59,7 @@ class FriendRequest {
       fromNickname: map['fromNickname'] as String? ?? '',
       fromSunSign: map['fromSunSign'] as String? ?? '-',
       status: map['status'] as String? ?? 'pending',
-      createdAt: map['createdAt'] != null
-          ? DateTime.tryParse(map['createdAt'].toString())
-          : null,
+      createdAt: _parseDate(map['createdAt']),
     );
   }
 }
@@ -96,9 +95,15 @@ class SentRequest {
       toUid: map['toUid'] as String? ?? '',
       toNickname: toNickname,
       status: map['status'] as String? ?? 'pending',
-      createdAt: map['createdAt'] != null
-          ? DateTime.tryParse(map['createdAt'].toString())
-          : null,
+      createdAt: _parseDate(map['createdAt']),
     );
   }
+}
+
+/// Firestore Timestamp / String / null → DateTime 변환 헬퍼
+DateTime? _parseDate(Object? v) {
+  if (v == null) return null;
+  if (v is Timestamp) return v.toDate();
+  if (v is String) return DateTime.tryParse(v);
+  return null;
 }

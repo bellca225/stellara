@@ -3,6 +3,7 @@
 // 계정 만들기 화면. 디자이너 목업 기준.
 // CSS/스타일은 디자인 담당자가 다듬을 예정. 로직과 구조만 구현.
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -98,11 +99,36 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
           _generalError = e.message;
         }
       });
-    } catch (_) {
-      setState(() => _generalError = '오류가 발생했어요. 잠시 후 다시 시도해주세요.');
+    } catch (e) {
+      final msg = _friendlySignUpError(e);
+      setState(() => _generalError = msg);
+      // ignore: avoid_print
+      debugPrint('[SignUp] 회원가입 실패: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  String _friendlySignUpError(Object e) {
+    final s = e.toString();
+    if (s.contains('friend-code-conflict')) {
+      return '일시적인 오류가 발생했어요. 다시 시도해주세요.';
+    }
+    if (s.contains('PERMISSION_DENIED') || s.contains('permission-denied')) {
+      return '서버 권한 오류예요. 잠시 후 다시 시도해주세요.';
+    }
+    if (s.contains('email-already-in-use') || s.contains('already-exists')) {
+      return '이미 사용 중인 아이디예요.';
+    }
+    if (s.contains('network') || s.contains('UNAVAILABLE')) {
+      return '네트워크 연결을 확인해주세요.';
+    }
+    if (s.contains('requires-recent-login')) {
+      return '로그인 세션이 만료됐어요. 앱을 재시작해주세요.';
+    }
+    // 디버그에서만 실제 에러 노출
+    if (kDebugMode) return '오류: $s';
+    return '오류가 발생했어요. 잠시 후 다시 시도해주세요.';
   }
 
   @override

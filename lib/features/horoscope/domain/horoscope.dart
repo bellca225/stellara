@@ -1,6 +1,7 @@
 // lib/features/horoscope/domain/horoscope.dart
 //
 // 오늘의 운세 도메인 모델.
+// luckyPlace 필드 추가 (행운 장소)
 
 class Horoscope {
   const Horoscope({
@@ -11,6 +12,7 @@ class Horoscope {
     required this.luckyColor,
     required this.luckyNumber,
     required this.mood,
+    this.luckyPlace,
   });
 
   final String signSlug; // 'aquarius'
@@ -20,16 +22,18 @@ class Horoscope {
   /// 운세 본문(한 줄~두 줄 요약).
   final String summary;
 
-  /// 행운 색상(영문/숫자 스트링 예: 'Indigo').
+  /// 행운 색상(영문 스트링 예: 'indigo').
   final String luckyColor;
 
-  /// 행운 숫자.
+  /// 행운 숫자. 화면에서 ×2, ×3 배수도 함께 표시.
   final int luckyNumber;
 
-  /// 'Calm', 'Energetic' 등 — 화면에서 chip 으로 표기.
+  /// 'calm', 'energetic' 등 — 화면에서 오늘의 감정 상태로 표기.
   final String mood;
 
-  /// 디스크 캐시(L2) 직렬화. `lib/core/cache/disk_cache.dart` 가 사용.
+  /// 행운 장소. API 미제공 시 null.
+  final String? luckyPlace;
+
   Map<String, dynamic> toJson() => {
         'signSlug': signSlug,
         'signName': signName,
@@ -38,6 +42,7 @@ class Horoscope {
         'luckyColor': luckyColor,
         'luckyNumber': luckyNumber,
         'mood': mood,
+        if (luckyPlace != null) 'luckyPlace': luckyPlace,
       };
 
   factory Horoscope.fromJson(Map<String, dynamic> json) => Horoscope(
@@ -48,5 +53,6 @@ class Horoscope {
         luckyColor: json['luckyColor'] as String,
         luckyNumber: (json['luckyNumber'] as num).toInt(),
         mood: json['mood'] as String,
+        luckyPlace: json['luckyPlace'] as String?,
       );
 }

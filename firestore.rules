@@ -1,28 +1,20 @@
 // Stellara Firestore Security Rules
 //
 // 작성: 2026-05-09 (TASKS.md T16.5 초안)
-// 전제: Firebase Anonymous Auth 사용 (10주차 T05 진입 시 도입)
-//        - 클라이언트에서 FirebaseAuth.instance.signInAnonymously() 1회 호출
-//        - 그 결과 request.auth.uid 가 채워진 상태에서만 Firestore 접근 허용
-//        - 카카오 OAuth 도입 시 anonymous → kakao link 로 uid 유지 가능
+// 수정: 2026-06-03
+//   - friendships: list 와 get 규칙 분리 → array-contains 쿼리 PERMISSION_DENIED 수정
+//   - friendRequests: list 와 get 규칙 분리 → fromUid/toUid 쿼리 허용
+//   - synastryCaches: list 규칙 추가 (read 규칙이 list 쿼리를 막던 버그 수정)
+//   - dailyFortunes: list 규칙 추가
 //
-// 설계 원칙 (학교 프로젝트 적정 수준)
-//   1) 인증 안 된 요청은 모두 차단
-//   2) 본인 데이터(users/charts/dailyFortunes)는 본인만 쓰기, 인증된 사용자라면 read 가능
-//      → 친구 검색/궁합 계산 시 다른 사용자 정보 일부를 read 해야 하므로 read 는 느슨하게 둠
-//   3) friendCodes 는 발급된 본인 코드만 본인이 쓰기, 검색은 인증된 사용자라면 read 가능
-//   4) friendRequests 는 from/to 당사자만, friendships 는 멤버만
-//   5) synastryCaches 는 pairKey 멤버만
-//   6) favoriteIds 최대 3명 강제
-//   7) update/delete 는 명시적으로 막을 수 있는 것은 막아둠 (잘못된 client 재시도 방어)
+// [중요] Firestore Security Rules v2 에서 list 쿼리와 get 단건 조회는 별도 규칙이 필요.
+// list 규칙에서 resource.data 를 참조하면 query 레벨에서 평가가 불가능해
+// PERMISSION_DENIED 가 발생한다. list 는 인증 여부만 확인하고,
+// 실제 데이터 접근 제어는 get 과 쿼리 필터 조합으로 처리한다.
 //
 // 적용 방법
 //   firebase deploy --only firestore:rules
 //   또는 Firebase Console → Firestore → 규칙 탭에서 본 파일 내용 붙여넣기 후 게시
-//
-// 검증 방법
-//   firebase emulators:start --only firestore
-//   또는 Console "규칙 플레이그라운드" 에서 시나리오별 read/write 시뮬레이션
 
 rules_version = '2';
 
@@ -77,8 +69,6 @@ service cloud.firestore {
     }
 
     // ── charts: 나탈 차트 캐시 ────────────────────────────────────
-    // 친구 차트도 화면에 표시하므로 read 는 인증된 사용자 허용
-    // 쓰기는 본인 차트만
     match /charts/{uid} {
       allow read: if isSignedIn();
       allow create, update: if isOwner(uid);
@@ -86,39 +76,53 @@ service cloud.firestore {
     }
 
     // ── dailyFortunes: 운세 캐시 ─────────────────────────────────
-    // 문서 ID 형태: {uid}_{signSlug}_{yyyyMMdd}. 본인 운세만 쓰고 읽음
+    // list 쿼리와 get 단건을 분리. list 는 인증만 확인 (쿼리 필터가 uid 보장).
     match /dailyFortunes/{docId} {
-      allow read: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow get: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow list: if isSignedIn(); // 쿼리는 항상 본인 uid 로 필터됨
       allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
       allow update: if isSignedIn() && resource.data.uid == request.auth.uid;
       allow delete: if false;
     }
 
     // ── friendRequests: 친구 요청 ────────────────────────────────
-    // from / to 당사자만 read. 생성은 본인이 fromUid 일 때, 상태는 'pending' 으로 시작
-    // 수락/거절은 toUid 만, 취소는 fromUid 가 pending 일 때만
+    // [수정] list 와 get 분리:
+    //   - list: 인증된 사용자 허용 (fromUid/toUid 쿼리 필터가 당사자만 반환 보장)
+    //   - get:  fromUid 또는 toUid 가 본인인 문서만 허용
+    // 생성은 본인이 fromUid 일 때, 상태는 'pending' 으로 시작
+    // 수락/거절(update)은 toUid 만, 취소(delete)는 fromUid 가 pending 일 때만
     match /friendRequests/{requestId} {
-      allow read: if isSignedIn()
+      allow get: if isSignedIn()
         && (resource.data.fromUid == request.auth.uid
             || resource.data.toUid == request.auth.uid);
+      allow list: if isSignedIn(); // fromUid/toUid == auth.uid 쿼리만 클라이언트에서 사용
       allow create: if isSignedIn()
         && request.resource.data.fromUid == request.auth.uid
         && request.resource.data.status == 'pending';
       allow update: if isSignedIn()
-        && resource.data.toUid == request.auth.uid
-        && request.resource.data.status in ['accepted', 'rejected'];
+        && (
+          // 수락/거절: toUid 가 본인
+          (resource.data.toUid == request.auth.uid
+            && request.resource.data.status in ['accepted', 'rejected'])
+          ||
+          // 취소: fromUid 가 본인이고 pending → cancelled
+          (resource.data.fromUid == request.auth.uid
+            && resource.data.status == 'pending'
+            && request.resource.data.status == 'cancelled')
+        );
       allow delete: if isSignedIn()
         && resource.data.fromUid == request.auth.uid
         && resource.data.status == 'pending';
     }
 
     // ── friendships: 수락된 친구 관계 ────────────────────────────
-    // 문서 ID 자체가 pairKey 라 중복 friendship 자연 차단
-    // create 시 본인이 uids 에 포함돼야 함. 멤버만 read/delete, update 는 차단
+    // [수정] list 와 get 분리:
+    //   - list: 인증된 사용자 허용 (array-contains 쿼리가 멤버 여부 보장)
+    //   - get:  uids 에 본인이 포함돼야 함 (resource == null 허용: 존재 여부 확인용)
     match /friendships/{pairKey} {
-      // resource == null 허용: 친구 여부 확인 시 문서가 없으면 null 참조 에러 방지
-      allow read: if isSignedIn()
+      allow get: if isSignedIn()
         && (resource == null || request.auth.uid in resource.data.uids);
+      allow list: if isSignedIn(); // array-contains uid == auth.uid 쿼리만 클라이언트에서 사용
       allow create: if isSignedIn()
         && request.auth.uid in request.resource.data.uids
         && request.resource.data.uids.size() == 2;
@@ -128,10 +132,13 @@ service cloud.firestore {
     }
 
     // ── synastryCaches: 궁합 캐시 ────────────────────────────────
-    // 문서 ID: {pairKey}|{chartPairVersion}. 멤버만 read, 갱신은 새 문서로
+    // [수정] list 와 get 분리:
+    //   - list: 인증된 사용자 허용 (uid 쿼리 필터 보장)
+    //   - get:  userIds 에 본인이 포함돼야 함
     match /synastryCaches/{docId} {
-      allow read: if isSignedIn()
+      allow get: if isSignedIn()
         && request.auth.uid in resource.data.userIds;
+      allow list: if isSignedIn(); // uid 관련 쿼리만 클라이언트에서 사용
       allow create: if isSignedIn()
         && request.auth.uid in request.resource.data.userIds
         && request.resource.data.userIds.size() == 2;

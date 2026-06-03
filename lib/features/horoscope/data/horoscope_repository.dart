@@ -100,6 +100,7 @@ class HoroscopeRepository {
           ? (data['lucky_number'] as num).toInt()
           : 0,
       mood: (data['mood'] ?? '-').toString(),
+      luckyPlace: data['lucky_place']?.toString(),
     );
   }
 }

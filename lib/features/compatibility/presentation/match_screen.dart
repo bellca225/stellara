@@ -1,3 +1,13 @@
+// lib/features/compatibility/presentation/match_screen.dart
+//
+// 궁합 결과 화면 — Figma 궁합결과 구조 기준
+//
+// AppBar: ← | 궁합 결과 | [공유]
+// 메인 카드: 하트 + 이름 + 총점 + 별자리
+// 세부 분석: 감정/대화/연애 카드 (점수 + 바 + 설명)
+// 궁합 요약 카드
+// SNS 공유 버튼
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
@@ -9,6 +19,7 @@ import '../../friends/application/friend_providers.dart';
 import '../../friends/domain/friend.dart';
 import '../../users/application/user_providers.dart';
 import '../application/compatibility_providers.dart';
+import '../domain/synastry_result.dart';
 
 class MatchScreen extends ConsumerStatefulWidget {
   const MatchScreen({super.key, this.initialFriendUid});
@@ -30,308 +41,237 @@ class _MatchScreenState extends ConsumerState<MatchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final me = ref.watch(currentBirthInfoProvider);
     final friendsAsync = ref.watch(friendListProvider);
     final friends = friendsAsync.valueOrNull ?? const <Friend>[];
-    final effectiveSelectedUid =
-        _selectedFriendUid ??
+    final selectedUid = _selectedFriendUid ??
         widget.initialFriendUid ??
         (friends.isNotEmpty ? friends.first.uid : null);
 
-    // 선택된 친구 이름 (AppBar 및 결과 헤더에 표시)
-    final selectedFriendName = friends
-        .where((f) => f.uid == effectiveSelectedUid)
-        .map((f) => f.nickname)
-        .firstOrNull;
+    final selectedFriend = friends.cast<Friend?>().firstWhere(
+          (f) => f?.uid == selectedUid,
+          orElse: () => null,
+        );
+    final friendName = selectedFriend?.nickname;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          selectedFriendName != null ? '나와 $selectedFriendName의 궁합' : '친구와 궁합',
-        ),
+        title: const Text('궁합 결과'),
+        centerTitle: false,
+        actions: [
+          if (selectedFriend != null)
+            IconButton(
+              icon: const Icon(Icons.share_outlined),
+              onPressed: () => _share(friendName),
+              tooltip: '공유',
+            ),
+        ],
       ),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.all(AppSpacing.lg),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
           children: [
-            const ScreenCodeChip(code: 'MATCH-001', label: '친구와의 궁합 결과'),
-            const SizedBox(height: AppSpacing.lg),
-            Panel(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SectionTitle('내 출생정보'),
-                  const SizedBox(height: 8),
-                  if (me == null)
-                    const Text('내 출생 정보가 아직 없어요. 온보딩 또는 마이페이지에서 먼저 입력해주세요.')
-                  else ...[
-                    KeyValueRow(label: '이름', value: me.nickname),
-                    KeyValueRow(
-                      label: '생년월일',
-                      value:
-                          '${me.dateTime.year}-${_pad(me.dateTime.month)}-${_pad(me.dateTime.day)}',
+            // ── 친구 선택 (initialFriendUid 없을 때만 표시) ─────────
+            if (widget.initialFriendUid == null) ...[
+              Panel(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '궁합 볼 친구 선택',
+                      style: TextStyle(fontWeight: FontWeight.w700),
                     ),
-                    KeyValueRow(
-                      label: '시간',
-                      value:
-                          '${_pad(me.dateTime.hour)}:${_pad(me.dateTime.minute)} ${me.utcOffset}',
+                    const SizedBox(height: 12),
+                    friendsAsync.when(
+                      loading: () =>
+                          const Center(child: CircularProgressIndicator()),
+                      error: (e, _) => Text('친구 목록을 불러오지 못했어요: $e'),
+                      data: (list) => list.isEmpty
+                          ? const Text('아직 친구가 없어요.\n친구를 추가한 뒤 궁합을 볼 수 있어요.')
+                          : Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                for (final f in list)
+                                  ChoiceChip(
+                                    label: Text(f.nickname),
+                                    selected: f.uid == selectedUid,
+                                    onSelected: (_) => setState(
+                                        () => _selectedFriendUid = f.uid),
+                                  ),
+                              ],
+                            ),
                     ),
-                    KeyValueRow(label: '출생지', value: me.placeName ?? '-'),
                   ],
-                ],
+                ),
               ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            Panel(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SectionTitle('궁합 볼 친구 선택'),
-                  const SizedBox(height: AppSpacing.md),
-                  friendsAsync.when(
-                    loading: () => const Padding(
-                      padding: EdgeInsets.all(24),
-                      child: Center(child: CircularProgressIndicator()),
-                    ),
-                    error: (error, _) => Text('친구 목록을 불러오지 못했어요: $error'),
-                    data: (friends) {
-                      if (friends.isEmpty) {
-                        return const Text(
-                          '아직 친구가 없어요.\n친구를 추가한 뒤 궁합을 볼 수 있어요.',
-                        );
-                      }
-                      final selectedFriend = _findSelectedFriend(
-                        friends,
-                        effectiveSelectedUid,
-                      );
+              const SizedBox(height: 16),
+            ],
 
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Wrap(
-                            spacing: AppSpacing.sm,
-                            runSpacing: AppSpacing.sm,
-                            children: [
-                              for (final friend in friends)
-                                ChoiceChip(
-                                  label: Text(friend.nickname),
-                                  selected: friend.uid == selectedFriend?.uid,
-                                  onSelected: (_) {
-                                    setState(
-                                      () => _selectedFriendUid = friend.uid,
-                                    );
-                                  },
-                                ),
-                            ],
-                          ),
-                          if (selectedFriend != null) ...[
-                            const SizedBox(height: AppSpacing.lg),
-                            _SelectedFriendPanel(friend: selectedFriend),
-                          ],
-                        ],
-                      );
-                    },
+            // ── 결과 영역 ────────────────────────────────────────────
+            if (selectedUid == null)
+              const Panel(
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Center(
+                    child: Text('궁합을 볼 친구를 선택해주세요.'),
                   ),
-                ],
+                ),
+              )
+            else
+              _MatchResultBody(
+                friendUid: selectedUid,
+                friendName: friendName,
+                onShare: () => _share(friendName),
               ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            _MatchResultSection(
-              selectedFriendUid: effectiveSelectedUid,
-              friendName: selectedFriendName,
-            ),
           ],
         ),
       ),
     );
   }
 
-  Friend? _findSelectedFriend(List<Friend> friends, String? uid) {
-    if (friends.isEmpty) return null;
-    if (uid == null) return friends.first;
-    for (final friend in friends) {
-      if (friend.uid == uid) return friend;
-    }
-    return friends.first;
-  }
-
-  String _pad(int v) => v.toString().padLeft(2, '0');
-}
-
-class _SelectedFriendPanel extends ConsumerWidget {
-  const _SelectedFriendPanel({required this.friend});
-
-  final Friend friend;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final profileAsync = ref.watch(userProfileByIdProvider(friend.uid));
-
-    return profileAsync.when(
-      loading: () => const Padding(
-        padding: EdgeInsets.symmetric(vertical: 16),
-        child: Center(child: CircularProgressIndicator()),
-      ),
-      error: (error, _) => Text('친구 정보를 불러오지 못했어요: $error'),
-      data: (profile) {
-        final birth = profile?.birthInfo;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              friend.nickname,
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 8),
-            KeyValueRow(label: '친구 코드', value: friend.friendCode),
-            KeyValueRow(label: '태양 별자리', value: friend.sunSign),
-            KeyValueRow(label: '출생정보', value: birth == null ? '미입력' : '입력 완료'),
-            if (birth != null) ...[
-              KeyValueRow(
-                label: '생년월일',
-                value:
-                    '${birth.dateTime.year}-${_pad(birth.dateTime.month)}-${_pad(birth.dateTime.day)}',
-              ),
-              KeyValueRow(
-                label: '시간',
-                value:
-                    '${_pad(birth.dateTime.hour)}:${_pad(birth.dateTime.minute)} ${birth.utcOffset}',
-              ),
-              KeyValueRow(label: '출생지', value: birth.placeName ?? '-'),
-            ] else
-              const Padding(
-                padding: EdgeInsets.only(top: 8),
-                child: Text(
-                  '이 친구는 아직 출생 정보를 완료하지 않았어요. 출생 정보가 있어야 궁합을 계산할 수 있어요.',
-                ),
-              ),
-          ],
+  Future<void> _share(String? name) async {
+    // 결과를 가져와 공유 (provider read)
+    final profile = ref.read(currentUserProfileProvider).valueOrNull;
+    final myName = profile?.effectiveDisplayName ?? '나';
+    final text = '✨ Stellara 궁합 결과\n'
+        '$myName와 ${name ?? '친구'}의 궁합을 확인해보세요!\n\n'
+        '#Stellara #점성술 #궁합';
+    try {
+      await Share.share(text, subject: '궁합 결과 공유');
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('공유를 지원하지 않는 환경이에요.')),
         );
-      },
-    );
+      }
+    }
   }
-
-  String _pad(int value) => value.toString().padLeft(2, '0');
 }
 
-class _MatchResultSection extends ConsumerWidget {
-  const _MatchResultSection({
-    required this.selectedFriendUid,
+// ── 결과 본문 (친구 선택 완료 후) ──────────────────────────────────
+
+class _MatchResultBody extends ConsumerWidget {
+  const _MatchResultBody({
+    required this.friendUid,
+    required this.onShare,
     this.friendName,
   });
 
-  final String? selectedFriendUid;
+  final String friendUid;
   final String? friendName;
+  final VoidCallback onShare;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (selectedFriendUid == null) {
-      return const Panel(child: Text('궁합을 볼 친구를 선택해주세요.'));
-    }
-
-    final friendProfileAsync = ref.watch(
-      userProfileByIdProvider(selectedFriendUid!),
-    );
+    final friendProfileAsync = ref.watch(userProfileByIdProvider(friendUid));
 
     return friendProfileAsync.when(
-      loading: () => const Panel(
+      loading: () => const Center(
         child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Center(child: CircularProgressIndicator()),
+          padding: EdgeInsets.all(40),
+          child: CircularProgressIndicator(),
         ),
       ),
-      error: (error, _) => Panel(child: Text('친구 정보를 불러오지 못했어요: $error')),
+      error: (e, _) =>
+          Panel(child: Text('친구 정보를 불러오지 못했어요: $e')),
       data: (friendProfile) {
         final friendBirth = friendProfile?.birthInfo;
         if (friendBirth == null) {
-          return const Panel(child: Text('친구의 출생 정보가 아직 없어 궁합을 계산할 수 없어요.'));
+          return const Panel(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('친구의 출생 정보가 아직 없어 궁합을 계산할 수 없어요.'),
+            ),
+          );
         }
 
         final resultAsync = ref.watch(
           matchProvider((
             friendBirth: friendBirth,
-            friendUid: selectedFriendUid!,
+            friendUid: friendUid,
           )),
         );
 
         return resultAsync.when(
-          loading: () => const Panel(
-            child: Center(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: AppColors.ink,
-                  ),
-                ),
-              ),
+          loading: () => const Center(
+            child: Padding(
+              padding: EdgeInsets.all(40),
+              child: CircularProgressIndicator(),
             ),
           ),
-          error: (error, _) => Panel(child: Text('궁합 계산 실패: $error')),
+          error: (e, _) =>
+              Panel(child: Text('궁합 계산 실패: $e')),
           data: (result) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // ── 메인 결과 카드 ───────────────────────────────────
+              _MainResultCard(
+                result: result,
+                friendName: friendName,
+                friendZodiac: friendProfile?.sunSign ?? '-',
+              ),
+              const SizedBox(height: 20),
+
+              // ── 세부 분석 ────────────────────────────────────────
+              const Text(
+                '세부 분석',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 12),
+              _DetailCard(
+                label: '감정',
+                score: result.emotionScore,
+                description: _scoreDescription('감정', result.emotionScore),
+              ),
+              const SizedBox(height: 10),
+              _DetailCard(
+                label: '대화',
+                score: result.communicationScore,
+                description:
+                    _scoreDescription('대화', result.communicationScore),
+              ),
+              const SizedBox(height: 10),
+              _DetailCard(
+                label: '연애',
+                score: result.romanceScore,
+                description: _scoreDescription('연애', result.romanceScore),
+              ),
+              const SizedBox(height: 16),
+
+              // ── 궁합 요약 카드 ──────────────────────────────────
               Panel(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (friendName != null)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                        child: Text(
-                          '나와 $friendName의 궁합',
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(color: AppColors.inkMuted),
-                        ),
-                      ),
-                    _ScoreBig(score: result.totalScore),
-                    const SizedBox(height: AppSpacing.lg),
-                    _ScoreBar(label: '감정', value: result.emotionScore),
-                    _ScoreBar(label: '대화', value: result.communicationScore),
-                    _ScoreBar(label: '연애', value: result.romanceScore),
-                    const SizedBox(height: AppSpacing.md),
-                    const Divider(),
-                    const SizedBox(height: AppSpacing.sm),
                     const Text(
                       '궁합 요약',
                       style: TextStyle(
                         fontWeight: FontWeight.w700,
-                        fontSize: 14,
-                        color: AppColors.inkMuted,
+                        fontSize: 15,
+                        color: AppColors.primaryLight,
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.sm),
+                    const SizedBox(height: 10),
                     Text(
                       result.summary,
-                      style: Theme.of(context).textTheme.bodyLarge,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppColors.inkMuted,
+                            height: 1.6,
+                          ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: AppSpacing.md),
+              const SizedBox(height: 20),
+
+              // ── SNS 공유 버튼 ──────────────────────────────────
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: () async {
-                    final name = friendName ?? '친구';
-                    final text =
-                        '✨ Stellara 궁합 결과\n'
-                        '나와 $name의 궁합: ${result.totalScore}%\n\n'
-                        '${result.summary}\n\n'
-                        '#Stellara #점성술 #궁합';
-                    try {
-                      await Share.share(text, subject: '나와 $name의 궁합 결과');
-                    } catch (_) {
-                      // Web Share API 미지원 등 플랫폼 예외 → 조용히 처리
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('공유를 지원하지 않는 환경이에요.')),
-                        );
-                      }
-                    }
-                  },
+                  onPressed: onShare,
                   icon: const Icon(Icons.share_outlined),
                   label: const Text('SNS에 공유하기'),
                 ),
@@ -344,42 +284,89 @@ class _MatchResultSection extends ConsumerWidget {
   }
 }
 
-class _ScoreBig extends StatelessWidget {
-  const _ScoreBig({required this.score});
-  final int score;
+// ── 메인 점수 카드 ─────────────────────────────────────────────────
+
+class _MainResultCard extends StatelessWidget {
+  const _MainResultCard({
+    required this.result,
+    required this.friendZodiac,
+    this.friendName,
+  });
+
+  final SynastryResult result;
+  final String? friendName;
+  final String friendZodiac;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        Text('$score', style: Theme.of(context).textTheme.displaySmall),
-        const SizedBox(width: 4),
-        const Padding(
-          padding: EdgeInsets.only(bottom: 6),
-          child: Text(
-            '%',
-            style: TextStyle(
-              color: AppColors.inkMuted,
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-            ),
+    return Panel(
+      child: Column(
+        children: [
+          const Icon(Icons.favorite_outline_rounded,
+              size: 32, color: AppColors.primaryLight),
+          const SizedBox(height: 8),
+          Text(
+            '나와 ${friendName ?? '친구'}의 궁합',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: AppColors.inkMuted,
+                ),
           ),
-        ),
-      ],
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${result.totalScore}',
+                style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+              ),
+              const Padding(
+                padding: EdgeInsets.only(bottom: 6),
+                child: Text(
+                  '%',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.inkMuted,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (friendZodiac.isNotEmpty && friendZodiac != '-') ...[
+            const SizedBox(height: 6),
+            Text(
+              friendZodiac,
+              style: const TextStyle(
+                color: AppColors.primaryLight,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
 
-class _ScoreBar extends StatelessWidget {
-  const _ScoreBar({required this.label, required this.value});
+// ── 세부 분석 카드 ─────────────────────────────────────────────────
+
+class _DetailCard extends StatelessWidget {
+  const _DetailCard({
+    required this.label,
+    required this.score,
+    required this.description,
+  });
+
   final String label;
-  final int value;
+  final int score;
+  final String description;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+    return Panel(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -389,31 +376,63 @@ class _ScoreBar extends StatelessWidget {
               Text(
                 label,
                 style: const TextStyle(
-                  color: AppColors.inkMuted,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
                 ),
               ),
               Text(
-                '$value%',
+                '$score%',
                 style: const TextStyle(
-                  color: AppColors.ink,
                   fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                  color: AppColors.primaryLight,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           ClipRRect(
             borderRadius: BorderRadius.circular(99),
             child: LinearProgressIndicator(
-              value: value / 100.0,
-              minHeight: 8,
+              value: score / 100.0,
+              minHeight: 6,
               backgroundColor: AppColors.line,
-              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.ink),
+              valueColor:
+                  const AlwaysStoppedAnimation<Color>(AppColors.primaryLight),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            description,
+            style: const TextStyle(
+              color: AppColors.inkMuted,
+              fontSize: 13,
+              height: 1.4,
             ),
           ),
         ],
       ),
     );
+  }
+}
+
+// ── 점수 기반 설명 텍스트 ──────────────────────────────────────────
+
+String _scoreDescription(String category, int score) {
+  switch (category) {
+    case '감정':
+      if (score >= 80) return '서로의 감정을 잘 이해하고 공감합니다';
+      if (score >= 60) return '감정적 교류가 자연스럽게 이루어집니다';
+      return '감정 표현에 서로 노력이 필요해요';
+    case '대화':
+      if (score >= 80) return '대화가 끊이지 않고 자연스럽게 이어집니다';
+      if (score >= 60) return '대화 흐름이 비교적 잘 맞아요';
+      return '대화 방식의 차이를 줄여나가면 좋아요';
+    case '연애':
+      if (score >= 80) return '로맨틱한 분위기를 만들 수 있습니다';
+      if (score >= 60) return '연애 감각이 잘 맞는 편이에요';
+      return '서로의 방식을 이해하면 더 가까워질 수 있어요';
+    default:
+      return '';
   }
 }

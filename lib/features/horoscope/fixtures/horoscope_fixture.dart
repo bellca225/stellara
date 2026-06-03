@@ -15,5 +15,6 @@ Horoscope demoHoroscope(String signSlug, [DateTime? date]) {
     luckyColor: 'indigo',
     luckyNumber: 7,
     mood: 'calm',
+    luckyPlace: '카페, 도서관',
   );
 }

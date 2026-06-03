@@ -1,144 +1,329 @@
-﻿import 'package:flutter/material.dart';
+// lib/features/horoscope/presentation/today_screen.dart
+//
+// 오늘의 운세 화면 — 스크린샷 UI 구조 기준
+//
+// 구조:
+//   제목 "오늘의 운세" + 날짜(시계 아이콘) + 공유 버튼(우측 상단)
+//   전체 운세 카드 (☆ 아이콘 + summary)
+//   오늘의 감정 상태 카드 (mood)
+//   행운 요소 섹션 타이틀
+//   숫자 카드 (luckyNumber × 1,2,3)
+//   색상 카드 (luckyColor)
+//   장소 카드 (luckyPlace, 있을 때만)
+//   SNS에 공유하기 버튼
+
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
+
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/astro_text.dart';
 import '../../../core/widgets/panel.dart';
 import '../application/horoscope_providers.dart';
+import '../domain/horoscope.dart';
 
 class TodayScreen extends ConsumerWidget {
   const TodayScreen({super.key});
 
-  static const _signs = [
-    'aries', 'taurus', 'gemini', 'cancer', 'leo', 'virgo',
-    'libra', 'scorpio', 'sagittarius', 'capricorn', 'aquarius', 'pisces',
-  ];
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final selected = ref.watch(selectedSignSlugProvider);
     final asyncH = ref.watch(todayHoroscopeProvider);
 
     return StarBackground(
       child: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg, AppSpacing.xl, AppSpacing.lg, AppSpacing.xxl,
+        child: asyncH.when(
+          loading: () => const _LoadingSkeleton(),
+          error: (_, __) => const Center(
+            child: Text('오늘의 운세를 불러오지 못했어요.',
+                style: TextStyle(color: AppColors.inkMuted)),
           ),
-          children: [
-            const SizedBox(height: AppSpacing.sm),
-            Text('오늘의 운세', style: Theme.of(context).textTheme.headlineMedium),
-            const SizedBox(height: AppSpacing.md),
-            Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.sm,
-              children: [
-                for (final sign in _signs)
-                  GestureDetector(
-                    onTap: () => ref.read(selectedSignSlugProvider.notifier).state = sign,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: selected == sign ? AppColors.primary : AppColors.glass,
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(
-                          color: selected == sign ? AppColors.primary : AppColors.glassBorder,
-                        ),
-                      ),
-                      child: Text(
-                        zodiacNameKo(sign),
-                        style: TextStyle(
-                          color: selected == sign ? Colors.white : AppColors.inkMuted,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            asyncH.when(
-              loading: () => const Panel(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SkeletonBox(width: 96, height: 18),
-                    SizedBox(height: AppSpacing.md),
-                    SkeletonBox(width: double.infinity, height: 18),
-                    SizedBox(height: AppSpacing.lg),
-                    SkeletonBox(height: 84, radius: 16),
-                  ],
-                ),
-              ),
-              error: (error, _) => Panel(
-                child: Text('오늘의 운세를 불러오지 못했습니다.',
-                  style: Theme.of(context).textTheme.bodyLarge),
-              ),
-              data: (horoscope) => Panel(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Text(zodiacLabelKo(horoscope.signName),
-                            style: Theme.of(context).textTheme.titleLarge),
-                        ),
-                        Text(DateFormat('yyyy.MM.dd').format(horoscope.date),
-                          style: const TextStyle(color: AppColors.inkMuted, fontWeight: FontWeight.w600)),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    Text(
-                      horoscope.summary.isEmpty ? '오늘의 새로운 기회를 탐색하고 성장하는 하루가 될 것입니다.' : horoscope.summary,
-                      style: Theme.of(context).textTheme.bodyLarge,
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    Row(
-                      children: [
-                        Expanded(child: _InfoChip(label: '오늘의 기운', value: moodKo(horoscope.mood))),
-                        const SizedBox(width: AppSpacing.sm),
-                        Expanded(child: _InfoChip(label: '행운 색상', value: colorKo(horoscope.luckyColor))),
-                        const SizedBox(width: AppSpacing.sm),
-                        Expanded(child: _InfoChip(label: '행운 숫자', value: horoscope.luckyNumber.toString())),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
+          data: (h) => _HoroscopeBody(horoscope: h),
         ),
       ),
     );
   }
 }
 
-class _InfoChip extends StatelessWidget {
-  const _InfoChip({required this.label, required this.value});
+// ── 본문 ──────────────────────────────────────────────────────────
+
+class _HoroscopeBody extends StatelessWidget {
+  const _HoroscopeBody({required this.horoscope});
+
+  final Horoscope horoscope;
+
+  @override
+  Widget build(BuildContext context) {
+    final dateStr = DateFormat('yyyy년 M월 d일').format(horoscope.date);
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
+      children: [
+        // ── 제목 + 날짜 + 공유 버튼 ────────────────────────────────
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '오늘의 운세',
+                    style: Theme.of(context).textTheme.headlineMedium,
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Icon(Icons.access_time_rounded,
+                          size: 14, color: AppColors.inkMuted),
+                      const SizedBox(width: 4),
+                      Text(
+                        dateStr,
+                        style: const TextStyle(
+                          color: AppColors.inkMuted,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            // 공유 버튼 (우측 상단 원형)
+            _CircleIconButton(
+              icon: Icons.share_outlined,
+              onTap: () => _share(context, horoscope),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 24),
+
+        // ── 전체 운세 카드 ─────────────────────────────────────────
+        Panel(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.star_outline_rounded,
+                      size: 16, color: AppColors.primaryLight),
+                  const SizedBox(width: 6),
+                  const Text(
+                    '전체 운세',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                horoscope.summary.isNotEmpty
+                    ? horoscope.summary
+                    : '오늘은 새로운 기회가 찾아올 수 있는 날입니다.\n열린 마음으로 변화를 받아들이세요.',
+                style: const TextStyle(
+                  color: AppColors.inkMuted,
+                  height: 1.6,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 12),
+
+        // ── 오늘의 감정 상태 카드 ────────────────────────────────────
+        Panel(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '오늘의 감정 상태',
+                style: TextStyle(
+                  color: AppColors.primaryLight,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                moodKo(horoscope.mood),
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 24),
+
+        // ── 행운 요소 섹션 타이틀 ────────────────────────────────────
+        const Text(
+          '행운 요소',
+          style: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+
+        const SizedBox(height: 12),
+
+        // ── 숫자 카드 ────────────────────────────────────────────────
+        _LuckyCard(
+          label: '숫자',
+          value: _luckyNumbers(horoscope.luckyNumber),
+        ),
+
+        const SizedBox(height: 10),
+
+        // ── 색상 카드 ────────────────────────────────────────────────
+        _LuckyCard(
+          label: '색상',
+          value: colorKo(horoscope.luckyColor),
+        ),
+
+        // ── 장소 카드 (데이터 있을 때만) ─────────────────────────────
+        if (horoscope.luckyPlace != null &&
+            horoscope.luckyPlace!.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          _LuckyCard(
+            label: '장소',
+            value: horoscope.luckyPlace!,
+          ),
+        ],
+
+        const SizedBox(height: 28),
+
+        // ── SNS 공유 버튼 ────────────────────────────────────────────
+        SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: ElevatedButton.icon(
+            onPressed: () => _share(context, horoscope),
+            icon: const Icon(Icons.share_outlined, size: 18),
+            label: const Text('SNS에 공유하기'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 행운 숫자를 3배수로 표시 (예: 7 → "7, 14, 21")
+  String _luckyNumbers(int n) {
+    if (n <= 0) return '-';
+    return '$n, ${n * 2}, ${n * 3}';
+  }
+
+  Future<void> _share(BuildContext ctx, Horoscope h) async {
+    final text = '✨ 오늘의 운세 (${DateFormat('yyyy년 M월 d일').format(h.date)})\n\n'
+        '${h.summary}\n\n'
+        '🎨 행운 색상: ${colorKo(h.luckyColor)}  '
+        '🔢 행운 숫자: ${_luckyNumbers(h.luckyNumber)}\n'
+        '#Stellara #오늘의운세';
+    try {
+      await Share.share(text);
+    } catch (_) {
+      if (ctx.mounted) {
+        ScaffoldMessenger.of(ctx).showSnackBar(
+          const SnackBar(content: Text('공유를 지원하지 않는 환경이에요.')),
+        );
+      }
+    }
+  }
+}
+
+// ── 서브 위젯 ─────────────────────────────────────────────────────
+
+class _LuckyCard extends StatelessWidget {
+  const _LuckyCard({required this.label, required this.value});
+
   final String label;
   final String value;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.glass,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.glassBorder),
-      ),
+    return Panel(
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, textAlign: TextAlign.center,
-            style: const TextStyle(color: AppColors.inkMuted, fontSize: 11, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 6),
-          Text(value, maxLines: 1, overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: AppColors.ink, fontSize: 14, fontWeight: FontWeight.w700)),
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppColors.primaryLight,
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ],
       ),
+    );
+  }
+}
+
+class _CircleIconButton extends StatelessWidget {
+  const _CircleIconButton({required this.icon, required this.onTap});
+
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: AppColors.glass,
+          border: Border.all(color: AppColors.glassBorder),
+        ),
+        child: Icon(icon, size: 20, color: AppColors.ink),
+      ),
+    );
+  }
+}
+
+// ── 로딩 스켈레톤 ─────────────────────────────────────────────────
+
+class _LoadingSkeleton extends StatelessWidget {
+  const _LoadingSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
+      children: const [
+        SkeletonBox(width: 160, height: 32),
+        SizedBox(height: 8),
+        SkeletonBox(width: 120, height: 16),
+        SizedBox(height: 28),
+        SkeletonBox(height: 100, radius: 16),
+        SizedBox(height: 12),
+        SkeletonBox(height: 72, radius: 16),
+        SizedBox(height: 24),
+        SkeletonBox(width: 80, height: 20),
+        SizedBox(height: 12),
+        SkeletonBox(height: 72, radius: 16),
+        SizedBox(height: 10),
+        SkeletonBox(height: 72, radius: 16),
+        SizedBox(height: 10),
+        SkeletonBox(height: 72, radius: 16),
+      ],
     );
   }
 }

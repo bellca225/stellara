@@ -12,8 +12,11 @@
 //   지원하기 위해 "{loginId}@stellara.internal" 형태의 내부 이메일을 사용.
 //   사용자에게는 노출되지 않으며, loginId만 기억하면 됨.
 
+import 'dart:math';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import '../../friends/data/friend_code_repository.dart';
 import '../domain/app_user.dart';
 import 'login_id_repository.dart';
@@ -60,16 +63,32 @@ class AuthRepository {
 
     // ③ Firestore 원자적 저장 (실패 시 Auth 롤백)
     try {
-      final friendCode = _generateFriendCode();
+      // 충돌이 없는 친구 코드를 찾을 때까지 재시도 (최대 5회)
+      String friendCode = _generateFriendCode();
+      for (var attempt = 0; attempt < 5; attempt++) {
+        final snap = await _db.collection('friendCodes').doc(friendCode).get();
+        if (!snap.exists) break;
+        friendCode = _generateFriendCode();
+      }
+
       await _db.runTransaction((txn) async {
         final userRef = _db.collection('users').doc(uid);
         final loginIdRef = _db.collection('loginIds').doc(id);
         final codeRef = _db.collection('friendCodes').doc(friendCode);
 
         // 트랜잭션 안에서 쓰기 전 read 먼저
+        final codeSnap = await txn.get(codeRef);
         await txn.get(userRef);
         await txn.get(loginIdRef);
-        await txn.get(codeRef);
+
+        // 코드 충돌 최종 방어 — 트랜잭션 내에서도 확인
+        if (codeSnap.exists) {
+          throw FirebaseException(
+            plugin: 'cloud_firestore',
+            code: 'friend-code-conflict',
+            message: '친구 코드가 이미 사용 중이에요. 다시 시도해주세요.',
+          );
+        }
 
         final now = FieldValue.serverTimestamp();
         txn.set(userRef, {
@@ -104,8 +123,9 @@ class AuthRepository {
         profileCompleted: false,
         authProvider: 'email',
       );
-    } catch (e) {
+    } catch (e, st) {
       // Firestore 저장 실패 → Auth 계정 롤백
+      debugPrint('[AuthRepository] signUp Firestore 트랜잭션 실패: $e\n$st');
       await cred.user?.delete();
       rethrow;
     }
@@ -163,11 +183,11 @@ class AuthRepository {
   // ── 헬퍼 ────────────────────────────────────────────────────────
   static const _codeChars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
+  /// 암호학적으로 안전한 Random 을 사용해 6자리 친구 코드를 생성한다.
+  /// 이전 타임스탬프 기반 알고리즘은 동일 기기에서 동일 코드를 생성하는 버그가 있었음.
   String _generateFriendCode() {
-    final rng = DateTime.now().microsecondsSinceEpoch;
-    return List.generate(6, (i) {
-      return _codeChars[(rng ~/ (i + 1)) % _codeChars.length];
-    }).join();
+    final rng = Random.secure();
+    return List.generate(6, (_) => _codeChars[rng.nextInt(_codeChars.length)]).join();
   }
 
   AuthError _mapFirebaseAuthError(FirebaseAuthException e) {
