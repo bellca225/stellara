@@ -48,16 +48,8 @@ dependencies:
 
   # Anonymous Auth refreshToken 저장 → 재설치 후 UID 변경 감지.
   flutter_secure_storage: ^9.2.2
-
-  # SNS/클립보드 공유 (궁합 결과, 랜덤 질문 공유하기).
-  share_plus: ^10.0.3
-
-  # HTTP 클라이언트 — AI API 호출 (Android/iOS/Web 모두 지원).
-  # dio는 astrology feature 전용이므로 cross-feature 오염 방지 목적으로 분리.
-  http: ^1.2.0
-
-  # 커스텀 폰트 (Sulphur Point 등 Google Fonts 사용).
-  google_fonts: ^6.2.1
+  flutter_svg: ^2.3.0
+  google_fonts: ^8.1.0
 
 dev_dependencies:
   flutter_test:
