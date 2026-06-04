@@ -1,4 +1,6 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../core/theme/app_theme.dart';
 import '../content/presentation/random_question_screen.dart';
@@ -38,6 +40,7 @@ class _AppShellState extends State<AppShell> {
         ),
         child: Stack(
           children: [
+            // 일반 별들 (고정)
             ...List.generate(40, (i) {
               final x = (i * 137.5) % 100;
               final y = (i * 97.3) % 100;
@@ -59,6 +62,27 @@ class _AppShellState extends State<AppShell> {
                 ),
               );
             }),
+
+            // 반짝이는 별 5개
+            ...List.generate(5, (i) {
+              final rng = math.Random(i * 31 + 7);
+              final x = rng.nextDouble() * 90 + 5;
+              final y = rng.nextDouble() * 70 + 5;
+              final size = rng.nextDouble() * 1.5 + 1.2;
+              // 각자 다른 딜레이와 주기
+              final delay = Duration(
+                milliseconds: (i * 1300 + rng.nextInt(800)),
+              );
+              final period = Duration(
+                milliseconds: (1800 + i * 700 + rng.nextInt(600)),
+              );
+              return Positioned(
+                left: x / 100 * MediaQuery.of(context).size.width,
+                top: y / 100 * MediaQuery.of(context).size.height,
+                child: _TwinklingStar(size: size, delay: delay, period: period),
+              );
+            }),
+
             IndexedStack(index: _index, children: _pages),
             Positioned(
               left: 24,
@@ -140,6 +164,81 @@ class _AppShellState extends State<AppShell> {
   }
 }
 
+// ──────────────────────────────────────────────
+// 반짝이는 별 위젯
+// ──────────────────────────────────────────────
+class _TwinklingStar extends StatefulWidget {
+  final double size;
+  final Duration delay;
+  final Duration period;
+
+  const _TwinklingStar({
+    required this.size,
+    required this.delay,
+    required this.period,
+  });
+
+  @override
+  State<_TwinklingStar> createState() => _TwinklingStarState();
+}
+
+class _TwinklingStarState extends State<_TwinklingStar>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: widget.period);
+
+    // 딜레이 후 시작
+    Future.delayed(widget.delay, () {
+      if (mounted) _ctrl.repeat(reverse: true);
+    });
+
+    // 0.05 ~ 1.0 사이로 반짝임 (완전히 사라지지 않게)
+    _anim = Tween<double>(
+      begin: 0.05,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _anim,
+      builder: (_, __) => Opacity(
+        opacity: _anim.value,
+        child: Container(
+          width: widget.size,
+          height: widget.size,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.white.withOpacity(_anim.value * 0.8),
+                blurRadius: widget.size * 2,
+                spreadRadius: widget.size * 0.5,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ──────────────────────────────────────────────
+// 네비게이션 위젯 (기존 유지)
+// ──────────────────────────────────────────────
 class _NavItem extends StatelessWidget {
   const _NavItem({
     required this.icon,

@@ -85,7 +85,7 @@ class _MainHomeContent extends ConsumerWidget {
           textAlign: TextAlign.center,
           style: Theme.of(
             context,
-          ).textTheme.titleMedium?.copyWith(color: AppColors.inkMuted),
+          ).textTheme.titleMedium?.copyWith(color: const Color(0xFF8EC5FF)),
         ),
         const SizedBox(height: AppSpacing.sm),
 
@@ -117,7 +117,7 @@ class _MainHomeContent extends ConsumerWidget {
                 colors: [Color(0x662B7FFF), Color(0x40155DFC)],
               ),
               borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: Color(0x26FFFFFF), width: 0.636),
+              border: Border.all(color: const Color(0x26FFFFFF), width: 0.636),
               boxShadow: _glassBoxShadow,
             ),
             child: const Row(
@@ -142,15 +142,15 @@ class _MainHomeContent extends ConsumerWidget {
 
         // 나의 Big 3 카드
         Container(
-          padding: const EdgeInsets.all(AppSpacing.lg),
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [Color(0x14FFFFFF), Color(0x08FFFFFF)],
+              colors: [Color(0x0DFFFFFF), Color(0x05FFFFFF)],
             ),
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Color(0x1EFFFFFF), width: 0.636),
+            border: Border.all(color: const Color(0x14FFFFFF), width: 0.636),
             boxShadow: _glassBoxShadow,
           ),
           child: Column(
@@ -161,18 +161,22 @@ class _MainHomeContent extends ConsumerWidget {
                 style: TextStyle(
                   color: Color(0xFF8EC5FF),
                   fontSize: 14,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w600,
                   letterSpacing: -0.2,
-                  height: 1.428,
                 ),
               ),
-              const SizedBox(height: AppSpacing.md),
-              Wrap(
-                spacing: AppSpacing.sm,
-                runSpacing: AppSpacing.sm,
-                children: [for (final label in big3) _SignChip(label: label)],
+              const SizedBox(height: 16),
+              // 칩 3개 가로 배치
+              Row(
+                children: [
+                  for (var i = 0; i < big3.length; i++) ...[
+                    if (i > 0) const SizedBox(width: 8),
+                    Expanded(child: _SignChip(label: big3[i])),
+                  ],
+                ],
               ),
-              const SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: 16),
+              // 상세 보기 버튼
               InkWell(
                 borderRadius: BorderRadius.circular(999),
                 onTap: () => Navigator.of(context).push(
@@ -180,7 +184,7 @@ class _MainHomeContent extends ConsumerWidget {
                 ),
                 child: Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 9),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
                       begin: Alignment.topLeft,
@@ -188,7 +192,10 @@ class _MainHomeContent extends ConsumerWidget {
                       colors: [Color(0x1AFFFFFF), Color(0x0DFFFFFF)],
                     ),
                     borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: Color(0x26FFFFFF), width: 0.636),
+                    border: Border.all(
+                      color: const Color(0x26FFFFFF),
+                      width: 0.636,
+                    ),
                     boxShadow: _glassBoxShadow,
                   ),
                   child: const Center(
@@ -196,8 +203,9 @@ class _MainHomeContent extends ConsumerWidget {
                       '상세 보기',
                       style: TextStyle(
                         color: Color(0xFFBEDBFF),
-                        fontSize: 14,
+                        fontSize: 15,
                         fontWeight: FontWeight.w500,
+                        letterSpacing: -0.2,
                       ),
                     ),
                   ),
@@ -211,7 +219,10 @@ class _MainHomeContent extends ConsumerWidget {
   }
 }
 
-class _OrbitPreview extends StatelessWidget {
+// ──────────────────────────────────────────────
+// 오빗 애니메이션 위젯
+// ──────────────────────────────────────────────
+class _OrbitPreview extends StatefulWidget {
   const _OrbitPreview({
     required this.favorites,
     required this.isLoading,
@@ -224,23 +235,86 @@ class _OrbitPreview extends StatelessWidget {
   final VoidCallback onTapMe;
   final void Function(Friend) onTapFriend;
 
+  @override
+  State<_OrbitPreview> createState() => _OrbitPreviewState();
+}
+
+class _OrbitPreviewState extends State<_OrbitPreview>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
   static const int _maxVisible = 8;
 
-  static double _angleFor(String uid, int index, int total) {
+  // 각 친구의 초기 각도 (uid 기반 고정값)
+  static double _baseAngleFor(String uid, int index, int total) {
     final baseAngle = 360.0 / total * index;
     final offset = (uid.hashCode % 30) - 15.0;
     return baseAngle + offset;
   }
 
+  // 친구마다 고유한 균등 간격 반지름 (1명=1궤도)
   static double _radiusFor(int index, int total) {
-    if (total <= 3) {
-      return index % 2 == 0 ? 0.35 : 0.46;
-    } else if (total <= 6) {
-      return index % 2 == 0 ? 0.32 : 0.44;
-    } else {
-      const radii = [0.26, 0.35, 0.46];
-      return radii[index % 3];
-    }
+    // 안쪽 0.22 ~ 바깥 0.46 사이를 균등 분배
+    const minR = 0.22;
+    const maxR = 0.46;
+    if (total == 1) return (minR + maxR) / 2;
+    return minR + (maxR - minR) / (total - 1) * index;
+  }
+
+  // 인덱스별 속도 — 안쪽일수록 빠름, 각자 다른 배수
+  static const _speedMultipliers = [
+    1.0,
+    0.55,
+    0.35,
+    0.75,
+    0.45,
+    0.65,
+    0.28,
+    0.85,
+  ];
+  static double _speedFor(int index) {
+    return _speedMultipliers[index % _speedMultipliers.length];
+  }
+
+  Widget _buildFriendBubble(
+    BuildContext context,
+    Friend friend,
+    int index,
+    int total,
+    double size,
+    double t,
+  ) {
+    final r = _radiusFor(index, total);
+    final speed = _speedFor(index);
+    final baseAngle = _baseAngleFor(friend.uid, index, total) * math.pi / 180;
+    final angle = baseAngle + t * speed;
+    final bubbleSize = size * 0.08;
+    final x = size / 2 + size * r * math.cos(angle) - bubbleSize / 2;
+    final y = size / 2 + size * r * math.sin(angle) - bubbleSize / 2;
+
+    return Positioned(
+      left: x,
+      top: y,
+      child: GestureDetector(
+        onTap: () => widget.onTapFriend(friend),
+        child: _OrbitFriendBubble(name: friend.nickname, diameter: bubbleSize),
+      ),
+    );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 20),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
   }
 
   @override
@@ -251,102 +325,111 @@ class _OrbitPreview extends StatelessWidget {
         final cx = size / 2;
         final cy = size / 2;
 
-        final visible = favorites.take(_maxVisible).toList();
+        final visible = widget.favorites.take(_maxVisible).toList();
 
-        final dots = <_FriendDot>[];
-        for (var i = 0; i < visible.length; i++) {
-          final f = visible[i];
-          final angle = _angleFor(f.uid, i, visible.length);
-          final r = _radiusFor(i, visible.length);
-          dots.add(_FriendDot(friend: f, r: r, angle: angle, size: size));
-        }
+        // 친구 수만큼 균등 간격 궤도
+        final ringRadii = visible.isEmpty
+            ? [size * 0.22, size * 0.35]
+            : List.generate(
+                visible.length,
+                (i) => _radiusFor(i, visible.length) * size,
+              );
 
-        final ringRadii =
-            visible.isEmpty
-                  ? [size * 0.22, size * 0.35]
-                  : dots.map((d) => d.r * size).toSet().toList()
-              ..sort();
+        return AnimatedBuilder(
+          animation: _ctrl,
+          builder: (context, _) {
+            final t = _ctrl.value * 2 * math.pi;
 
-        return Center(
-          child: SizedBox(
-            width: size,
-            height: size,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                for (final r in ringRadii)
-                  Positioned.fill(
-                    child: CustomPaint(painter: _OrbitRingPainter(cx, cy, r)),
-                  ),
-                for (final dot in dots)
-                  Positioned(
-                    left: dot.x - dot.bubbleSize / 2,
-                    top: dot.y - dot.bubbleSize / 2,
-                    child: GestureDetector(
-                      onTap: () => onTapFriend(dot.friend),
-                      child: _OrbitFriendBubble(
-                        name: dot.friend.nickname,
-                        diameter: dot.bubbleSize,
+            // 친구별 반지름 리스트 (1명 = 1링)
+            final friendRadii = List.generate(
+              visible.length,
+              (i) => _radiusFor(i, visible.length) * size,
+            );
+
+            return Center(
+              child: SizedBox(
+                width: size,
+                height: size,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    // 친구 1명당 링 1개
+                    for (final r in friendRadii)
+                      Positioned.fill(
+                        child: CustomPaint(
+                          painter: _OrbitRingPainter(
+                            cx,
+                            cy,
+                            r,
+                            friendRadii.isEmpty ? 1 : friendRadii.last,
+                          ),
+                        ),
+                      ),
+
+                    // 친구 버블
+                    for (var i = 0; i < visible.length; i++)
+                      _buildFriendBubble(
+                        context,
+                        visible[i],
+                        i,
+                        visible.length,
+                        size,
+                        t,
+                      ),
+
+                    // 중앙 태양
+                    Positioned(
+                      left: cx - size * 0.07,
+                      top: cy - size * 0.07,
+                      child: _SunBubble(
+                        diameter: size * 0.14,
+                        onTap: widget.onTapMe,
                       ),
                     ),
-                  ),
-                Positioned(
-                  left: cx - size * 0.07,
-                  top: cy - size * 0.07,
-                  child: _SunBubble(diameter: size * 0.14, onTap: onTapMe),
+
+                    if (!widget.isLoading && visible.isEmpty)
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: size * 0.08,
+                        child: const Text(
+                          '친구를 즐겨찾기하면\n여기에 표시돼요',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Color(0x88AABBFF),
+                            fontSize: 11,
+                            height: 1.5,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
-                if (!isLoading && visible.isEmpty)
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: size * 0.08,
-                    child: const Text(
-                      '친구를 즐겨찾기하면\n여기에 표시돼요',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Color(0x88AABBFF),
-                        fontSize: 11,
-                        height: 1.5,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );
   }
 }
 
-class _FriendDot {
-  final Friend friend;
-  final double x, y, bubbleSize;
-  final double r;
-
-  _FriendDot({
-    required this.friend,
-    required this.r,
-    required double angle,
-    required double size,
-  }) : x = size / 2 + size * r * math.cos(angle * math.pi / 180),
-       y = size / 2 + size * r * math.sin(angle * math.pi / 180),
-       bubbleSize = size * 0.07;
-}
-
 class _OrbitRingPainter extends CustomPainter {
-  final double cx, cy, radius;
-  _OrbitRingPainter(this.cx, this.cy, this.radius);
+  final double cx, cy, radius, maxRadius;
+  _OrbitRingPainter(this.cx, this.cy, this.radius, this.maxRadius);
 
   @override
   void paint(Canvas canvas, Size size) {
+    // 안쪽일수록 밝게, 바깥쪽일수록 어둡게
+    final ratio = maxRadius > 0 ? (radius / maxRadius) : 1.0;
+    final opacity = (0.55 - ratio * 0.35).clamp(0.12, 0.55);
+    final strokeWidth = (1.6 - ratio * 0.8).clamp(0.6, 1.6);
     canvas.drawCircle(
       Offset(cx, cy),
       radius,
       Paint()
-        ..color = const Color(0x556699FF)
+        ..color = Color.fromRGBO(102, 153, 255, opacity)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2,
+        ..strokeWidth = strokeWidth,
     );
   }
 
@@ -367,10 +450,10 @@ class _SunBubble extends StatelessWidget {
       child: Container(
         width: diameter,
         height: diameter,
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           shape: BoxShape.circle,
-          color: const Color(0xFFFFCC44),
-          boxShadow: const [
+          color: Color(0xFFFFCC44),
+          boxShadow: [
             BoxShadow(
               color: Color(0x88FFCC44),
               blurRadius: 16,
@@ -390,25 +473,34 @@ class _OrbitFriendBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final displayName = name.length > 5 ? '${name.substring(0, 4)}…' : name;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        // 버블 (글씨 없음)
         Container(
           width: diameter,
           height: diameter,
           decoration: const BoxDecoration(
             shape: BoxShape.circle,
             color: Color(0xFF4A90D9),
+            boxShadow: [
+              BoxShadow(
+                color: Color(0x664A90D9),
+                blurRadius: 8,
+                spreadRadius: 1,
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 3),
+        const SizedBox(height: 4),
+        // 이름 전체 표시
         Text(
-          displayName,
+          name,
           style: const TextStyle(
-            color: AppColors.inkMuted,
+            color: Color(0xAAFFFFFF),
             fontSize: 9,
-            fontWeight: FontWeight.w500,
+            fontWeight: FontWeight.w300,
+            letterSpacing: -0.1,
           ),
         ),
       ],
@@ -423,41 +515,39 @@ class _SignChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 7, 20, 6),
+      padding: const EdgeInsets.symmetric(vertical: 10),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0x14FFFFFF), Color(0x08FFFFFF)],
+          colors: [Color(0x0AFFFFFF), Color(0x05FFFFFF)],
         ),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Color(0x1EFFFFFF), width: 0.636),
+        border: Border.all(color: const Color(0x14FFFFFF), width: 0.636),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x26000000),
+            color: Color(0x1A000000),
             blurRadius: 4,
             offset: Offset(0, 4),
           ),
           BoxShadow(
-            color: Color(0x801E3A8A),
+            color: Color(0x401E3A8A),
             blurRadius: 20,
             offset: Offset(0, 5),
           ),
-          BoxShadow(
-            color: Color(0x26FFFFFF),
-            blurRadius: 1,
-            offset: Offset(0, 1),
-          ),
         ],
       ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          color: Color(0xCCFFFFFF),
-          fontSize: 12,
-          fontWeight: FontWeight.w300,
-          letterSpacing: -0.2,
-          height: 1.333,
+      child: Center(
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: Color(0xCCFFFFFF),
+            fontSize: 12,
+            fontWeight: FontWeight.w300,
+            letterSpacing: -0.2,
+            height: 1.3,
+          ),
         ),
       ),
     );
