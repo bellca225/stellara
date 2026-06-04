@@ -1,6 +1,6 @@
 // lib/features/friends/presentation/friend_screen.dart
 //
-// 친구 관리 화면 — Figma 친구관리1/2/3 구조 기준
+// 친구 관리 화면 — Figma 친구관리1/2 구조 기준
 //
 // 친구관리1: 내 친구 탭 — 친구 목록 + 즐겨찾기 카운트 + 궁합 보기
 // 친구관리2: 받은 요청 탭 — 요청 카드 + 시간 표시 + 수락/거절
@@ -16,11 +16,22 @@ import '../application/friend_providers.dart';
 import '../domain/friend.dart';
 import 'add_friend_screen.dart';
 
+// ── 공통 글래스 스타일 ─────────────────────────────────────────────
 const _glassBoxShadow = [
   BoxShadow(color: Color(0x26000000), blurRadius: 4, offset: Offset(0, 4)),
   BoxShadow(color: Color(0x801E3A8A), blurRadius: 20, offset: Offset(0, 5)),
-  BoxShadow(color: Color(0x26FFFFFF), blurRadius: 1, offset: Offset(0, 1)),
 ];
+
+BoxDecoration _glassCardDecoration({double radius = 24}) => BoxDecoration(
+  gradient: const LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0x14FFFFFF), Color(0x08FFFFFF)],
+  ),
+  borderRadius: BorderRadius.circular(radius),
+  border: Border.all(color: const Color(0x1FFFFFFF), width: 0.636),
+  boxShadow: _glassBoxShadow,
+);
 
 class FriendScreen extends ConsumerStatefulWidget {
   const FriendScreen({super.key});
@@ -126,36 +137,39 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
         body: SafeArea(
           child: Column(
             children: [
+              // ── 헤더 ───────────────────────────────────────────
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
                 child: Row(
                   children: [
                     _RoundBackButton(
                       onTap: () => Navigator.of(context).maybePop(),
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 12),
                     const Text(
                       '친구 관리',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 24,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -0.2,
                       ),
                     ),
                   ],
                 ),
               ),
+              // ── 검색창 ─────────────────────────────────────────
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
                 child: _SearchField(
-                  hintText: _tab == _FriendTab.friends ? '친구 검색' : '받은 요청 검색',
                   onChanged: (v) => setState(() => _searchQuery = v.trim()),
                 ),
               ),
+              // ── 탭 ─────────────────────────────────────────────
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
                 child: Container(
-                  padding: const EdgeInsets.all(4),
+                  padding: const EdgeInsets.all(4.634),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
                       begin: Alignment.topLeft,
@@ -164,7 +178,7 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
                     ),
                     borderRadius: BorderRadius.circular(999),
                     border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.12),
+                      color: const Color(0x1FFFFFFF),
                       width: 0.636,
                     ),
                     boxShadow: _glassBoxShadow,
@@ -191,9 +205,10 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
                   ),
                 ),
               ),
+              // ── 리스트 ─────────────────────────────────────────
               Expanded(
                 child: ListView(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
                   children: [
                     if (_tab == _FriendTab.friends) ...[
                       if (allFriends.isNotEmpty)
@@ -202,7 +217,7 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
                           child: Text(
                             '즐겨찾기 $favoriteCount/$kMaxFavorites',
                             style: const TextStyle(
-                              color: AppColors.inkMuted,
+                              color: Color(0xFFB0C4DE),
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
                             ),
@@ -286,24 +301,12 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
             ],
           ),
         ),
+        // ── 하단 친구 추가 버튼 ──────────────────────────────────
         bottomNavigationBar: SafeArea(
           top: false,
-          minimum: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-          child: Container(
-            height: 76,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-                colors: [Color(0x662B7FFF), Color(0x40155DFC)],
-              ),
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.15),
-                width: 0.636,
-              ),
-              boxShadow: _glassBoxShadow,
-            ),
+          minimum: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+          child: SizedBox(
+            height: 61,
             child: Material(
               color: Colors.transparent,
               child: InkWell(
@@ -311,24 +314,40 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const AddFriendScreen()),
                 ),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.person_add_outlined,
-                      color: Colors.white,
-                      size: 20,
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      colors: [Color(0x662B7FFF), Color(0x40155DFC)],
                     ),
-                    SizedBox(width: 8),
-                    Text(
-                      '친구 추가 요청',
-                      style: TextStyle(
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: const Color(0x26FFFFFF),
+                      width: 0.636,
+                    ),
+                    boxShadow: _glassBoxShadow,
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.person_add_outlined,
                         color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
+                        size: 20,
                       ),
-                    ),
-                  ],
+                      SizedBox(width: 8),
+                      Text(
+                        '친구 추가 요청',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -355,16 +374,8 @@ class _FriendRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-      decoration: BoxDecoration(
-        color: const Color(0xCC10224A),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.08),
-          width: 0.636,
-        ),
-        boxShadow: _glassBoxShadow,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      decoration: _glassCardDecoration(radius: 24),
       child: Row(
         children: [
           _InitialAvatar(initial: friend.initial),
@@ -377,8 +388,9 @@ class _FriendRow extends StatelessWidget {
                   friend.nickname,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                    letterSpacing: -0.2,
                   ),
                 ),
                 if (friend.sunSign.isNotEmpty && friend.sunSign != '-')
@@ -387,7 +399,6 @@ class _FriendRow extends StatelessWidget {
                     style: const TextStyle(
                       color: Color(0xFF8EC5FF),
                       fontSize: 14,
-                      fontWeight: FontWeight.w500,
                     ),
                   ),
               ],
@@ -402,14 +413,13 @@ class _FriendRow extends StatelessWidget {
               color: friend.isFavorite
                   ? const Color(0xFFFDC700)
                   : const Color(0xFF8EC5FF),
-              size: 24,
+              size: 22,
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           _GlassPillButton(
             label: '궁합 보기',
             onTap: onMatch,
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
           ),
         ],
       ),
@@ -432,15 +442,7 @@ class _RequestCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: const Color(0xCC10224A),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.08),
-          width: 0.636,
-        ),
-        boxShadow: _glassBoxShadow,
-      ),
+      decoration: _glassCardDecoration(radius: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -456,8 +458,9 @@ class _RequestCard extends StatelessWidget {
                       request.fromNickname,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                        letterSpacing: -0.2,
                       ),
                     ),
                     if (request.fromSunSign.isNotEmpty &&
@@ -467,7 +470,6 @@ class _RequestCard extends StatelessWidget {
                         style: const TextStyle(
                           color: Color(0xFF8EC5FF),
                           fontSize: 14,
-                          fontWeight: FontWeight.w500,
                         ),
                       ),
                   ],
@@ -480,6 +482,7 @@ class _RequestCard extends StatelessWidget {
                   style: const TextStyle(
                     color: Color(0xFF51A2FF),
                     fontSize: 12,
+                    letterSpacing: -0.2,
                   ),
                 ),
             ],
@@ -489,7 +492,8 @@ class _RequestCard extends StatelessWidget {
             children: [
               Expanded(
                 child: _GlassActionButton(
-                  label: '✓ 수락',
+                  label: '수락',
+                  icon: Icons.check,
                   primary: true,
                   onTap: onAccept,
                 ),
@@ -497,7 +501,8 @@ class _RequestCard extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: _GlassActionButton(
-                  label: '✕ 거절',
+                  label: '거절',
+                  icon: Icons.close,
                   primary: false,
                   onTap: onReject,
                 ),
@@ -528,13 +533,13 @@ class _TabButton extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        height: 36,
         decoration: BoxDecoration(
           gradient: isSelected
               ? const LinearGradient(
                   begin: Alignment.centerLeft,
                   end: Alignment.centerRight,
-                  colors: [Color(0xFF2B7FFF), Color(0xFF155DFC)],
+                  colors: [Color(0x4D2B7FFF), Color(0x4D155DFC)],
                 )
               : null,
           borderRadius: BorderRadius.circular(999),
@@ -543,9 +548,10 @@ class _TabButton extends StatelessWidget {
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected ? Colors.white : AppColors.inkMuted,
+            color: isSelected ? Colors.white : const Color(0x99FFFFFF),
             fontSize: 14,
-            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+            fontWeight: isSelected ? FontWeight.w500 : FontWeight.w400,
+            letterSpacing: -0.2,
           ),
         ),
       ),
@@ -561,8 +567,8 @@ class _InitialAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 44,
-      height: 44,
+      width: 48,
+      height: 48,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
@@ -571,14 +577,20 @@ class _InitialAvatar extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [Color(0xFF51A2FF), Color(0xFF155DFC)],
         ),
-        boxShadow: _glassBoxShadow,
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x4D3B82F6),
+            blurRadius: 7.5,
+          ),
+        ],
       ),
       child: Text(
         initial,
         style: const TextStyle(
           color: Colors.white,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w600,
           fontSize: 16,
+          letterSpacing: -0.2,
         ),
       ),
     );
@@ -596,27 +608,27 @@ class _RoundBackButton extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(28),
         child: Container(
-          width: 48,
-          height: 48,
+          width: 37,
+          height: 37,
           decoration: BoxDecoration(
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [Color(0x1AFFFFFF), Color(0x0DFFFFFF)],
             ),
-            shape: BoxShape.circle,
+            borderRadius: BorderRadius.circular(28),
             border: Border.all(
-              color: Colors.white.withValues(alpha: 0.12),
+              color: const Color(0x26FFFFFF),
               width: 0.636,
             ),
             boxShadow: _glassBoxShadow,
           ),
           child: const Icon(
-            Icons.arrow_back_rounded,
-            color: Color(0xFF8EC5FF),
-            size: 22,
+            Icons.arrow_back_ios_new_rounded,
+            color: Colors.white,
+            size: 16,
           ),
         ),
       ),
@@ -625,43 +637,47 @@ class _RoundBackButton extends StatelessWidget {
 }
 
 class _SearchField extends StatelessWidget {
-  const _SearchField({required this.hintText, required this.onChanged});
+  const _SearchField({required this.onChanged});
 
-  final String hintText;
   final ValueChanged<String> onChanged;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 72,
+      height: 49,
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [Color(0x14FFFFFF), Color(0x08FFFFFF)],
         ),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: Colors.white.withValues(alpha: 0.12),
+          color: const Color(0x1FFFFFFF),
           width: 0.636,
         ),
         boxShadow: _glassBoxShadow,
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 18),
       child: Row(
         children: [
+          const SizedBox(width: 12),
           const Icon(Icons.search_rounded, color: Color(0x808EC5FF), size: 20),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(
             child: TextField(
               onChanged: onChanged,
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                letterSpacing: -0.2,
+              ),
               cursorColor: const Color(0xFF8EC5FF),
-              decoration: InputDecoration(
-                hintText: hintText,
-                hintStyle: const TextStyle(
-                  color: Color(0xCC8EC5FF),
+              decoration: const InputDecoration(
+                hintText: '아이디로 친구 검색',
+                hintStyle: TextStyle(
+                  color: Color(0x808EC5FF),
                   fontSize: 16,
+                  letterSpacing: -0.2,
                 ),
                 border: InputBorder.none,
                 enabledBorder: InputBorder.none,
@@ -671,6 +687,7 @@ class _SearchField extends StatelessWidget {
               ),
             ),
           ),
+          const SizedBox(width: 16),
         ],
       ),
     );
@@ -686,19 +703,15 @@ class _EmptyStateCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(28),
-      decoration: BoxDecoration(
-        color: const Color(0xCC10224A),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.08),
-          width: 0.636,
-        ),
-        boxShadow: _glassBoxShadow,
-      ),
+      decoration: _glassCardDecoration(radius: 24),
       child: Text(
         message,
         textAlign: TextAlign.center,
-        style: const TextStyle(color: AppColors.inkMuted, height: 1.5),
+        style: const TextStyle(
+          color: Color(0xFFB0C4DE),
+          height: 1.5,
+          fontSize: 14,
+        ),
       ),
     );
   }
@@ -718,13 +731,17 @@ class _CircleActionButton extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(999),
         child: Container(
-          width: 52,
-          height: 52,
+          width: 40,
+          height: 40,
           decoration: BoxDecoration(
-            color: const Color(0x8020335E),
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0x14FFFFFF), Color(0x08FFFFFF)],
+            ),
             shape: BoxShape.circle,
             border: Border.all(
-              color: Colors.white.withValues(alpha: 0.1),
+              color: const Color(0x1AFFFFFF),
               width: 0.636,
             ),
           ),
@@ -739,12 +756,10 @@ class _GlassPillButton extends StatelessWidget {
   const _GlassPillButton({
     required this.label,
     required this.onTap,
-    this.padding = const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
   });
 
   final String label;
   final VoidCallback onTap;
-  final EdgeInsets padding;
 
   @override
   Widget build(BuildContext context) {
@@ -754,25 +769,27 @@ class _GlassPillButton extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(999),
         child: Container(
-          padding: padding,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0x1AFFFFFF), Color(0x0DFFFFFF)],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: [Color(0x4D2B7FFF), Color(0x4D155DFC)],
             ),
             borderRadius: BorderRadius.circular(999),
             border: Border.all(
-              color: Colors.white.withValues(alpha: 0.12),
+              color: const Color(0x26FFFFFF),
               width: 0.636,
             ),
+            boxShadow: _glassBoxShadow,
           ),
           child: Text(
             label,
             style: const TextStyle(
               color: Colors.white,
               fontSize: 14,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w500,
+              letterSpacing: -0.2,
             ),
           ),
         ),
@@ -784,11 +801,13 @@ class _GlassPillButton extends StatelessWidget {
 class _GlassActionButton extends StatelessWidget {
   const _GlassActionButton({
     required this.label,
+    required this.icon,
     required this.primary,
     required this.onTap,
   });
 
   final String label;
+  final IconData icon;
   final bool primary;
   final VoidCallback onTap;
 
@@ -800,7 +819,7 @@ class _GlassActionButton extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(999),
         child: Container(
-          height: 44,
+          height: 37,
           decoration: BoxDecoration(
             gradient: primary
                 ? const LinearGradient(
@@ -815,19 +834,26 @@ class _GlassActionButton extends StatelessWidget {
                   ),
             borderRadius: BorderRadius.circular(999),
             border: Border.all(
-              color: Colors.white.withValues(alpha: 0.12),
+              color: const Color(0x26FFFFFF),
               width: 0.636,
             ),
+            boxShadow: _glassBoxShadow,
           ),
-          child: Center(
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 16, color: Colors.white),
+              const SizedBox(width: 2),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: -0.2,
+                ),
               ),
-            ),
+            ],
           ),
         ),
       ),
