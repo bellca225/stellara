@@ -28,9 +28,7 @@ import '../domain/question_item.dart';
 class _C {
   static const white = Color(0xFFFFFFFF);
   static const accent = Color(0xFF8EC5FF);
-  static const accentDim = Color(0x808EC5FF); // 50% opacity
-  static const blue1 = Color(0xFF51A2FF);
-  static const blue2 = Color(0xFF155DFC);
+  static const accentDim = Color(0x808EC5FF);
   static const cardBorder = Color(0x1FFFFFFF);
   static const headerBorder = Color(0x26FFFFFF);
   static const glassStart = Color(0x14FFFFFF);
@@ -89,7 +87,7 @@ class _GlassCard extends StatelessWidget {
 }
 
 // ──────────────────────────────────────────────
-// 새로고침 아이콘 (Icon__21_ 정확한 path)
+// 새로고침 아이콘 (Icon__21_ — 4개 path 정확히)
 // ──────────────────────────────────────────────
 class _RefreshIconPainter extends CustomPainter {
   @override
@@ -102,40 +100,84 @@ class _RefreshIconPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
 
-    // 위쪽 반원: 2.5,10 → arc → 15.616,4.783
+    // path1: M2.5 10 C(위 반원) L17.5 6.667
     final top = Path();
     top.moveTo(2.5 * r, 10 * r);
-    top.arcToPoint(
-      Offset(15.616 * r, 4.783 * r),
-      radius: Radius.circular(7.5 * r),
-      clockwise: false,
+    top.cubicTo(2.5 * r, 8.011 * r, 3.29 * r, 6.103 * r, 4.697 * r, 4.697 * r);
+    top.cubicTo(6.103 * r, 3.29 * r, 8.011 * r, 2.5 * r, 10 * r, 2.5 * r);
+    top.cubicTo(
+      12.096 * r,
+      2.508 * r,
+      14.109 * r,
+      3.326 * r,
+      15.616 * r,
+      4.783 * r,
     );
     top.lineTo(17.5 * r, 6.667 * r);
     canvas.drawPath(top, p);
-    // 위 화살표 꺾임
+
+    // path2: M17.5 2.5 V6.667 H13.333
     canvas.drawLine(Offset(17.5 * r, 2.5 * r), Offset(17.5 * r, 6.667 * r), p);
     canvas.drawLine(
-      Offset(13.333 * r, 6.667 * r),
       Offset(17.5 * r, 6.667 * r),
+      Offset(13.333 * r, 6.667 * r),
       p,
     );
 
-    // 아래쪽 반원: 17.5,10 → arc → 4.383,15.216
+    // path3: M17.5 10 C(아래 반원) L2.5 13.333
     final bot = Path();
     bot.moveTo(17.5 * r, 10 * r);
-    bot.arcToPoint(
-      Offset(4.383 * r, 15.216 * r),
-      radius: Radius.circular(7.5 * r),
-      clockwise: false,
+    bot.cubicTo(
+      17.5 * r,
+      11.989 * r,
+      16.709 * r,
+      13.896 * r,
+      15.303 * r,
+      15.303 * r,
+    );
+    bot.cubicTo(13.896 * r, 16.709 * r, 11.989 * r, 17.5 * r, 10 * r, 17.5 * r);
+    bot.cubicTo(
+      7.903 * r,
+      17.492 * r,
+      5.891 * r,
+      16.674 * r,
+      4.383 * r,
+      15.216 * r,
     );
     bot.lineTo(2.5 * r, 13.333 * r);
     canvas.drawPath(bot, p);
+
+    // path4: M6.667 13.333 H2.5 V17.5
     canvas.drawLine(
       Offset(6.667 * r, 13.333 * r),
       Offset(2.5 * r, 13.333 * r),
       p,
     );
-    canvas.drawLine(Offset(2.5 * r, 17.5 * r), Offset(2.5 * r, 13.333 * r), p);
+    canvas.drawLine(Offset(2.5 * r, 13.333 * r), Offset(2.5 * r, 17.5 * r), p);
+  }
+
+  @override
+  bool shouldRepaint(_) => false;
+}
+
+// ──────────────────────────────────────────────
+// 드롭다운 화살표 (Icon__23_)
+// ──────────────────────────────────────────────
+class _ChevronDownPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final r = size.width / 20;
+    final p = Paint()
+      ..color = _C.accent
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.66663 * r
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    final path = Path()
+      ..moveTo(4.4852 * r, 7.861 * r)
+      ..lineTo(9.4853 * r, 12.861 * r)
+      ..lineTo(14.4853 * r, 7.861 * r);
+    canvas.drawPath(path, p);
   }
 
   @override
@@ -175,51 +217,484 @@ class _ShareWhiteIconPainter extends CustomPainter {
 }
 
 // ──────────────────────────────────────────────
-// 별빛 배경
+// 별빛 아이콘 (Icon__24_ — 답변 생성하기 버튼용)
 // ──────────────────────────────────────────────
-class _StarsBg extends StatelessWidget {
-  final Widget child;
-  const _StarsBg({required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Color(0xFF04081A),
-            Color(0xFF060D2E),
-            Color(0xFF08112A),
-            Color(0xFF030818),
-          ],
-          stops: [0.0, 0.35, 0.65, 1.0],
-        ),
-      ),
-      child: CustomPaint(painter: _StarsPainter(), child: child),
-    );
-  }
-}
-
-class _StarsPainter extends CustomPainter {
-  static final _rng = math.Random(77);
-  static final _pos = List.generate(
-    80,
-    (_) => Offset(_rng.nextDouble(), _rng.nextDouble()),
-  );
-  static final _sz = List.generate(80, (_) => _rng.nextDouble() * 1.5 + 0.4);
-  static final _op = List.generate(80, (_) => _rng.nextDouble() * 0.55 + 0.15);
-
+class _SparkleIconPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    for (var i = 0; i < _pos.length; i++) {
-      canvas.drawCircle(
-        Offset(_pos[i].dx * size.width, _pos[i].dy * size.height),
-        _sz[i],
-        Paint()..color = Colors.white.withOpacity(_op[i]),
-      );
-    }
+    final r = size.width / 20;
+    final p = Paint()
+      ..color = _C.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.66663 * r
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    // 별 모양 path
+    final star = Path()
+      ..moveTo(8.281 * r, 12.916 * r)
+      ..cubicTo(
+        8.206 * r,
+        12.628 * r,
+        8.056 * r,
+        12.365 * r,
+        7.845 * r,
+        12.154 * r,
+      )
+      ..cubicTo(
+        7.635 * r,
+        11.944 * r,
+        7.372 * r,
+        11.793 * r,
+        7.083 * r,
+        11.719 * r,
+      )
+      ..lineTo(1.971 * r, 10.401 * r)
+      ..cubicTo(
+        1.884 * r,
+        10.376 * r,
+        1.807 * r,
+        10.323 * r,
+        1.752 * r,
+        10.251 * r,
+      )
+      ..cubicTo(
+        1.697 * r,
+        10.179 * r,
+        1.668 * r,
+        10.091 * r,
+        1.668 * r,
+        10.0 * r,
+      )
+      ..cubicTo(
+        1.668 * r,
+        9.909 * r,
+        1.697 * r,
+        9.821 * r,
+        1.752 * r,
+        9.749 * r,
+      )
+      ..cubicTo(
+        1.807 * r,
+        9.676 * r,
+        1.884 * r,
+        9.624 * r,
+        1.971 * r,
+        9.599 * r,
+      )
+      ..lineTo(7.083 * r, 8.280 * r)
+      ..cubicTo(
+        7.371 * r,
+        8.206 * r,
+        7.635 * r,
+        8.055 * r,
+        7.845 * r,
+        7.845 * r,
+      )
+      ..cubicTo(
+        8.056 * r,
+        7.634 * r,
+        8.206 * r,
+        7.371 * r,
+        8.281 * r,
+        7.083 * r,
+      )
+      ..lineTo(9.599 * r, 1.971 * r)
+      ..cubicTo(
+        9.623 * r,
+        1.883 * r,
+        9.676 * r,
+        1.806 * r,
+        9.748 * r,
+        1.751 * r,
+      )
+      ..cubicTo(9.821 * r, 1.696 * r, 9.909 * r, 1.667 * r, 10.0 * r, 1.667 * r)
+      ..cubicTo(
+        10.091 * r,
+        1.667 * r,
+        10.180 * r,
+        1.696 * r,
+        10.252 * r,
+        1.751 * r,
+      )
+      ..cubicTo(
+        10.324 * r,
+        1.806 * r,
+        10.377 * r,
+        1.883 * r,
+        10.401 * r,
+        1.971 * r,
+      )
+      ..lineTo(11.719 * r, 7.083 * r)
+      ..cubicTo(
+        11.793 * r,
+        7.372 * r,
+        11.944 * r,
+        7.635 * r,
+        12.154 * r,
+        7.845 * r,
+      )
+      ..cubicTo(
+        12.365 * r,
+        8.056 * r,
+        12.628 * r,
+        8.206 * r,
+        12.916 * r,
+        8.281 * r,
+      )
+      ..lineTo(18.029 * r, 9.598 * r)
+      ..cubicTo(
+        18.117 * r,
+        9.622 * r,
+        18.194 * r,
+        9.675 * r,
+        18.249 * r,
+        9.747 * r,
+      )
+      ..cubicTo(
+        18.305 * r,
+        9.820 * r,
+        18.335 * r,
+        9.909 * r,
+        18.335 * r,
+        10.0 * r,
+      )
+      ..cubicTo(
+        18.335 * r,
+        10.091 * r,
+        18.305 * r,
+        10.180 * r,
+        18.249 * r,
+        10.252 * r,
+      )
+      ..cubicTo(
+        18.194 * r,
+        10.325 * r,
+        18.117 * r,
+        10.377 * r,
+        18.029 * r,
+        10.402 * r,
+      )
+      ..lineTo(12.916 * r, 11.719 * r)
+      ..cubicTo(
+        12.628 * r,
+        11.793 * r,
+        12.365 * r,
+        11.944 * r,
+        12.154 * r,
+        12.154 * r,
+      )
+      ..cubicTo(
+        11.944 * r,
+        12.365 * r,
+        11.793 * r,
+        12.628 * r,
+        11.719 * r,
+        12.916 * r,
+      )
+      ..lineTo(10.401 * r, 18.029 * r)
+      ..cubicTo(
+        10.376 * r,
+        18.116 * r,
+        10.324 * r,
+        18.194 * r,
+        10.251 * r,
+        18.249 * r,
+      )
+      ..cubicTo(
+        10.179 * r,
+        18.303 * r,
+        10.090 * r,
+        18.333 * r,
+        9.999 * r,
+        18.333 * r,
+      )
+      ..cubicTo(
+        9.908 * r,
+        18.333 * r,
+        9.820 * r,
+        18.303 * r,
+        9.748 * r,
+        18.249 * r,
+      )
+      ..cubicTo(
+        9.675 * r,
+        18.194 * r,
+        9.623 * r,
+        18.116 * r,
+        9.598 * r,
+        18.029 * r,
+      )
+      ..close();
+    canvas.drawPath(star, p);
+
+    // 오른쪽 위 작은 십자
+    canvas.drawLine(
+      Offset(16.666 * r, 2.5 * r),
+      Offset(16.666 * r, 5.833 * r),
+      p,
+    );
+    canvas.drawLine(
+      Offset(18.333 * r, 4.167 * r),
+      Offset(15.0 * r, 4.167 * r),
+      p,
+    );
+
+    // 왼쪽 아래 작은 십자
+    canvas.drawLine(
+      Offset(3.333 * r, 14.166 * r),
+      Offset(3.333 * r, 15.833 * r),
+      p,
+    );
+    canvas.drawLine(Offset(4.167 * r, 15.0 * r), Offset(2.5 * r, 15.0 * r), p);
+  }
+
+  @override
+  bool shouldRepaint(_) => false;
+}
+
+// ──────────────────────────────────────────────
+// 점성술 답변 아이콘 (Icon__26_ — #51A2FF, 16×16)
+// ──────────────────────────────────────────────
+class _AnswerSparkleIconPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final r = size.width / 16;
+    final p = Paint()
+      ..color = const Color(0xFF51A2FF)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.33264 * r
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    // 별 모양
+    final star = Path()
+      ..moveTo(6.621 * r, 10.328 * r)
+      ..cubicTo(
+        6.562 * r,
+        10.097 * r,
+        6.442 * r,
+        9.887 * r,
+        6.273 * r,
+        9.719 * r,
+      )
+      ..cubicTo(
+        6.105 * r,
+        9.550 * r,
+        5.894 * r,
+        9.430 * r,
+        5.664 * r,
+        9.371 * r,
+      )
+      ..lineTo(1.576 * r, 8.316 * r)
+      ..cubicTo(
+        1.506 * r,
+        8.297 * r,
+        1.445 * r,
+        8.255 * r,
+        1.401 * r,
+        8.197 * r,
+      )
+      ..cubicTo(
+        1.357 * r,
+        8.139 * r,
+        1.334 * r,
+        8.068 * r,
+        1.334 * r,
+        7.996 * r,
+      )
+      ..cubicTo(
+        1.334 * r,
+        7.923 * r,
+        1.357 * r,
+        7.853 * r,
+        1.401 * r,
+        7.795 * r,
+      )
+      ..cubicTo(
+        1.445 * r,
+        7.737 * r,
+        1.506 * r,
+        7.695 * r,
+        1.576 * r,
+        7.675 * r,
+      )
+      ..lineTo(5.664 * r, 6.621 * r)
+      ..cubicTo(
+        5.894 * r,
+        6.561 * r,
+        6.105 * r,
+        6.441 * r,
+        6.273 * r,
+        6.273 * r,
+      )
+      ..cubicTo(
+        6.441 * r,
+        6.105 * r,
+        6.562 * r,
+        5.894 * r,
+        6.621 * r,
+        5.664 * r,
+      )
+      ..lineTo(7.675 * r, 1.576 * r)
+      ..cubicTo(
+        7.695 * r,
+        1.506 * r,
+        7.737 * r,
+        1.444 * r,
+        7.795 * r,
+        1.400 * r,
+      )
+      ..cubicTo(
+        7.853 * r,
+        1.356 * r,
+        7.924 * r,
+        1.333 * r,
+        7.996 * r,
+        1.333 * r,
+      )
+      ..cubicTo(
+        8.069 * r,
+        1.333 * r,
+        8.140 * r,
+        1.356 * r,
+        8.198 * r,
+        1.400 * r,
+      )
+      ..cubicTo(
+        8.255 * r,
+        1.444 * r,
+        8.297 * r,
+        1.506 * r,
+        8.317 * r,
+        1.576 * r,
+      )
+      ..lineTo(9.371 * r, 5.664 * r)
+      ..cubicTo(
+        9.430 * r,
+        5.894 * r,
+        9.550 * r,
+        6.105 * r,
+        9.719 * r,
+        6.273 * r,
+      )
+      ..cubicTo(
+        9.887 * r,
+        6.442 * r,
+        10.097 * r,
+        6.562 * r,
+        10.328 * r,
+        6.621 * r,
+      )
+      ..lineTo(14.416 * r, 7.675 * r)
+      ..cubicTo(
+        14.486 * r,
+        7.694 * r,
+        14.548 * r,
+        7.736 * r,
+        14.592 * r,
+        7.794 * r,
+      )
+      ..cubicTo(
+        14.637 * r,
+        7.852 * r,
+        14.660 * r,
+        7.923 * r,
+        14.660 * r,
+        7.996 * r,
+      )
+      ..cubicTo(
+        14.660 * r,
+        8.069 * r,
+        14.637 * r,
+        8.140 * r,
+        14.592 * r,
+        8.198 * r,
+      )
+      ..cubicTo(
+        14.548 * r,
+        8.256 * r,
+        14.486 * r,
+        8.298 * r,
+        14.416 * r,
+        8.317 * r,
+      )
+      ..lineTo(10.328 * r, 9.371 * r)
+      ..cubicTo(
+        10.097 * r,
+        9.430 * r,
+        9.887 * r,
+        9.550 * r,
+        9.719 * r,
+        9.719 * r,
+      )
+      ..cubicTo(
+        9.550 * r,
+        9.887 * r,
+        9.430 * r,
+        10.097 * r,
+        9.371 * r,
+        10.328 * r,
+      )
+      ..lineTo(8.316 * r, 14.416 * r)
+      ..cubicTo(
+        8.297 * r,
+        14.486 * r,
+        8.255 * r,
+        14.548 * r,
+        8.197 * r,
+        14.592 * r,
+      )
+      ..cubicTo(
+        8.139 * r,
+        14.636 * r,
+        8.068 * r,
+        14.659 * r,
+        7.996 * r,
+        14.659 * r,
+      )
+      ..cubicTo(
+        7.923 * r,
+        14.659 * r,
+        7.852 * r,
+        14.636 * r,
+        7.794 * r,
+        14.592 * r,
+      )
+      ..cubicTo(
+        7.736 * r,
+        14.548 * r,
+        7.694 * r,
+        14.486 * r,
+        7.675 * r,
+        14.416 * r,
+      )
+      ..close();
+    canvas.drawPath(star, p);
+
+    // 오른쪽 위 십자
+    canvas.drawLine(
+      Offset(13.326 * r, 1.999 * r),
+      Offset(13.326 * r, 4.664 * r),
+      p,
+    );
+    canvas.drawLine(
+      Offset(14.659 * r, 3.332 * r),
+      Offset(11.994 * r, 3.332 * r),
+      p,
+    );
+
+    // 왼쪽 아래 십자
+    canvas.drawLine(
+      Offset(2.665 * r, 11.327 * r),
+      Offset(2.665 * r, 12.660 * r),
+      p,
+    );
+    canvas.drawLine(
+      Offset(3.332 * r, 11.994 * r),
+      Offset(1.999 * r, 11.994 * r),
+      p,
+    );
   }
 
   @override
@@ -232,7 +707,6 @@ class _StarsPainter extends CustomPainter {
 class _AnimatedQuestionCard extends StatefulWidget {
   final String? text;
   final bool isLoading;
-
   const _AnimatedQuestionCard({this.text, this.isLoading = false});
 
   @override
@@ -297,8 +771,8 @@ class _AnimatedQuestionCardState extends State<_AnimatedQuestionCard>
                 style: const TextStyle(
                   color: _C.white,
                   fontSize: 24,
-                  fontWeight: FontWeight.w600,
-                  height: 1.5,
+                  fontWeight: FontWeight.w500,
+                  height: 1.33,
                   letterSpacing: -0.2,
                   fontFamily: 'Pretendard',
                 ),
@@ -318,36 +792,43 @@ class _AnswerCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _GlassCard(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(9999),
-              color: const Color(0x2951A2FF),
-            ),
-            child: Text(
-              item.isAiGenerated ? 'AI 점성술 답변' : '점성술 답변',
-              style: const TextStyle(
-                color: _C.accent,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                fontFamily: 'Pretendard',
+          // 아이콘 + "점성술 답변" 라벨
+          Row(
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CustomPaint(painter: _AnswerSparkleIconPainter()),
               ),
-            ),
+              const SizedBox(width: 8),
+              Text(
+                item.isAiGenerated ? 'AI 점성술 답변' : '점성술 답변',
+                style: const TextStyle(
+                  color: _C.white,
+                  fontSize: 16,
+                  fontFamily: 'Pretendard',
+                  fontWeight: FontWeight.w600,
+                  height: 1.5,
+                  letterSpacing: -0.2,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
+          // 답변 본문
           Text(
             item.answer,
             style: const TextStyle(
               color: _C.white,
-              fontSize: 14,
-              fontWeight: FontWeight.w300,
-              height: 1.65,
-              letterSpacing: -0.15,
+              fontSize: 16,
               fontFamily: 'Pretendard',
+              fontWeight: FontWeight.w400,
+              height: 1.5,
+              letterSpacing: -0.2,
             ),
           ),
         ],
@@ -417,15 +898,16 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
         ? ref.watch(myChartForQuestionProvider)
         : const AsyncValue<NatalChart?>.data(null);
 
-    return StarBackground(
-      child: SafeArea(
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(24, 0, 24, 120),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // ── 제목 영역 ─────────────────────────────────
+              // ── 제목 영역 (padding-top: 24, 제목↔설명 8px) ──
               const SizedBox(height: 24),
               const Text(
                 '랜덤질문',
@@ -441,7 +923,7 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
               ),
               const SizedBox(height: 8),
               const Text(
-                '친구와 더 깊은 이야기를 나눠보세요',
+                '친구를 선택하고 점성술 질문을 받아보세요',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: _C.accent,
@@ -454,7 +936,6 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
               ),
               const SizedBox(height: 24),
 
-              // ── 친구 선택 ──────────────────────────────────
               friendsAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (e, _) => _GlassCard(
@@ -487,7 +968,6 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
     bool aiEnabled,
     AsyncValue<NatalChart?> myChartAsync,
   ) {
-    // 친구 없을 때
     if (friends.isEmpty) {
       return _GlassCard(
         child: Column(
@@ -621,146 +1101,208 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // ── 친구 선택 박스 ──────────────────────────────
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              '친구 선택',
-              style: TextStyle(
-                color: _C.labelColor,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                fontFamily: 'Pretendard',
-              ),
-            ),
-            const SizedBox(height: 8),
-            _GlassCard(
-              borderRadius: 16,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
-              child: SizedBox(
-                height: 49,
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _selectedFriendUid,
-                    dropdownColor: const Color(0xFF0A1628),
-                    iconEnabledColor: _C.accent,
-                    isExpanded: true,
-                    hint: const Text(
-                      '친구를 선택해주세요',
-                      style: TextStyle(
-                        color: _C.accentDim,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w400,
-                        fontFamily: 'Pretendard',
+        // ── 친구 선택 라벨 ──────────────────────────────
+        const Text(
+          '친구 선택',
+          style: TextStyle(
+            color: _C.labelColor,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            fontFamily: 'Pretendard',
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        // ── 친구 선택 드롭다운 ──────────────────────────
+        _GlassCard(
+          borderRadius: 16,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
+          child: SizedBox(
+            height: 49,
+            child: Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _selectedFriendUid,
+                      dropdownColor: const Color(0xFF0A1628),
+                      // 기본 화살표 숨기고 커스텀 아이콘 사용
+                      icon: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CustomPaint(painter: _ChevronDownPainter()),
                       ),
-                    ),
-                    items: [
-                      for (final f in friends)
-                        DropdownMenuItem(
-                          value: f.uid,
-                          child: Text(
-                            '${f.nickname} · ${_signLabel(f.sunSign)}',
-                            style: const TextStyle(
-                              color: _C.white,
-                              fontFamily: 'Pretendard',
+                      isExpanded: true,
+                      hint: const Text(
+                        '친구 선택',
+                        style: TextStyle(
+                          color: _C.accentDim,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w400,
+                          fontFamily: 'Pretendard',
+                        ),
+                      ),
+                      items: [
+                        for (final f in friends)
+                          DropdownMenuItem(
+                            value: f.uid,
+                            child: Text(
+                              '${f.nickname} · ${_signLabel(f.sunSign)}',
+                              style: const TextStyle(
+                                color: _C.white,
+                                fontFamily: 'Pretendard',
+                              ),
                             ),
                           ),
-                        ),
-                    ],
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedFriendUid = value;
-                        _hasRequestedQuestion = false;
-                        _showAnswer = false;
-                        _revision = 0;
-                      });
-                    },
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedFriendUid = value;
+                          _hasRequestedQuestion = false;
+                          _showAnswer = false;
+                          _revision = 0;
+                        });
+                      },
+                    ),
                   ),
                 ),
-              ),
+              ],
             ),
-            if (isFriendChartLoading)
-              const Padding(
-                padding: EdgeInsets.only(top: 8),
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 12,
-                      height: 12,
-                      child: CircularProgressIndicator(strokeWidth: 1.5),
-                    ),
-                    SizedBox(width: 8),
-                    Text(
-                      '친구 별자리 차트 불러오는 중...',
-                      style: TextStyle(
-                        color: _C.accentDim,
-                        fontSize: 12,
-                        fontFamily: 'Pretendard',
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-          ],
+          ),
         ),
+
+        if (isFriendChartLoading)
+          const Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 12,
+                  height: 12,
+                  child: CircularProgressIndicator(strokeWidth: 1.5),
+                ),
+                SizedBox(width: 8),
+                Text(
+                  '친구 별자리 차트 불러오는 중...',
+                  style: TextStyle(
+                    color: _C.accentDim,
+                    fontSize: 12,
+                    fontFamily: 'Pretendard',
+                  ),
+                ),
+              ],
+            ),
+          ),
 
         const SizedBox(height: 24),
 
-        // ── 질문 카드 ───────────────────────────────────
-        if (!hasSelected || !_hasRequestedQuestion)
+        // ── 질문 카드 (생성됐을 때만 표시) ───────────────
+        if (_hasRequestedQuestion) ...[
+          // 질문 + 답변생성 버튼을 하나의 GlassCard 안에
           _GlassCard(
-            padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
-            child: const SizedBox.shrink(),
-          )
-        else
-          _AnimatedQuestionCard(
-            text: generatedQuestion?.prompt,
-            isLoading: isQuestionLoading,
-          ),
-
-        // 답변 카드
-        if (_showAnswer && generatedQuestion != null) ...[
-          const SizedBox(height: 16),
-          _AnswerCard(item: generatedQuestion),
-        ],
-
-        // 답변 생성 버튼
-        if (_hasRequestedQuestion &&
-            generatedQuestion != null &&
-            !_showAnswer) ...[
-          const SizedBox(height: 16),
-          GestureDetector(
-            onTap: () => setState(() => _showAnswer = true),
-            child: _GlassCard(
-              borderRadius: 16,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.auto_awesome, color: _C.accent, size: 18),
-                  SizedBox(width: 8),
+            padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 질문 텍스트 or 로딩
+                if (isQuestionLoading)
+                  const Center(
+                    child: SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Color(0xFF8EC5FF),
+                      ),
+                    ),
+                  )
+                else
                   Text(
-                    '답변 생성하기',
-                    style: TextStyle(
+                    generatedQuestion?.prompt ?? '',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
                       color: _C.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w500,
+                      height: 1.33,
+                      letterSpacing: -0.2,
                       fontFamily: 'Pretendard',
                     ),
                   ),
+
+                // 답변 생성하기 버튼 (답변 안 보일 때만)
+                if (generatedQuestion != null && !_showAnswer) ...[
+                  const SizedBox(height: 16),
+                  GestureDetector(
+                    onTap: () => setState(() => _showAnswer = true),
+                    child: Container(
+                      width: 191,
+                      height: 61,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(9999),
+                        border: Border.all(
+                          color: const Color(0x26FFFFFF),
+                          width: 1,
+                        ),
+                        gradient: const LinearGradient(
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                          colors: [Color(0x662B7FFF), Color(0x40155DFC)],
+                        ),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x7F1E3A8A),
+                            blurRadius: 20,
+                            offset: Offset(0, 5),
+                          ),
+                          BoxShadow(
+                            color: Color(0x26000000),
+                            blurRadius: 4,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CustomPaint(painter: _SparkleIconPainter()),
+                          ),
+                          const SizedBox(width: 4),
+                          const Text(
+                            '답변 생성하기',
+                            style: TextStyle(
+                              color: _C.white,
+                              fontSize: 18,
+                              fontFamily: 'Pretendard',
+                              fontWeight: FontWeight.w600,
+                              height: 1.56,
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
-              ),
+              ],
             ),
           ),
-        ],
 
-        const SizedBox(height: 24),
+          // 답변 카드
+          if (_showAnswer && generatedQuestion != null) ...[
+            const SizedBox(height: 16),
+            _AnswerCard(item: generatedQuestion),
+          ],
+
+          const SizedBox(height: 24),
+        ],
 
         // ── 새 질문 / 공유하기 버튼 ─────────────────────
         Row(
           children: [
-            // 새 질문
             Expanded(
               child: GestureDetector(
                 onTap: isQuestionLoading
@@ -814,7 +1356,6 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
               ),
             ),
             const SizedBox(width: 12),
-            // 공유하기
             Expanded(
               child: GestureDetector(
                 onTap: () => _shareQuestion(context, generatedQuestion),
@@ -870,14 +1411,9 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
 
         const SizedBox(height: 16),
 
-        // ── 하단 저장 버튼 ──────────────────────────────
-        GestureDetector(
-          onTap: () {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(const SnackBar(content: Text('질문이 저장되었어요.')));
-          },
-          child: Container(
+        // ── 하단 안내 문구 — 질문 생성 전에만 표시 ────────
+        if (!_hasRequestedQuestion)
+          Container(
             height: 56,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
@@ -890,10 +1426,11 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
             ),
             child: const Center(
               child: Text(
-                '질문 저장하기',
+                '친구를 선택하고 "새 질문" 버튼을 눌러 시작하세요',
+                textAlign: TextAlign.center,
                 style: TextStyle(
                   color: _C.accentDim,
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: FontWeight.w400,
                   letterSpacing: -0.2,
                   fontFamily: 'Pretendard',
@@ -901,7 +1438,6 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
               ),
             ),
           ),
-        ),
       ],
     );
   }
