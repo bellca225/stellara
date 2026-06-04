@@ -1,25 +1,25 @@
 // lib/features/onboarding/presentation/onboarding_screen.dart
+//
+// ONBOARDING-001 — 별자리의 초대 (4단계 스텝 방식)
+//
+// Step 0: 이름(displayName) 입력 ← NEW
+// Step 1: 생년월일 입력
+// Step 2: 출생 시간 입력
+// Step 3: 출생지 입력 → 완료 시 Firestore 저장
+//
+// 마이페이지에서 수정할 때는 isEditing=true 로 호출.
 
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../astrology/domain/birth_info.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../users/application/user_providers.dart';
 import '../data/place_resolver.dart';
 import '../app_shell.dart';
-
-const _svgCalendar = '''
-<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<path d="M10.666 2.6665V7.9995" stroke="white" stroke-width="2.6665" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M21.332 2.6665V7.9995" stroke="white" stroke-width="2.6665" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M25.3318 5.33299H6.66626C5.19359 5.33299 3.99976 6.52683 3.99976 7.99949V26.665C3.99976 28.1377 5.19359 29.3315 6.66626 29.3315H25.3318C26.8044 29.3315 27.9983 28.1377 27.9983 26.665V7.99949C27.9983 6.52683 26.8044 5.33299 25.3318 5.33299Z" stroke="white" stroke-width="2.6665" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M3.99976 13.3325H27.9983" stroke="white" stroke-width="2.6665" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>
-''';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({
@@ -36,15 +36,17 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 }
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
-  int _step = 0;
+  int _step = 0; // 0=이름, 1=생년월일, 2=출생시간, 3=출생지
 
+  // Step 0: 이름(displayName)
   final _nameCtrl = TextEditingController();
   String? _nameError;
 
+  // 네이티브 Picker로 선택된 값 (TextField 대신)
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
-  bool _timeUnknown = false;
 
+  // 출생지 (자유 텍스트 유지 — geocoding 연동)
   final _placeCtrl = TextEditingController();
 
   String? _error;
@@ -52,10 +54,17 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   final _placeResolver = PlaceResolver();
 
+  String _initialName = '';
+  DateTime? _initialDate;
+  TimeOfDay? _initialTime;
+  String _initialPlace = '';
+
   @override
   void initState() {
     super.initState();
+    // 마이페이지 수정 모드: 이름 step 은 건너뛰고 생년월일부터 시작
     if (widget.isEditing) _step = 1;
+    // 기존 displayName 이 있으면 이름 필드에 채워 둠
     final profile = ref.read(currentUserProfileProvider).valueOrNull;
     if (profile != null) {
       _nameCtrl.text = profile.effectiveDisplayName;
@@ -63,15 +72,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     final b = widget.initialBirthInfo;
     if (b != null) {
       _selectedDate = b.dateTime;
-      final hour = b.dateTime.hour;
-      final minute = b.dateTime.minute;
-      if (hour == 0 && minute == 0) {
-        _timeUnknown = true;
-      } else {
-        _selectedTime = TimeOfDay(hour: hour, minute: minute);
-      }
+      _selectedTime = TimeOfDay(
+        hour: b.dateTime.hour,
+        minute: b.dateTime.minute,
+      );
       _placeCtrl.text = b.placeName ?? '';
     }
+    _initialName = _nameCtrl.text.trim();
+    _initialDate = _selectedDate;
+    _initialTime = _selectedTime;
+    _initialPlace = _placeCtrl.text.trim();
   }
 
   @override
@@ -81,6 +91,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     super.dispose();
   }
 
+  // ── 이름 검증 ─────────────────────────────────────────────────────
   String? _validateName(String value) {
     final v = value.trim();
     if (v.isEmpty) return '이름을 입력해주세요.';
@@ -88,6 +99,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     return null;
   }
 
+  // ── 날짜 선택 ─────────────────────────────────────────────────────
   Future<void> _pickDate() async {
     final now = DateTime.now();
     final picked = await showDatePicker(
@@ -101,7 +113,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
           colorScheme: const ColorScheme.dark(
-            primary: Color(0xFF2B7FFF),
+            primary: Color(0xFF1A5FD4),
             onPrimary: Colors.white,
             surface: Color(0xFF0D1830),
             onSurface: Colors.white,
@@ -113,6 +125,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     if (picked != null) setState(() => _selectedDate = picked);
   }
 
+  // ── 시간 선택 ─────────────────────────────────────────────────────
   Future<void> _pickTime() async {
     final picked = await showTimePicker(
       context: context,
@@ -123,7 +136,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
           colorScheme: const ColorScheme.dark(
-            primary: Color(0xFF2B7FFF),
+            primary: Color(0xFF1A5FD4),
             onPrimary: Colors.white,
             surface: Color(0xFF0D1830),
             onSurface: Colors.white,
@@ -132,17 +145,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         child: child!,
       ),
     );
-    if (picked != null)
-      setState(() {
-        _selectedTime = picked;
-        _timeUnknown = false;
-      });
+    if (picked != null) setState(() => _selectedTime = picked);
   }
 
+  // ── 다음 스텝으로 ───────────────────────────────────────────────
   void _next() {
     setState(() => _error = null);
     switch (_step) {
       case 0:
+        // 이름 검증
         final nameErr = _validateName(_nameCtrl.text);
         if (nameErr != null) {
           setState(() => _nameError = nameErr);
@@ -159,6 +170,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         }
         setState(() => _step = 2);
       case 2:
+        if (_selectedTime == null) {
+          setState(() => _error = '출생 시간을 선택해주세요.');
+          return;
+        }
         setState(() => _step = 3);
       case 3:
         _submit();
@@ -169,36 +184,45 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     if (_step > 0) setState(() => _step--);
   }
 
+  // ── 최종 저장 ────────────────────────────────────────────────────
   Future<void> _submit() async {
     setState(() {
       _isSubmitting = true;
       _error = null;
     });
+
     try {
+      // ── 1. 생년월일 (네이티브 Picker로 선택됨) ────────────────────
       if (_selectedDate == null) {
         setState(() => _error = '생년월일을 선택해주세요.');
         return;
       }
-      final hour = (_timeUnknown || _selectedTime == null)
-          ? 0
-          : _selectedTime!.hour;
-      final minute = (_timeUnknown || _selectedTime == null)
-          ? 0
-          : _selectedTime!.minute;
+
+      // ── 2. 출생 시간 (필수값 — step 2에서 이미 검증됨) ───────────
+      if (_selectedTime == null) {
+        setState(() => _error = '출생 시간을 선택해주세요.');
+        return;
+      }
+      final hour = _selectedTime!.hour;
+      final minute = _selectedTime!.minute;
+
       final dt = DateTime(
-        _selectedDate!.year,
-        _selectedDate!.month,
-        _selectedDate!.day,
-        hour,
-        minute,
+        _selectedDate!.year, _selectedDate!.month, _selectedDate!.day,
+        hour, minute,
       );
 
+      // ── 3. 출생지 Geocoding ─────────────────────────────────────
       double latitude;
       double longitude;
       String? placeName;
       final placeQuery = _placeCtrl.text.trim();
 
       if (placeQuery.isEmpty) {
+        // 출생지 미입력 → 서울 기본값으로 안내 후 처리
+        if (kDebugMode) {
+          // ignore: avoid_print
+          print('[Onboarding] 출생지 미입력 → 서울 기본값 사용');
+        }
         latitude = 37.5665;
         longitude = 126.9780;
         placeName = '서울특별시';
@@ -209,25 +233,35 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             latitude = place.latitude;
             longitude = place.longitude;
             placeName = place.placeName;
+            if (kDebugMode) {
+              // ignore: avoid_print
+              print('[Onboarding] 장소 변환 성공: "$placeQuery" → '
+                  'lat=${place.latitude}, lng=${place.longitude}');
+            }
           case PlaceResolutionFailure(:final kind):
             setState(() => _error = _placeErrorMessage(kind));
             return;
         }
       } else {
+        // Web 등 geocoding 미지원 플랫폼 → 사용자 입력값 + 서울 좌표 fallback
         latitude = 37.5665;
         longitude = 126.9780;
         placeName = placeQuery;
+        if (kDebugMode) {
+          // ignore: avoid_print
+          print('[Onboarding] geocoding 미지원 플랫폼 → 서울 좌표 fallback, placeName="$placeQuery"');
+        }
       }
 
+      // ── 4. BirthInfo 구성 ────────────────────────────────────────
+      // BirthInfo.nickname 은 displayName 을 우선 사용.
+      // utcOffset: 현재 한국 앱 대상이므로 기본 +09:00.
       final enteredName = _nameCtrl.text.trim();
       final displayName = enteredName.isNotEmpty
           ? enteredName
-          : (ref
-                    .read(currentUserProfileProvider)
-                    .valueOrNull
-                    ?.effectiveDisplayName ??
-                ref.read(currentUserProvider)?.effectiveDisplayName ??
-                '별자리');
+          : (ref.read(currentUserProfileProvider).valueOrNull?.effectiveDisplayName
+              ?? ref.read(currentUserProvider)?.effectiveDisplayName
+              ?? '별자리');
 
       final birth = BirthInfo(
         nickname: displayName,
@@ -238,42 +272,54 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         placeName: placeName,
       );
 
-      final uid =
-          ref.read(currentUserProvider)?.uid ??
-          ref.read(currentUserIdProvider).valueOrNull;
+      if (kDebugMode) {
+        // ignore: avoid_print
+        print('[Onboarding] 저장할 BirthInfo: ${birth.chartVersion}');
+      }
+
+      // ── 5. 로그인 확인 ───────────────────────────────────────────
+      final uid = ref.read(currentUserProvider)?.uid
+          ?? ref.read(currentUserIdProvider).valueOrNull;
       if (uid == null) {
-        setState(() => _error = '로그인 정보를 찾을 수 없어요.');
+        setState(() => _error = '로그인 정보를 찾을 수 없어요. 앱을 재시작해주세요.');
         return;
       }
 
-      await ref
-          .read(userRepositoryProvider)
-          .upsertBirthInfo(
-            uid: uid,
-            birthInfo: birth,
-            nickname: displayName,
-            displayName: displayName,
-          );
+      await ref.read(userRepositoryProvider).upsertBirthInfo(
+        uid: uid,
+        birthInfo: birth,
+        nickname: displayName,
+        displayName: displayName,
+      );
 
+      // Firestore stream 이 실제로 최신 birth 를 반영한 뒤에만 재분석을 시작한다.
+      // 그렇지 않으면 저장 직후 old birth 로 한 번 더 요청하는 race 가 생길 수 있다.
       try {
+        // ignore: deprecated_member_use
         await ref
             .read(currentUserProfileProvider.stream)
-            .firstWhere((p) => p?.birthInfo?.chartVersion == birth.chartVersion)
+            .firstWhere((profile) => profile?.birthInfo?.chartVersion == birth.chartVersion)
             .timeout(const Duration(seconds: 5));
-      } on TimeoutException catch (_) {}
+      } on TimeoutException catch (e) {
+        if (kDebugMode) {
+          // ignore: avoid_print
+          print('[Onboarding] profile sync 대기 timeout (계속 진행): $e');
+        }
+      }
 
       if (!mounted) return;
+
       if (widget.isEditing) {
         Navigator.of(context).pop(true);
       } else {
-        Navigator.of(
-          context,
-        ).pushReplacement(MaterialPageRoute(builder: (_) => const AppShell()));
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const AppShell()),
+        );
       }
     } on FormatException {
       setState(() => _error = '입력값을 다시 확인해주세요.');
     } catch (e) {
-      setState(() => _error = '저장 중 오류가 발생했어요.');
+      setState(() => _error = '저장 중 오류가 발생했어요. 다시 시도해주세요.');
       if (kDebugMode) print('[Onboarding] error: $e');
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -285,159 +331,195 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       case PlaceResolutionFailureKind.emptyQuery:
         return '출생지를 입력해주세요.';
       case PlaceResolutionFailureKind.notFound:
-        return '출생지를 찾지 못했어요.';
+        return '출생지를 찾지 못했어요. 더 구체적으로 입력해주세요.';
       case PlaceResolutionFailureKind.platformError:
-        return '주소 변환 중 오류가 발생했어요.';
+        return '주소 변환 중 오류가 발생했어요. 잠시 후 다시 시도해주세요.';
       case PlaceResolutionFailureKind.unsupportedPlatform:
         return '현재 환경에서는 자동 변환이 제한돼요.';
     }
   }
 
+  bool get _hasUnsavedChanges {
+    final currentName = _nameCtrl.text.trim();
+    final currentPlace = _placeCtrl.text.trim();
+    final currentTime = _selectedTime;
+    final sameTime =
+        currentTime?.hour == _initialTime?.hour &&
+        currentTime?.minute == _initialTime?.minute;
+    return currentName != _initialName ||
+        _selectedDate != _initialDate ||
+        !sameTime ||
+        currentPlace != _initialPlace;
+  }
+
+  Future<bool> _confirmDiscardIfNeeded() async {
+    if (!widget.isEditing || !_hasUnsavedChanges) {
+      return true;
+    }
+    final shouldLeave = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('수정 내용을 나갈까요?'),
+        content: const Text('저장하지 않은 변경 내용은 사라져요.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('계속 수정'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('나가기'),
+          ),
+        ],
+      ),
+    );
+    return shouldLeave ?? false;
+  }
+
+  Future<void> _handleBackToMyPage() async {
+    final canLeave = await _confirmDiscardIfNeeded();
+    if (!mounted || !canLeave) return;
+    Navigator.of(context).pop(false);
+  }
+
+  // ── UI ──────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF060618), Color(0xFF0A0F2E), Color(0xFF0D1F5C)],
-            stops: [0.0, 0.5, 1.0],
+    return PopScope<bool>(
+      canPop: !widget.isEditing || !_hasUnsavedChanges,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        final canLeave = await _confirmDiscardIfNeeded();
+        if (!mounted || !canLeave) return;
+        Navigator.of(context).pop(false);
+      },
+      child: Scaffold(
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFF0A0A1F), Color(0xFF08235F)],
+            ),
           ),
-        ),
-        child: Stack(
-          children: [
-            ...List.generate(40, (i) {
-              final x = (i * 137.5) % 100;
-              final y = (i * 97.3) % 100;
-              final size = (i % 3 + 1) * 0.6;
-              final opacity = (i % 5 + 3) / 10;
-              return Positioned(
-                left: x / 100 * MediaQuery.of(context).size.width,
-                top: y / 100 * MediaQuery.of(context).size.height,
-                child: Opacity(
-                  opacity: opacity,
-                  child: Container(
-                    width: size,
-                    height: size,
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Column(
+                children: [
+                  if (widget.isEditing)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: IconButton(
+                        onPressed: _isSubmitting ? null : _handleBackToMyPage,
+                        icon: const Icon(
+                          Icons.arrow_back_ios_new_rounded,
+                          color: Colors.white,
+                        ),
+                        tooltip: '마이페이지로 돌아가기',
+                      ),
+                    )
+                  else
+                    const SizedBox(height: 32),
+
+                  // 아이콘
+                  Container(
+                    width: 72,
+                    height: 72,
                     decoration: const BoxDecoration(
-                      color: Colors.white,
+                      color: Color(0xFF1A5FD4),
                       shape: BoxShape.circle,
                     ),
+                    child: const Icon(
+                      Icons.calendar_month_rounded,
+                      color: Colors.white,
+                      size: 32,
+                    ),
                   ),
-                ),
-              );
-            }),
-            SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 24),
-                    Container(
-                      width: 64,
-                      height: 64,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: const LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [Color(0xFF2B7FFF), Color(0xFF155DFC)],
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF2B7FFF).withOpacity(0.4),
-                            blurRadius: 20,
+
+                  const SizedBox(height: 16),
+
+                  Text(
+                    widget.isEditing ? '출생 정보 수정' : '별자리의 초대',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    // 마이페이지 수정 모드는 step 1~3(1-based: 1~3 of 3)
+                    widget.isEditing
+                        ? 'Step ${_step} of 3'
+                        : 'Step ${_step + 1} of 4',
+                    style: const TextStyle(
+                      color: Color(0xFF5B9BFF),
+                      fontSize: 14,
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // 진행 바 (4칸, 수정 모드 3칸)
+                  Row(
+                    children: List.generate(widget.isEditing ? 3 : 4, (i) {
+                      final filled = widget.isEditing ? i < _step : i <= _step;
+                      final last = i == (widget.isEditing ? 2 : 3);
+                      return Expanded(
+                        child: Container(
+                          height: 3,
+                          margin: EdgeInsets.only(right: last ? 0 : 4),
+                          decoration: BoxDecoration(
+                            color: filled
+                                ? const Color(0xFF1A5FD4)
+                                : Colors.white12,
+                            borderRadius: BorderRadius.circular(2),
                           ),
-                        ],
-                      ),
-                      child: Center(
-                        child: SvgPicture.string(
-                          _svgCalendar,
-                          width: 32,
-                          height: 32,
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      widget.isEditing ? '출생 정보 수정' : '별자리의 초대',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      widget.isEditing
-                          ? 'Step $_step of 3'
-                          : 'Step ${_step + 1} of 4',
-                      style: const TextStyle(
-                        color: Color(0xFF5B9BFF),
-                        fontSize: 13,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: List.generate(widget.isEditing ? 3 : 4, (i) {
-                        final filled = widget.isEditing
-                            ? i < _step
-                            : i <= _step;
-                        return Expanded(
-                          child: Container(
-                            height: 3,
-                            margin: EdgeInsets.only(
-                              right: i < (widget.isEditing ? 2 : 3) ? 4 : 0,
-                            ),
-                            decoration: BoxDecoration(
-                              color: filled
-                                  ? const Color(0xFF2B7FFF)
-                                  : Colors.white12,
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                          ),
-                        );
-                      }),
-                    ),
-                    const SizedBox(height: 24),
-                    Expanded(
-                      child: _StepCard(
-                        step: _step,
-                        nameCtrl: _nameCtrl,
-                        nameError: _nameError,
-                        selectedDate: _selectedDate,
-                        selectedTime: _selectedTime,
-                        timeUnknown: _timeUnknown,
-                        placeCtrl: _placeCtrl,
-                        error: _error,
-                        onPickDate: _pickDate,
-                        onPickTime: _pickTime,
-                        onToggleTimeUnknown: (v) => setState(() {
-                          _timeUnknown = v;
-                          if (v) _selectedTime = null;
-                        }),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    _StepButtons(
+                      );
+                    }),
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  // 스텝 카드
+                  Expanded(
+                    child: _StepCard(
                       step: _step,
-                      isSubmitting: _isSubmitting,
-                      onNext: _next,
-                      onPrev: _prev,
+                      nameCtrl: _nameCtrl,
+                      nameError: _nameError,
+                      selectedDate: _selectedDate,
+                      selectedTime: _selectedTime,
+                      placeCtrl: _placeCtrl,
+                      error: _error,
+                      onPickDate: _pickDate,
+                      onPickTime: _pickTime,
                     ),
-                    const SizedBox(height: 24),
-                  ],
-                ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // 버튼
+                  _StepButtons(
+                    step: _step,
+                    isSubmitting: _isSubmitting,
+                    onNext: _next,
+                    onPrev: _prev,
+                  ),
+
+                  const SizedBox(height: 32),
+                ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
+// ── 스텝 카드 ────────────────────────────────────────────────────────
 class _StepCard extends StatelessWidget {
   const _StepCard({
     required this.step,
@@ -445,12 +527,10 @@ class _StepCard extends StatelessWidget {
     this.nameError,
     required this.selectedDate,
     required this.selectedTime,
-    required this.timeUnknown,
     required this.placeCtrl,
     required this.error,
     required this.onPickDate,
     required this.onPickTime,
-    required this.onToggleTimeUnknown,
   });
 
   final int step;
@@ -458,27 +538,23 @@ class _StepCard extends StatelessWidget {
   final String? nameError;
   final DateTime? selectedDate;
   final TimeOfDay? selectedTime;
-  final bool timeUnknown;
   final TextEditingController placeCtrl;
   final String? error;
   final VoidCallback onPickDate;
   final VoidCallback onPickTime;
-  final ValueChanged<bool> onToggleTimeUnknown;
+
+  static const _cardDecoration = BoxDecoration(
+    color: Color(0xD90D1830),
+    borderRadius: BorderRadius.all(Radius.circular(24)),
+    border: Border.fromBorderSide(BorderSide(color: Colors.white12)),
+  );
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0x22FFFFFF), Color(0x11FFFFFF)],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.12)),
-      ),
+      padding: const EdgeInsets.all(28),
+      decoration: _cardDecoration,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -487,26 +563,20 @@ class _StepCard extends StatelessWidget {
             _title,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 20,
+              fontSize: 22,
               fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 6),
           Text(
             _subtitle,
-            style: const TextStyle(color: Color(0xFF8EC5FF), fontSize: 13),
+            style: const TextStyle(color: Colors.white54, fontSize: 13),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
 
+          // ── Step 0: 이름(displayName) 입력 ──────────────────────
           if (step == 0) ...[
-            const Text(
-              '이름',
-              style: TextStyle(
-                color: Color(0xFF8EC5FF),
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
+            const Text('이름', style: TextStyle(color: Colors.white70, fontSize: 14)),
             const SizedBox(height: 8),
             TextField(
               controller: nameCtrl,
@@ -515,7 +585,7 @@ class _StepCard extends StatelessWidget {
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
                 hintText: '예: 별이, 나영, 김별',
-                hintStyle: const TextStyle(color: Color(0x668EC5FF)),
+                hintStyle: const TextStyle(color: Colors.white24),
                 counterText: '',
                 filled: true,
                 fillColor: Colors.white.withOpacity(0.07),
@@ -523,35 +593,20 @@ class _StepCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
                 ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(
-                    color: Color(0xFF2B7FFF),
-                    width: 1.5,
-                  ),
+                  borderSide: const BorderSide(color: Color(0xFF1A5FD4), width: 1.5),
                 ),
                 errorText: nameError,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
+                errorStyle: const TextStyle(color: Colors.redAccent, fontSize: 12),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               ),
             ),
           ],
 
+          // ── Step 1: 생년월일 DatePicker ──────────────────────────
           if (step == 1) ...[
-            const Text(
-              '생년월일',
-              style: TextStyle(
-                color: Color(0xFF8EC5FF),
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
+            const Text('생년월일', style: TextStyle(color: Colors.white70, fontSize: 14)),
             const SizedBox(height: 8),
             _PickerButton(
               icon: Icons.calendar_month_outlined,
@@ -563,115 +618,66 @@ class _StepCard extends StatelessWidget {
             ),
           ],
 
+          // ── Step 2: 출생 시간 TimePicker (필수) ──────────────────
           if (step == 2) ...[
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  '출생 시간',
-                  style: TextStyle(
-                    color: Color(0xFF8EC5FF),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                Row(
-                  children: [
-                    const Text(
-                      '모름',
-                      style: TextStyle(color: Colors.white38, fontSize: 13),
-                    ),
-                    const SizedBox(width: 4),
-                    Switch(
-                      value: timeUnknown,
-                      onChanged: onToggleTimeUnknown,
-                      activeColor: const Color(0xFF2B7FFF),
-                    ),
-                  ],
-                ),
-              ],
+            const Text('출생 시간', style: TextStyle(color: Colors.white70, fontSize: 14)),
+            const SizedBox(height: 8),
+            _PickerButton(
+              icon: Icons.access_time_rounded,
+              label: selectedTime == null
+                  ? '시간 선택'
+                  : selectedTime!.format(context),
+              selected: selectedTime != null,
+              onTap: onPickTime,
             ),
             const SizedBox(height: 8),
-            if (!timeUnknown)
-              _PickerButton(
-                icon: Icons.access_time_rounded,
-                label: selectedTime == null
-                    ? '시간 선택'
-                    : selectedTime!.format(context),
-                selected: selectedTime != null,
-                onTap: onPickTime,
-              )
-            else
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.04),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white12),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(
-                      Icons.access_time_rounded,
-                      color: Colors.white24,
-                      size: 20,
-                    ),
-                    SizedBox(width: 8),
-                    Text(
-                      '시간 모름 — 상승 별자리 계산 제한됨',
-                      style: TextStyle(color: Colors.white38, fontSize: 13),
-                    ),
-                  ],
-                ),
-              ),
+            const Text(
+              '정확한 출생 시간은 상승 별자리(Ascendant) 계산에 필요해요.',
+              style: TextStyle(color: Colors.white38, fontSize: 12),
+            ),
           ],
 
+          // ── Step 3: 출생지 TextField (geocoding 연동) ─────────────
           if (step == 3) ...[
-            const Text(
-              '출생지',
-              style: TextStyle(
-                color: Color(0xFF8EC5FF),
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
+            const Text('출생지', style: TextStyle(color: Colors.white70, fontSize: 14)),
             const SizedBox(height: 8),
             TextField(
               controller: placeCtrl,
+              keyboardType: TextInputType.streetAddress,
+              textCapitalization: TextCapitalization.words,
+              enableSuggestions: true,
+              autocorrect: false,
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
-                hintText: '예: 서울특별시, 부산광역시',
-                hintStyle: const TextStyle(color: Color(0x668EC5FF)),
-                prefixIcon: const Icon(
-                  Icons.location_on_outlined,
-                  color: Colors.white38,
-                ),
+                hintText: '예: 서울특별시, 부산광역시, 제주시',
+                hintStyle: const TextStyle(color: Colors.white24),
+                prefixIcon: const Icon(Icons.location_on_outlined, color: Colors.white38),
                 filled: true,
                 fillColor: Colors.white.withOpacity(0.07),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
                 ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(
-                    color: Color(0xFF2B7FFF),
-                    width: 1.5,
-                  ),
+                  borderSide: const BorderSide(color: Color(0xFF1A5FD4), width: 1.5),
                 ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               ),
             ),
+            if (kIsWeb) ...[
+              const SizedBox(height: 8),
+              const Text(
+                '웹에서는 자동 좌표 변환이 제한돼요. 정확한 계산은 앱에서 진행해주세요.',
+                style: TextStyle(color: Colors.white38, fontSize: 12),
+              ),
+            ] else ...[
+              const SizedBox(height: 8),
+              const Text(
+                '시/군/구 단위로 입력하면 더 정확해요. 예: 강남구, 해운대구',
+                style: TextStyle(color: Colors.white38, fontSize: 12),
+              ),
+            ],
           ],
 
           if (error != null) ...[
@@ -688,31 +694,24 @@ class _StepCard extends StatelessWidget {
 
   String get _title {
     switch (step) {
-      case 0:
-        return '어떻게 불러드리면 될까요?';
-      case 1:
-        return '언제 태어나셨나요?';
-      case 2:
-        return '몇 시에 태어나셨나요?';
-      default:
-        return '어디서 태어나셨나요?';
+      case 0: return '어떻게 불러드리면 될까요?';
+      case 1: return '언제 태어나셨나요?';
+      case 2: return '몇 시에 태어나셨나요?';
+      default: return '어디서 태어나셨나요?';
     }
   }
 
   String get _subtitle {
     switch (step) {
-      case 0:
-        return '당신만의 별자리 차트를 만들기 위해 필요해요.';
-      case 1:
-        return '정확한 별자리 차트를 위해 필요합니다';
-      case 2:
-        return '정확한 시간은 상승 별자리에 영향을 줍니다';
-      default:
-        return '지역에 따라 천체의 위치가 달라집니다';
+      case 0: return '당신만의 별자리 차트를 만들기 위해 필요해요.';
+      case 1: return '정확한 별자리 차트를 위해 필요합니다';
+      case 2: return '정확한 시간은 상승 별자리에 영향을 줍니다';
+      default: return '지역에 따라 천체의 위치가 달라집니다';
     }
   }
 }
 
+// ── Picker 버튼 위젯 ─────────────────────────────────────────────────
 class _PickerButton extends StatelessWidget {
   const _PickerButton({
     required this.icon,
@@ -720,6 +719,7 @@ class _PickerButton extends StatelessWidget {
     required this.selected,
     required this.onTap,
   });
+
   final IconData icon;
   final String label;
   final bool selected;
@@ -736,17 +736,13 @@ class _PickerButton extends StatelessWidget {
           color: Colors.white.withOpacity(0.07),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: selected ? const Color(0xFF2B7FFF) : Colors.white12,
+            color: selected ? const Color(0xFF1A5FD4) : Colors.white12,
             width: selected ? 1.5 : 1,
           ),
         ),
         child: Row(
           children: [
-            Icon(
-              icon,
-              color: selected ? const Color(0xFF5B9BFF) : Colors.white38,
-              size: 20,
-            ),
+            Icon(icon, color: selected ? const Color(0xFF5B9BFF) : Colors.white38, size: 20),
             const SizedBox(width: 12),
             Text(
               label,
@@ -756,7 +752,7 @@ class _PickerButton extends StatelessWidget {
               ),
             ),
             const Spacer(),
-            const Icon(
+            Icon(
               Icons.arrow_forward_ios_rounded,
               color: Colors.white24,
               size: 14,
@@ -768,6 +764,7 @@ class _PickerButton extends StatelessWidget {
   }
 }
 
+// ── 스텝 버튼 ────────────────────────────────────────────────────────
 class _StepButtons extends StatelessWidget {
   const _StepButtons({
     required this.step,
@@ -775,6 +772,7 @@ class _StepButtons extends StatelessWidget {
     required this.onNext,
     required this.onPrev,
   });
+
   final int step;
   final bool isSubmitting;
   final VoidCallback onNext;
@@ -786,7 +784,7 @@ class _StepButtons extends StatelessWidget {
       return SizedBox(
         width: double.infinity,
         height: 52,
-        child: _primaryBtn('다음', onNext, isSubmitting),
+        child: _primaryButton('다음', onNext, isSubmitting),
       );
     }
     return Row(
@@ -803,10 +801,8 @@ class _StepButtons extends StatelessWidget {
                   borderRadius: BorderRadius.circular(30),
                 ),
               ),
-              child: const Text(
-                '이전',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
+              child: const Text('이전',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
             ),
           ),
         ),
@@ -814,43 +810,34 @@ class _StepButtons extends StatelessWidget {
         Expanded(
           child: SizedBox(
             height: 52,
-            child: _primaryBtn(step == 3 ? '완료' : '다음', onNext, isSubmitting),
+            child: _primaryButton(step == 3 ? '완료' : '다음', onNext, isSubmitting),
           ),
         ),
       ],
     );
   }
 
-  Widget _primaryBtn(String label, VoidCallback onTap, bool loading) {
-    return GestureDetector(
-      onTap: loading ? null : onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF2B7FFF), Color(0xFF155DFC)],
-          ),
+  Widget _primaryButton(String label, VoidCallback onTap, bool loading) {
+    return ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF1A5FD4),
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(30),
         ),
-        child: Center(
-          child: loading
-              ? const SizedBox(
-                  width: 22,
-                  height: 22,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
-              : Text(
-                  label,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-        ),
+        elevation: 0,
       ),
+      onPressed: loading ? null : onTap,
+      child: loading
+          ? const SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(
+                  strokeWidth: 2, color: Colors.white),
+            )
+          : Text(label,
+              style: const TextStyle(
+                  fontSize: 16, fontWeight: FontWeight.w600)),
     );
   }
 }

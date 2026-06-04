@@ -9,13 +9,17 @@
 // 기존 localQuestionSetProvider / customQuestionProvider 는 하위 호환 유지.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../astrology/application/astrology_providers.dart';
+import '../../astrology/domain/birth_info.dart';
 import '../../astrology/domain/natal_chart.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../compatibility/domain/synastry_result.dart';
+import '../../../core/cache/disk_cache.dart';
 import '../data/ai_question_repository.dart';
 import '../data/question_repository.dart';
+import '../data/random_question_session_repository.dart';
 import '../domain/question_item.dart';
 
 // ── Repository providers ─────────────────────────────────────────────────────
@@ -29,6 +33,15 @@ final aiQuestionRepositoryProvider = Provider<AiQuestionRepository>(
     localFallback: ref.watch(questionRepositoryProvider),
   ),
 );
+
+final randomQuestionSessionRepositoryProvider =
+    Provider<RandomQuestionSessionRepository>(
+      (ref) => RandomQuestionSessionRepository(
+        FirebaseFirestore.instance,
+        ref.watch(aiQuestionRepositoryProvider),
+        ref.watch(questionRepositoryProvider),
+      ),
+    );
 
 // ── Request typedefs ─────────────────────────────────────────────────────────
 
@@ -62,6 +75,11 @@ typedef AiCustomAnswerRequest = ({
   NatalChart friendChart,
   SynastryResult? synastry,
   String userPrompt,
+});
+
+typedef FriendChartRequest = ({
+  String uid,
+  BirthInfo birth,
 });
 
 /// 로컬 커스텀 답변 요청 (하위 호환)
@@ -204,3 +222,29 @@ final myChartForQuestionProvider = FutureProvider<NatalChart?>((ref) async {
     return null;
   }
 });
+
+final friendStoredChartForQuestionProvider =
+    FutureProvider.family<NatalChart?, FriendChartRequest>((ref, request) async {
+      final chartRepo = ref.watch(chartRepositoryProvider);
+      final chartVersion = request.birth.chartVersion;
+
+      final firestoreChart = await chartRepo.get(request.uid, chartVersion);
+      if (firestoreChart != null) {
+        return firestoreChart;
+      }
+
+      final cached = ref.watch(diskCacheProvider).getJson(
+        CacheKeys.natal(chartVersion),
+      );
+      if (cached != null) {
+        try {
+          return NatalChart.fromJson(cached);
+        } catch (_) {
+          await ref.read(diskCacheProvider).remove(CacheKeys.natal(chartVersion));
+        }
+      }
+
+      // 저장된 분석이 아직 없으면 외부 API를 새로 치지 않고 null 반환.
+      // 화면에서 로컬 fallback 질문으로 안전하게 대체한다.
+      return null;
+    });

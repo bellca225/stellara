@@ -1,98 +1,173 @@
-// lib/features/horoscope/data/horoscope_repository.dart
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 
 import '../../../core/cache/disk_cache.dart';
 import '../../../core/env/env.dart';
-import '../../astrology/data/prokerala_api.dart';
+import '../../../core/utils/astro_text.dart';
+import '../../astrology/domain/birth_info.dart';
+import '../../astrology/domain/natal_chart.dart';
+import '../../content/data/ai_question_repository.dart';
 import '../domain/horoscope.dart';
-import 'daily_fortune_repository.dart';
 import '../fixtures/horoscope_fixture.dart';
+import 'daily_fortune_repository.dart';
 
 class HoroscopeRepository {
   HoroscopeRepository(
-    this._api,
     this._cache,
-    this._firestoreCache, {
+    this._firestoreCache,
+    this._aiRepository, {
     String? uid,
     String? chartVersion,
     String? utcOffset,
   }) : _currentUid = uid,
        _activeChartVersion = chartVersion,
        _utcOffset = utcOffset;
-  final ProkeralaApi _api;
+
   final DiskCache _cache;
   final DailyFortuneRepository _firestoreCache;
+  final AiQuestionRepository _aiRepository;
   final String? _currentUid;
   final String? _activeChartVersion;
   final String? _utcOffset;
 
-  Future<Horoscope> getDaily({required String signSlug, DateTime? date}) async {
-    final keyDate = _resolveTargetDate(date);
-
-    // L0: fixture (가장 강한 토큰 절약, 디스크 저장 안 함).
-    if (Env.shouldUseFixtureForProkerala) {
-      await Future<void>.delayed(const Duration(milliseconds: 250));
-      return demoHoroscope(signSlug, keyDate);
-    }
-
-    // L2: 디스크. 키가 sign+yyyyMMdd 라 다른 날짜면 자연 cache miss.
+  Future<Horoscope> getDaily({
+    required String signSlug,
+    required BirthInfo birthInfo,
+    required NatalChart chart,
+    required String nickname,
+    DateTime? date,
+  }) async {
+    final keyDate = _resolveTargetDate(date, birthInfo.utcOffset);
     final cacheKey = _cacheKey(signSlug, keyDate);
+
+    // ── L2: DiskCache ────────────────────────────────────────────────────────
     final cached = _cache.getJson(cacheKey);
     if (cached != null) {
       try {
-        return Horoscope.fromJson(cached);
-      } catch (e) {
-        if (kDebugMode) {
-          // ignore: avoid_print
-          print('[HoroscopeRepository] L2 디코드 실패 → 실호출 fallback: $e');
+        final h = Horoscope.fromJson(cached);
+        if (_isCacheUsable(h)) {
+          if (kDebugMode) print('[HoroscopeRepository] L2 캐시 hit (${h.promptVersion})');
+          return h;
         }
+        // local-derived 캐시 + AI 사용 가능 → 재생성
+        if (kDebugMode) print('[HoroscopeRepository] L2 캐시 skip (local-derived) → AI 재생성');
+        await _cache.remove(cacheKey);
+      } catch (e) {
+        if (kDebugMode) print('[HoroscopeRepository] L2 디코드 실패 → 재생성: $e');
+        await _cache.remove(cacheKey);
       }
     }
 
-    // L3: Firestore. 같은 사용자/별자리/날짜 조합이면 디바이스 간에도 재사용.
+    // ── L3: Firestore 캐시 ────────────────────────────────────────────────────
     final currentUid = _currentUid;
     if (currentUid != null) {
-      final firestoreHoroscope = await _firestoreCache.get(
-        uid: currentUid,
-        signSlug: signSlug,
-        date: keyDate,
-        chartVersion: _activeChartVersion,
-      );
-      if (firestoreHoroscope != null) {
-        await _cache.putJson(
-          cacheKey,
-          firestoreHoroscope.toJson(),
-          source: 'firestore',
+      try {
+        final firestoreHoroscope = await _firestoreCache.get(
+          uid: currentUid,
+          signSlug: signSlug,
+          date: keyDate,
+          chartVersion: _activeChartVersion ?? birthInfo.chartVersion,
         );
-        return firestoreHoroscope;
+        if (firestoreHoroscope != null) {
+          if (_isCacheUsable(firestoreHoroscope)) {
+            if (kDebugMode) print('[HoroscopeRepository] L3 Firestore 캐시 hit (${firestoreHoroscope.promptVersion})');
+            await _cache.putJson(cacheKey, firestoreHoroscope.toJson(), source: 'firestore');
+            return firestoreHoroscope;
+          }
+          // local-derived Firestore 캐시 + AI 사용 가능 → 재생성
+          if (kDebugMode) print('[HoroscopeRepository] L3 Firestore 캐시 skip (local-derived) → AI 재생성');
+        }
+      } catch (e) {
+        if (kDebugMode) print('[HoroscopeRepository] L3 Firestore read 실패 (스킵): $e');
       }
     }
 
     try {
-      final json = await _api.fetchDailyHoroscope(
-        signSlug: signSlug,
-        date: keyDate,
+      final payload = await _aiRepository.generateDailyHoroscope(
+        nickname: nickname,
+        chart: chart,
+        targetDate: keyDate,
+        timezone: birthInfo.utcOffset,
+        placeName: birthInfo.placeName,
       );
-      final horoscope = _parse(json, signSlug, keyDate);
-      await _cache.putJson(cacheKey, horoscope.toJson(), source: 'live');
+      final horoscope = Horoscope(
+        signSlug: signSlug,
+        signName: _displaySignName(signSlug),
+        date: keyDate,
+        summary: payload.overall,
+        luckyColor: payload.luckyColor,
+        luckyNumbers: _normalizeLuckyNumbers(
+          payload.luckyNumbers,
+          chart,
+          keyDate,
+        ),
+        mood: payload.emotion,
+        luckyPlace: payload.luckyPlace,
+        advice: payload.advice,
+        caution: payload.caution,
+        shareText: payload.shareText,
+        promptVersion: payload.promptVersion,
+        chartVersion: _activeChartVersion ?? birthInfo.chartVersion,
+        utcOffset: birthInfo.utcOffset,
+      );
+      await _cache.putJson(cacheKey, horoscope.toJson(), source: 'remote-ai');
       if (currentUid != null) {
         await _firestoreCache.save(
           uid: currentUid,
           horoscope: horoscope,
-          source: 'live',
-          chartVersion: _activeChartVersion,
-          utcOffset: _utcOffset,
+          source: 'remote-ai',
+          chartVersion: _activeChartVersion ?? birthInfo.chartVersion,
+          utcOffset: birthInfo.utcOffset,
+          birthSnapshot: _birthSnapshot(birthInfo),
+          analysisSnapshot: _analysisSnapshot(chart, birthInfo.chartVersion),
         );
       }
       return horoscope;
-    } catch (e) {
+    } catch (e, st) {
       if (kDebugMode) {
-        // ignore: avoid_print
-        print('[HoroscopeRepository] daily 실패 → fixture: $e');
+        if (e is AiQuotaExceededException) {
+          print('[HoroscopeRepository] AI quota 초과 (${e.provider}) → local fallback');
+        } else {
+          print('[HoroscopeRepository] AI daily 실패 → local fallback: $e\n$st');
+        }
       }
-      return demoHoroscope(signSlug, keyDate);
+      final fallback = _buildLocalFallback(
+        signSlug: signSlug,
+        chart: chart,
+        date: keyDate,
+        nickname: nickname,
+        birthInfo: birthInfo,
+      );
+      await _cache.putJson(
+        cacheKey,
+        fallback.toJson(),
+        source: 'local-derived',
+      );
+      if (currentUid != null) {
+        await _firestoreCache.save(
+          uid: currentUid,
+          horoscope: fallback,
+          source: 'local-derived',
+          chartVersion: _activeChartVersion ?? birthInfo.chartVersion,
+          utcOffset: birthInfo.utcOffset,
+          birthSnapshot: _birthSnapshot(birthInfo),
+          analysisSnapshot: _analysisSnapshot(chart, birthInfo.chartVersion),
+        );
+      }
+      return fallback;
     }
+  }
+
+  /// 캐시된 운세를 그대로 사용할지 판단.
+  ///
+  /// - AI로 생성된 운세(`daily-horoscope-v*`)  → 재사용
+  /// - local-derived / null / 구버전            → AI 사용 가능하면 재생성
+  bool _isCacheUsable(Horoscope h) {
+    final pv = h.promptVersion ?? '';
+    if (pv.startsWith('daily-horoscope-v')) return true;
+    // local-derived 이거나 promptVersion 없는 구버전 → AI 켜져 있으면 재생성
+    return !Env.aiRemoteEnabled;
   }
 
   String _cacheKey(String signSlug, DateTime date) {
@@ -104,11 +179,11 @@ class HoroscopeRepository {
     return CacheKeys.daily(signSlug, date);
   }
 
-  DateTime _resolveTargetDate(DateTime? explicitDate) {
+  DateTime _resolveTargetDate(DateTime? explicitDate, String birthUtcOffset) {
     if (explicitDate != null) {
       return DateTime(explicitDate.year, explicitDate.month, explicitDate.day);
     }
-    final offset = _parseUtcOffset(_utcOffset);
+    final offset = _parseUtcOffset(_utcOffset ?? birthUtcOffset);
     if (offset == null) {
       final now = DateTime.now();
       return DateTime(now.year, now.month, now.day);
@@ -128,22 +203,167 @@ class HoroscopeRepository {
     return Duration(hours: sign * hours, minutes: sign * minutes);
   }
 
-  Horoscope _parse(Map<String, dynamic> json, String slug, DateTime? date) {
-    final data = (json['data'] as Map?) ?? json;
+  List<int> _normalizeLuckyNumbers(
+    List<int> values,
+    NatalChart chart,
+    DateTime date,
+  ) {
+    final cleaned = values
+        .where((value) => value > 0)
+        .map((value) => ((value - 1) % 99) + 1)
+        .toSet()
+        .toList();
+    if (cleaned.length >= 3) {
+      return cleaned.take(3).toList();
+    }
+
+    final seed =
+        chart.sunSign.hashCode ^
+        chart.moonSign.hashCode ^
+        chart.ascendantSign.hashCode ^
+        date.year ^
+        date.month ^
+        date.day;
+    final rng = Random(seed);
+    while (cleaned.length < 3) {
+      final candidate = rng.nextInt(49) + 1;
+      if (!cleaned.contains(candidate)) {
+        cleaned.add(candidate);
+      }
+    }
+    cleaned.sort();
+    return cleaned;
+  }
+
+  String _displaySignName(String signSlug) {
+    if (signSlug.trim().isEmpty) return '-';
+    final normalized = signSlug.trim().toLowerCase();
+    final ko = zodiacNameKo(normalized);
+    return ko == normalized
+        ? '${normalized[0].toUpperCase()}${normalized.substring(1)}'
+        : ko;
+  }
+
+  Map<String, dynamic> _birthSnapshot(BirthInfo birthInfo) => {
+        'date': birthInfo.dateTime.toIso8601String().split('T').first,
+        'time':
+            '${birthInfo.dateTime.hour.toString().padLeft(2, '0')}:${birthInfo.dateTime.minute.toString().padLeft(2, '0')}',
+        'placeName': birthInfo.placeName,
+        'latitude': birthInfo.latitude,
+        'longitude': birthInfo.longitude,
+        'utcOffset': birthInfo.utcOffset,
+      };
+
+  Map<String, dynamic> _analysisSnapshot(
+    NatalChart chart,
+    String chartVersion,
+  ) {
+    String? signOf(String planetName) {
+      for (final planet in chart.planets) {
+        if (planet.name.toLowerCase() == planetName.toLowerCase()) {
+          return planet.sign;
+        }
+      }
+      return null;
+    }
+
+    return {
+      'chartVersion': chartVersion,
+      'sunSign': chart.sunSign,
+      'moonSign': chart.moonSign,
+      'ascendantSign': chart.ascendantSign,
+      'mercurySign': signOf('Mercury'),
+      'venusSign': signOf('Venus'),
+      'marsSign': signOf('Mars'),
+    };
+  }
+
+  Horoscope _buildLocalFallback({
+    required String signSlug,
+    required NatalChart chart,
+    required DateTime date,
+    required String nickname,
+    required BirthInfo birthInfo,
+  }) {
+    final demo = demoHoroscope(signSlug, date);
+    final sun = zodiacNameKo(chart.sunSign.toLowerCase());
+    final moon = zodiacNameKo(chart.moonSign.toLowerCase());
+    final asc = zodiacNameKo(chart.ascendantSign.toLowerCase());
+    final mercury = _planetSign(chart, 'Mercury');
+    final luckyNumbers = _normalizeLuckyNumbers(demo.luckyNumbers, chart, date);
+
     return Horoscope(
-      signSlug: slug,
-      signName: (data['sign'] ?? '${slug[0].toUpperCase()}${slug.substring(1)}')
-          .toString(),
-      date: date ?? DateTime.now(),
+      signSlug: signSlug,
+      signName: _displaySignName(signSlug),
+      date: date,
       summary:
-          (data['horoscope'] ?? data['summary'] ?? data['prediction'] ?? '')
-              .toString(),
-      luckyColor: (data['lucky_color'] ?? '-').toString(),
-      luckyNumber: (data['lucky_number'] is num)
-          ? (data['lucky_number'] as num).toInt()
-          : 0,
-      mood: (data['mood'] ?? '-').toString(),
-      luckyPlace: data['lucky_place']?.toString(),
+          '$nickname님은 오늘 $sun의 중심을 잃지 않으면서도, $moon 감정을 급하게 밀어붙이지 않는 편이 좋아요. '
+          '${mercury == null ? '$asc 분위기를 믿고 익숙한 리듬으로 가면 흐름이 안정됩니다.' : '${zodiacNameKo(mercury.toLowerCase())}식 대화 감각이 특히 잘 먹히는 날이에요.'}',
+      luckyColor: _localLuckyColor(chart),
+      luckyNumbers: luckyNumbers,
+      mood: '$moon 쪽 감정이 은근히 도드라지는 날',
+      luckyPlace: _localLuckyPlace(chart),
+      advice: '결론을 서두르기보다, 반응을 한 번 더 보고 움직이세요.',
+      caution: '감정이 올라올 때 바로 단정하면 작은 오해가 커질 수 있어요.',
+      shareText: '$sun 리듬을 살리면 생각보다 운이 부드럽게 붙는 하루예요.',
+      promptVersion: 'local-derived',
+      chartVersion: _activeChartVersion ?? birthInfo.chartVersion,
+      utcOffset: birthInfo.utcOffset,
     );
+  }
+
+  String _localLuckyColor(NatalChart chart) {
+    switch (chart.sunSign.trim().toLowerCase()) {
+      case 'aries':
+      case 'leo':
+      case 'sagittarius':
+        return '주황색';
+      case 'taurus':
+      case 'virgo':
+      case 'capricorn':
+        return '초록색';
+      case 'gemini':
+      case 'libra':
+      case 'aquarius':
+        return '파란색';
+      case 'cancer':
+      case 'scorpio':
+      case 'pisces':
+        return '보라색';
+      default:
+        return '남색';
+    }
+  }
+
+  String _localLuckyPlace(NatalChart chart) {
+    switch (chart.moonSign.trim().toLowerCase()) {
+      case 'gemini':
+      case 'libra':
+      case 'aquarius':
+        return '카페, 서점';
+      case 'aries':
+      case 'leo':
+      case 'sagittarius':
+        return '야외 산책로, 전시 공간';
+      case 'taurus':
+      case 'virgo':
+      case 'capricorn':
+        return '조용한 작업 공간, 도서관';
+      case 'cancer':
+      case 'scorpio':
+      case 'pisces':
+        return '물가 근처, 집 근처 단골 공간';
+      default:
+        return '익숙한 장소';
+    }
+  }
+
+  String? _planetSign(NatalChart chart, String planetName) {
+    for (final planet in chart.planets) {
+      if (planet.name.toLowerCase() == planetName.toLowerCase()) {
+        return planet.sign;
+      }
+    }
+    return null;
   }
 }

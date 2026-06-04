@@ -162,10 +162,14 @@ class UserProfile {
     final dtLocal = data['dateTimeLocal'] as String?;
     final lat = data['latitude'];
     final lng = data['longitude'];
-    final offset = data['utcOffset'] as String?;
-    if (dtLocal == null || lat is! num || lng is! num || offset == null) return null;
+    final rawOffset = data['utcOffset'] as String?;
+    // dateTimeLocal, 좌표는 필수.
+    // utcOffset은 구버전 호환을 위해 null/빈 값이면 +09:00(한국 표준시) 기본값 사용.
+    if (dtLocal == null || lat is! num || lng is! num) return null;
     final parsed = DateTime.tryParse(dtLocal);
     if (parsed == null) return null;
+    final offset =
+        (rawOffset == null || rawOffset.trim().isEmpty) ? '+09:00' : rawOffset;
     return BirthInfo(
       nickname: (data['nickname'] as String?) ?? '익명의 행성',
       dateTime: parsed,
