@@ -46,65 +46,73 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       extendBody: true,
-      body: IndexedStack(index: _index, children: _pages),
-      bottomNavigationBar: SafeArea(
-        top: false,
-        minimum: const EdgeInsets.fromLTRB(24, 8, 24, 16),
-        child: Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFF0F0F23),
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.15),
-              width: 0.636,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF1E3A8A).withOpacity(0.5),
-                blurRadius: 20,
-                offset: const Offset(0, 5),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          IndexedStack(index: _index, children: _pages),
+          Positioned(
+            left: 24,
+            right: 24,
+            bottom: bottomInset + 16,
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFF0F0F23),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.15),
+                  width: 0.636,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF1E3A8A).withValues(alpha: 0.5),
+                    blurRadius: 20,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            child: Row(
-              children: [
-                _NavItem(
-                  icon: Icons.home_outlined,
-                  activeIcon: Icons.home_rounded,
-                  label: '홈',
-                  selected: _index == 0,
-                  onTap: () => setState(() => _index = 0),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                child: Row(
+                  children: [
+                    _NavItem(
+                      icon: Icons.home_outlined,
+                      activeIcon: Icons.home_rounded,
+                      label: '홈',
+                      selected: _index == 0,
+                      onTap: () => setState(() => _index = 0),
+                    ),
+                    _NavItemSvg(
+                      svgActive: _svgRandomActive,
+                      svgInactive: _svgRandomInactive,
+                      label: '랜덤질문',
+                      selected: _index == 1,
+                      onTap: () => setState(() => _index = 1),
+                    ),
+                    _NavItem(
+                      icon: Icons.wb_sunny_outlined,
+                      activeIcon: Icons.wb_sunny,
+                      label: '오늘의 운세',
+                      selected: _index == 2,
+                      onTap: () => setState(() => _index = 2),
+                    ),
+                    _NavItem(
+                      icon: Icons.person_outline,
+                      activeIcon: Icons.person,
+                      label: '마이페이지',
+                      selected: _index == 3,
+                      onTap: () => setState(() => _index = 3),
+                    ),
+                  ],
                 ),
-                _NavItemSvg(
-                  svgActive: _svgRandomActive,
-                  svgInactive: _svgRandomInactive,
-                  label: '랜덤질문',
-                  selected: _index == 1,
-                  onTap: () => setState(() => _index = 1),
-                ),
-                _NavItem(
-                  icon: Icons.wb_sunny_outlined,
-                  activeIcon: Icons.wb_sunny,
-                  label: '오늘의 운세',
-                  selected: _index == 2,
-                  onTap: () => setState(() => _index = 2),
-                ),
-                _NavItem(
-                  icon: Icons.person_outline,
-                  activeIcon: Icons.person,
-                  label: '마이페이지',
-                  selected: _index == 3,
-                  onTap: () => setState(() => _index = 3),
-                ),
-              ],
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }

@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../core/input/app_input_formatters.dart';
 import '../application/auth_providers.dart';
@@ -14,6 +15,66 @@ import '../data/auth_repository.dart';
 import '../data/login_id_repository.dart';
 import 'auth_entry_guard.dart';
 import '../../onboarding/presentation/onboarding_screen.dart';
+
+const _svgPersonAdd = '''
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M21.332 27.9982V25.3317C21.332 23.9173 20.7701 22.5609 19.77 21.5607C18.7699 20.5606 17.4134 19.9987 15.999 19.9987H7.9995C6.5851 19.9987 5.22864 20.5606 4.2285 21.5607C3.22837 22.5609 2.6665 23.9173 2.6665 25.3317V27.9982" stroke="white" stroke-width="2.6665" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M11.9993 14.6658C14.9446 14.6658 17.3323 12.2781 17.3323 9.33276C17.3323 6.38742 14.9446 3.99976 11.9993 3.99976C9.05393 3.99976 6.66626 6.38742 6.66626 9.33276C6.66626 12.2781 9.05393 14.6658 11.9993 14.6658Z" stroke="white" stroke-width="2.6665" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M25.3317 10.666V18.6655" stroke="white" stroke-width="2.6665" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M29.3315 14.6658H21.332" stroke="white" stroke-width="2.6665" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+''';
+
+const _svgCheck = '''
+<svg width="57" height="50" viewBox="0 0 57 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g filter="url(#filter0_d_212_47)">
+<circle cx="29" cy="25.0238" r="9" fill="url(#paint0_linear_212_47)"/>
+</g>
+<path d="M24.5001 25.315L27.6154 28.1738L33.5001 22.7738" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<defs>
+<filter id="filter0_d_212_47" x="0" y="-3.9762" width="58" height="58" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feOffset/>
+<feGaussianBlur stdDeviation="10"/>
+<feComposite in2="hardAlpha" operator="out"/>
+<feColorMatrix type="matrix" values="0 0 0 0 0.231373 0 0 0 0 0.509804 0 0 0 0 0.964706 0 0 0 0.3 0"/>
+<feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_212_47"/>
+<feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_212_47" result="shape"/>
+</filter>
+<linearGradient id="paint0_linear_212_47" x1="20" y1="16.0238" x2="38" y2="34.0238" gradientUnits="userSpaceOnUse">
+<stop stop-color="#51A2FF"/>
+<stop offset="1" stop-color="#155DFC"/>
+</linearGradient>
+</defs>
+</svg>
+''';
+
+const _svgX = '''
+<svg width="58" height="58" viewBox="0 0 58 58" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g filter="url(#filter0_d_214_59)">
+<circle cx="29" cy="29" r="9" fill="url(#paint0_linear_214_59)"/>
+</g>
+<path d="M32.5 32.5001L25.5002 25.5002" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M25.4999 32.5L32.4998 25.5001" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<defs>
+<filter id="filter0_d_214_59" x="0" y="0" width="58" height="58" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feOffset/>
+<feGaussianBlur stdDeviation="10"/>
+<feComposite in2="hardAlpha" operator="out"/>
+<feColorMatrix type="matrix" values="0 0 0 0 0.231373 0 0 0 0 0.509804 0 0 0 0 0.964706 0 0 0 0.3 0"/>
+<feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_214_59"/>
+<feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_214_59" result="shape"/>
+</filter>
+<linearGradient id="paint0_linear_214_59" x1="20" y1="20" x2="38" y2="38" gradientUnits="userSpaceOnUse">
+<stop stop-color="#FF5151"/>
+<stop offset="1" stop-color="#FC1515"/>
+</linearGradient>
+</defs>
+</svg>
+''';
 
 class SignUpScreen extends ConsumerStatefulWidget {
   const SignUpScreen({super.key});
@@ -33,6 +94,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   String? _idError;
   String? _pwError;
   String? _generalError;
+  bool? _pwMatch;
 
   @override
   void dispose() {
@@ -46,6 +108,14 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   void _onIdChanged(String value) {
     final error = LoginIdRepository.validate(value);
     if (_idError != error) setState(() => _idError = error);
+  }
+
+  void _updatePasswordMatch([String? nextConfirm]) {
+    final confirm = nextConfirm ?? _pwConfirmCtrl.text;
+    final match = confirm.isEmpty ? null : confirm == _pwCtrl.text;
+    if (_pwMatch != match) {
+      setState(() => _pwMatch = match);
+    }
   }
 
   // ── 회원가입 처리 ────────────────────────────────────────────────
@@ -142,14 +212,19 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [Color(0xFF0A0A1F), Color(0xFF08235F)],
+                colors: [
+                  Color(0xFF060618),
+                  Color(0xFF0A0F2E),
+                  Color(0xFF0D1F5C),
+                ],
+                stops: [0.0, 0.5, 1.0],
               ),
             ),
           ),
           ...List.generate(40, (i) {
             final x = (i * 137.5) % 100;
             final y = (i * 97.3) % 100;
-            final size = (i % 3 + 1).toDouble();
+            final size = (i % 3 + 1) * 0.6;
             final opacity = (i % 5 + 3) / 10;
             return Positioned(
               left: x / 100 * MediaQuery.of(context).size.width,
@@ -169,7 +244,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
           }),
           SafeArea(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
+              padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Column(
                 children: [
                   const SizedBox(height: 48),
@@ -178,50 +253,65 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                   Container(
                     width: 80,
                     height: 80,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF1A5FD4),
+                    decoration: BoxDecoration(
                       shape: BoxShape.circle,
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFF2B7FFF), Color(0xFF155DFC)],
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF2B7FFF).withValues(alpha: 0.4),
+                          blurRadius: 20,
+                        ),
+                      ],
                     ),
-                    child: const Icon(
-                      Icons.person_add_rounded,
-                      color: Colors.white,
-                      size: 36,
+                    child: Center(
+                      child: SvgPicture.string(
+                        _svgPersonAdd,
+                        width: 32,
+                        height: 32,
+                      ),
                     ),
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
                   const Text(
                     '계정 만들기',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 28,
+                      fontSize: 24,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                   const SizedBox(height: 8),
                   const Text(
                     'Stellara에 오신 것을 환영합니다',
-                    style: TextStyle(color: Colors.white54, fontSize: 14),
+                    style: TextStyle(color: Color(0xFF8EC5FF), fontSize: 14),
                   ),
 
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 32),
 
                   // 입력 폼
                   Container(
-                    padding: const EdgeInsets.all(24),
+                    padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0D1830).withOpacity(0.8),
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0x22FFFFFF), Color(0x11FFFFFF)],
+                      ),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.white12),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.12),
+                      ),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // 아이디
-                        const Text(
-                          '아이디',
-                          style: TextStyle(color: Colors.white70, fontSize: 14),
-                        ),
+                        _fieldLabel('아이디'),
                         const SizedBox(height: 8),
                         TextField(
                           controller: _idCtrl,
@@ -250,10 +340,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                         const SizedBox(height: 16),
 
                         // 비밀번호
-                        const Text(
-                          '비밀번호',
-                          style: TextStyle(color: Colors.white70, fontSize: 14),
-                        ),
+                        _fieldLabel('비밀번호'),
                         const SizedBox(height: 8),
                         TextField(
                           controller: _pwCtrl,
@@ -262,9 +349,14 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                             if (_pwError != null) {
                               setState(() => _pwError = null);
                             }
+                            _updatePasswordMatch();
                           },
                           style: const TextStyle(color: Colors.white),
                           decoration: _inputDecoration('').copyWith(
+                            suffixIconConstraints: const BoxConstraints(
+                              minWidth: 48,
+                              minHeight: 48,
+                            ),
                             suffixIcon: IconButton(
                               icon: Icon(
                                 _obscurePw
@@ -281,33 +373,51 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                         const SizedBox(height: 16),
 
                         // 비밀번호 확인
-                        const Text(
-                          '비밀번호 확인',
-                          style: TextStyle(color: Colors.white70, fontSize: 14),
-                        ),
+                        _fieldLabel('비밀번호 확인'),
                         const SizedBox(height: 8),
                         TextField(
                           controller: _pwConfirmCtrl,
                           obscureText: _obscurePwConfirm,
-                          onChanged: (_) {
+                          onChanged: (value) {
                             if (_pwError != null) {
                               setState(() => _pwError = null);
                             }
+                            _updatePasswordMatch(value);
                           },
                           style: const TextStyle(color: Colors.white),
                           decoration: _inputDecoration('').copyWith(
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _obscurePwConfirm
-                                    ? Icons.visibility_off
-                                    : Icons.visibility,
-                                color: Colors.white38,
-                              ),
-                              onPressed: () => setState(
-                                () => _obscurePwConfirm = !_obscurePwConfirm,
-                              ),
+                            suffixIconConstraints: const BoxConstraints(
+                              minWidth: 48,
+                              minHeight: 48,
+                            ),
+                            suffixIcon: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (_pwMatch != null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 4),
+                                    child: SvgPicture.string(
+                                      _pwMatch! ? _svgCheck : _svgX,
+                                      width: 36,
+                                      height: 36,
+                                    ),
+                                  ),
+                                IconButton(
+                                  icon: Icon(
+                                    _obscurePwConfirm
+                                        ? Icons.visibility_off
+                                        : Icons.visibility,
+                                    color: Colors.white38,
+                                  ),
+                                  onPressed: () => setState(
+                                    () =>
+                                        _obscurePwConfirm = !_obscurePwConfirm,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
+                          onSubmitted: (_) => _submit(),
                         ),
                         if (_pwError != null) ...[
                           const SizedBox(height: 4),
@@ -332,45 +442,62 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                           ),
                         ],
 
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 20),
 
                         // 계정 만들기 버튼
                         SizedBox(
                           width: double.infinity,
                           height: 52,
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF1A5FD4),
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30),
+                          child: Opacity(
+                            opacity: _isLoading ? 0.85 : 1,
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [
+                                    Color(0xFF2B7FFF),
+                                    Color(0xFF155DFC),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.15),
+                                  width: 0.636,
+                                ),
                               ),
-                              elevation: 0,
-                            ),
-                            onPressed: _isLoading ? null : _submit,
-                            child: _isLoading
-                                ? const SizedBox(
-                                    width: 22,
-                                    height: 22,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : const Text(
-                                    '계정 만들기',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(999),
+                                  onTap: _isLoading ? null : _submit,
+                                  child: Center(
+                                    child: _isLoading
+                                        ? const SizedBox(
+                                            width: 20,
+                                            height: 20,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: Colors.white,
+                                            ),
+                                          )
+                                        : const Text(
+                                            '계정 만들기',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
                                   ),
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 18),
 
                   // 이미 계정이 있으신가요?
                   Row(
@@ -378,17 +505,18 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     children: [
                       const Text(
                         '이미 계정이 있으신가요? ',
-                        style: TextStyle(color: Colors.white54),
+                        style: TextStyle(color: Colors.white54, fontSize: 13),
                       ),
                       GestureDetector(
                         onTap: () => Navigator.of(context).pop(),
                         child: const Text(
                           '로그인',
                           style: TextStyle(
-                            color: Colors.white,
+                            color: Color(0xFF5B9BFF),
+                            fontSize: 13,
                             fontWeight: FontWeight.w700,
                             decoration: TextDecoration.underline,
-                            decorationColor: Colors.white,
+                            decorationColor: Color(0xFF5B9BFF),
                           ),
                         ),
                       ),
@@ -405,19 +533,32 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     );
   }
 
+  Widget _fieldLabel(String text) => Text(
+    text,
+    style: const TextStyle(
+      color: Color(0xFF8EC5FF),
+      fontSize: 13,
+      fontWeight: FontWeight.w500,
+    ),
+  );
+
   InputDecoration _inputDecoration(String hint) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: const TextStyle(color: Colors.white24),
+      hintStyle: const TextStyle(color: Color(0x668EC5FF)),
       filled: true,
-      fillColor: Colors.white.withOpacity(0.07),
+      fillColor: Colors.white.withValues(alpha: 0.07),
       border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide.none,
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFF1A5FD4), width: 1.5),
+        borderSide: const BorderSide(color: Color(0xFF2B7FFF), width: 1.5),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     );

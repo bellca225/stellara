@@ -72,7 +72,7 @@ class _MainHomeContent extends ConsumerWidget {
         AppSpacing.lg,
         AppSpacing.xl,
         AppSpacing.lg,
-        AppSpacing.xxl,
+        140,
       ),
       children: [
         const SizedBox(height: AppSpacing.sm),
@@ -208,7 +208,7 @@ class _MainHomeContent extends ConsumerWidget {
   }
 }
 
-class _OrbitPreview extends StatelessWidget {
+class _OrbitPreview extends StatefulWidget {
   const _OrbitPreview({
     required this.favorites,
     required this.isLoading,
@@ -221,135 +221,204 @@ class _OrbitPreview extends StatelessWidget {
   final VoidCallback onTapMe;
   final void Function(Friend) onTapFriend;
 
-  static const int _maxVisible = 8;
+  @override
+  State<_OrbitPreview> createState() => _OrbitPreviewState();
+}
 
-  static double _angleFor(String uid, int index, int total) {
+class _OrbitPreviewState extends State<_OrbitPreview>
+    with SingleTickerProviderStateMixin {
+  static const int _maxVisible = 8;
+  static const _speedMultipliers = [
+    1.0,
+    0.55,
+    0.35,
+    0.75,
+    0.45,
+    0.65,
+    0.28,
+    0.85,
+  ];
+
+  late final AnimationController _controller;
+
+  static double _baseAngleFor(String uid, int index, int total) {
     final baseAngle = 360.0 / total * index;
     final offset = (uid.hashCode % 30) - 15.0;
     return baseAngle + offset;
   }
 
   static double _radiusFor(int index, int total) {
-    if (total <= 3) {
-      return index % 2 == 0 ? 0.35 : 0.46;
-    } else if (total <= 6) {
-      return index % 2 == 0 ? 0.32 : 0.44;
-    } else {
-      const radii = [0.26, 0.35, 0.46];
-      return radii[index % 3];
-    }
+    const minRadius = 0.22;
+    const maxRadius = 0.46;
+    if (total <= 1) return (minRadius + maxRadius) / 2;
+    return minRadius + (maxRadius - minRadius) / (total - 1) * index;
+  }
+
+  static double _speedFor(int index) {
+    return _speedMultipliers[index % _speedMultipliers.length];
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 20),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final size = math.min(constraints.maxWidth, 320.0);
+        final size = math.min(constraints.maxWidth, 360.0);
         final cx = size / 2;
         final cy = size / 2;
 
-        final visible = favorites.take(_maxVisible).toList();
+        final visible = widget.favorites.take(_maxVisible).toList();
 
-        final dots = <_FriendDot>[];
-        for (var i = 0; i < visible.length; i++) {
-          final f = visible[i];
-          final angle = _angleFor(f.uid, i, visible.length);
-          final r = _radiusFor(i, visible.length);
-          dots.add(_FriendDot(friend: f, r: r, angle: angle, size: size));
-        }
+        return AnimatedBuilder(
+          animation: _controller,
+          builder: (context, _) {
+            final t = _controller.value * 2 * math.pi;
+            final friendRadii = visible.isEmpty
+                ? const <double>[]
+                : List.generate(
+                    visible.length,
+                    (i) => _radiusFor(i, visible.length) * size,
+                  );
+            final ringRadii = friendRadii.isEmpty
+                ? [size * 0.22, size * 0.35]
+                : friendRadii;
+            final maxRadius = friendRadii.isEmpty
+                ? size * 0.35
+                : friendRadii.last;
 
-        final ringRadii =
-            visible.isEmpty
-                  ? [size * 0.22, size * 0.35]
-                  : dots.map((d) => d.r * size).toSet().toList()
-              ..sort();
-
-        return Center(
-          child: SizedBox(
-            width: size,
-            height: size,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                for (final r in ringRadii)
-                  Positioned.fill(
-                    child: CustomPaint(painter: _OrbitRingPainter(cx, cy, r)),
-                  ),
-                for (final dot in dots)
-                  Positioned(
-                    left: dot.x - dot.bubbleSize / 2,
-                    top: dot.y - dot.bubbleSize / 2,
-                    child: GestureDetector(
-                      onTap: () => onTapFriend(dot.friend),
-                      child: _OrbitFriendBubble(
-                        name: dot.friend.nickname,
-                        diameter: dot.bubbleSize,
+            return Center(
+              child: SizedBox(
+                width: size,
+                height: size,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    for (final r in ringRadii)
+                      Positioned.fill(
+                        child: CustomPaint(
+                          painter: _OrbitRingPainter(
+                            cx: cx,
+                            cy: cy,
+                            radius: r,
+                            maxRadius: maxRadius,
+                          ),
+                        ),
+                      ),
+                    for (var i = 0; i < visible.length; i++)
+                      _buildFriendBubble(
+                        friend: visible[i],
+                        index: i,
+                        total: visible.length,
+                        size: size,
+                        t: t,
+                      ),
+                    Positioned(
+                      left: cx - size * 0.07,
+                      top: cy - size * 0.07,
+                      child: _SunBubble(
+                        diameter: size * 0.14,
+                        onTap: widget.onTapMe,
                       ),
                     ),
-                  ),
-                Positioned(
-                  left: cx - size * 0.07,
-                  top: cy - size * 0.07,
-                  child: _SunBubble(diameter: size * 0.14, onTap: onTapMe),
+                    if (!widget.isLoading && visible.isEmpty)
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: size * 0.08,
+                        child: const Text(
+                          '친구를 즐겨찾기하면\n여기에 표시돼요',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Color(0x88AABBFF),
+                            fontSize: 11,
+                            height: 1.5,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
-                if (!isLoading && visible.isEmpty)
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: size * 0.08,
-                    child: const Text(
-                      '친구를 즐겨찾기하면\n여기에 표시돼요',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Color(0x88AABBFF),
-                        fontSize: 11,
-                        height: 1.5,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );
   }
-}
 
-class _FriendDot {
-  final Friend friend;
-  final double x, y, bubbleSize;
-  final double r;
-
-  _FriendDot({
-    required this.friend,
-    required this.r,
-    required double angle,
+  Widget _buildFriendBubble({
+    required Friend friend,
+    required int index,
+    required int total,
     required double size,
-  }) : x = size / 2 + size * r * math.cos(angle * math.pi / 180),
-       y = size / 2 + size * r * math.sin(angle * math.pi / 180),
-       bubbleSize = size * 0.07;
+    required double t,
+  }) {
+    final radius = _radiusFor(index, total);
+    final speed = _speedFor(index);
+    final baseAngle = _baseAngleFor(friend.uid, index, total) * math.pi / 180;
+    final angle = baseAngle + t * speed;
+    final bubbleSize = size * 0.08;
+    final x = size / 2 + size * radius * math.cos(angle) - bubbleSize / 2;
+    final y = size / 2 + size * radius * math.sin(angle) - bubbleSize / 2;
+
+    return Positioned(
+      left: x,
+      top: y,
+      child: GestureDetector(
+        onTap: () => widget.onTapFriend(friend),
+        child: _OrbitFriendBubble(name: friend.nickname, diameter: bubbleSize),
+      ),
+    );
+  }
 }
 
 class _OrbitRingPainter extends CustomPainter {
-  final double cx, cy, radius;
-  _OrbitRingPainter(this.cx, this.cy, this.radius);
+  const _OrbitRingPainter({
+    required this.cx,
+    required this.cy,
+    required this.radius,
+    required this.maxRadius,
+  });
+
+  final double cx;
+  final double cy;
+  final double radius;
+  final double maxRadius;
 
   @override
   void paint(Canvas canvas, Size size) {
+    final ratio = maxRadius > 0 ? (radius / maxRadius) : 1.0;
+    final opacity = (0.55 - ratio * 0.35).clamp(0.12, 0.55).toDouble();
+    final strokeWidth = (1.6 - ratio * 0.8).clamp(0.6, 1.6).toDouble();
     canvas.drawCircle(
       Offset(cx, cy),
       radius,
       Paint()
-        ..color = const Color(0x556699FF)
+        ..color = Color.fromRGBO(102, 153, 255, opacity)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2,
+        ..strokeWidth = strokeWidth,
     );
   }
 
   @override
   bool shouldRepaint(_OrbitRingPainter old) =>
-      old.radius != radius || old.cx != cx || old.cy != cy;
+      old.radius != radius ||
+      old.maxRadius != maxRadius ||
+      old.cx != cx ||
+      old.cy != cy;
 }
 
 class _SunBubble extends StatelessWidget {
@@ -397,15 +466,23 @@ class _OrbitFriendBubble extends StatelessWidget {
           decoration: const BoxDecoration(
             shape: BoxShape.circle,
             color: Color(0xFF4A90D9),
+            boxShadow: [
+              BoxShadow(
+                color: Color(0x664A90D9),
+                blurRadius: 8,
+                spreadRadius: 1,
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 3),
+        const SizedBox(height: 4),
         Text(
           displayName,
           style: const TextStyle(
-            color: AppColors.inkMuted,
+            color: Color(0xAAFFFFFF),
             fontSize: 9,
-            fontWeight: FontWeight.w500,
+            fontWeight: FontWeight.w400,
+            letterSpacing: -0.1,
           ),
         ),
       ],
@@ -467,7 +544,12 @@ class _MainHomeSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.lg,
+        AppSpacing.lg,
+        140,
+      ),
       children: [
         const SizedBox(height: AppSpacing.lg),
         const SkeletonBox(width: double.infinity, height: 24),
