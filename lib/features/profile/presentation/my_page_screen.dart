@@ -1,8 +1,10 @@
-import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:async';
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:share_plus/share_plus.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/astro_text.dart';
@@ -10,58 +12,1554 @@ import '../../astrology/application/astrology_providers.dart';
 import '../../astrology/domain/birth_info.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../auth/presentation/landing_screen.dart';
-import '../../onboarding/presentation/onboarding_screen.dart';
+import '../../friends/application/friend_providers.dart';
+import '../../horoscope/application/horoscope_providers.dart';
+import '../../onboarding/data/place_resolver.dart';
 import '../../users/application/user_providers.dart';
+import '../../users/domain/user_profile.dart';
 
 class _C {
   static const white = Color(0xFFFFFFFF);
+  static const whiteDim = Color(0x99FFFFFF);
   static const accent = Color(0xFF8EC5FF);
   static const cardBorder = Color(0x1FFFFFFF);
-  static const headerBorder = Color(0x26FFFFFF);
-  static const glassStart = Color(0x14FFFFFF);
-  static const glassEnd = Color(0x08FFFFFF);
-  static const accentDim = Color(0xB38EC5FF);
-  static const whiteDim = Color(0x99FFFFFF);
+  static const divider = Color(0x0DFFFFFF);
+  static const pillBorder = Color(0x26FFFFFF);
+  static const overlay = Color(0x99000000);
+  static const inputHint = Color(0x668EC5FF);
+  static const error = Color(0xFFFF8A8A);
+  static const saveStart = Color(0x662B7FFF);
+  static const saveEnd = Color(0x40155DFC);
+  static const avatarStart = Color(0xFF51A2FF);
+  static const avatarEnd = Color(0xFF155DFC);
 }
 
-class _GlassCard extends StatelessWidget {
-  const _GlassCard({required this.child, this.padding});
+const _glassBoxShadow = [
+  BoxShadow(color: Color(0x26000000), blurRadius: 4, offset: Offset(0, 4)),
+  BoxShadow(color: Color(0x801E3A8A), blurRadius: 20, offset: Offset(0, 5)),
+];
 
-  final Widget child;
-  final EdgeInsetsGeometry? padding;
+class _UiMessageException implements Exception {
+  const _UiMessageException(this.message);
+
+  final String message;
+}
+
+class MyPageScreen extends ConsumerStatefulWidget {
+  const MyPageScreen({super.key});
+
+  @override
+  ConsumerState<MyPageScreen> createState() => _MyPageScreenState();
+}
+
+class _MyPageScreenState extends ConsumerState<MyPageScreen> {
+  final PlaceResolver _placeResolver = PlaceResolver();
+
+  Future<void> _showMessage(String message) async {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  String _displayNameOf(UserProfile? profile, BirthInfo? birth) {
+    final profileName = profile?.effectiveDisplayName.trim() ?? '';
+    if (profileName.isNotEmpty) {
+      return profileName;
+    }
+    final userName =
+        ref.read(currentUserProvider)?.effectiveDisplayName.trim() ?? '';
+    if (userName.isNotEmpty) {
+      return userName;
+    }
+    final birthName = birth?.nickname.trim() ?? '';
+    if (birthName.isNotEmpty) {
+      return birthName;
+    }
+    return '익명의 행성';
+  }
+
+  Future<void> _waitForProfileSync(
+    bool Function(UserProfile? profile) predicate,
+  ) async {
+    final uid =
+        ref.read(currentUserProvider)?.uid ??
+        ref.read(currentUserIdProvider).valueOrNull;
+    if (uid == null) {
+      return;
+    }
+    try {
+      await ref
+          .read(userRepositoryProvider)
+          .watch(uid)
+          .firstWhere(predicate)
+          .timeout(const Duration(seconds: 5));
+    } on TimeoutException {
+      // Firestore stream 동기화가 지연돼도 UX를 막지는 않는다.
+    }
+  }
+
+  Future<void> _persistProfile({
+    required BirthInfo birthInfo,
+    required String displayName,
+  }) async {
+    final trimmedName = displayName.trim();
+    final currentUser = ref.read(currentUserProvider);
+    final uid = currentUser?.uid ?? ref.read(currentUserIdProvider).valueOrNull;
+    if (uid == null) {
+      throw const _UiMessageException('로그인 정보를 찾을 수 없어요. 다시 로그인해주세요.');
+    }
+
+    await ref
+        .read(userRepositoryProvider)
+        .upsertBirthInfo(
+          uid: uid,
+          birthInfo: birthInfo,
+          nickname: trimmedName,
+          displayName: trimmedName,
+        );
+
+    if (currentUser != null) {
+      ref.read(currentUserProvider.notifier).state = currentUser.copyWith(
+        displayName: trimmedName,
+        nickname: trimmedName,
+        profileCompleted: true,
+      );
+    }
+
+    ref.invalidate(currentUserProfileProvider);
+    ref.invalidate(currentBirthInfoProvider);
+    ref.invalidate(myNatalChartProvider);
+    ref.invalidate(todayHoroscopeProvider);
+  }
+
+  Future<void> _saveDisplayName(String displayName) async {
+    final trimmed = displayName.trim();
+    if (trimmed.isEmpty) {
+      throw const _UiMessageException('닉네임을 입력해주세요.');
+    }
+    if (trimmed.length > 20) {
+      throw const _UiMessageException('닉네임은 20자 이내로 입력해주세요.');
+    }
+
+    final currentBirth = ref.read(currentBirthInfoProvider);
+    if (currentBirth == null) {
+      throw const _UiMessageException('출생 정보가 없어 닉네임을 저장할 수 없어요.');
+    }
+
+    final updatedBirth = currentBirth.copyWith(nickname: trimmed);
+    await _persistProfile(birthInfo: updatedBirth, displayName: trimmed);
+    await _waitForProfileSync(
+      (profile) =>
+          profile?.effectiveDisplayName == trimmed &&
+          profile?.birthInfo?.nickname == trimmed,
+    );
+    await _showMessage('닉네임이 수정되었습니다.');
+  }
+
+  Future<void> _saveBirthInfo(BirthInfo birthInfo) async {
+    final displayName = _displayNameOf(
+      ref.read(currentUserProfileProvider).valueOrNull,
+      birthInfo,
+    );
+    await _persistProfile(birthInfo: birthInfo, displayName: displayName);
+    await _waitForProfileSync(
+      (profile) =>
+          profile?.birthInfo?.chartVersion == birthInfo.chartVersion &&
+          profile?.birthInfo?.placeName == birthInfo.placeName,
+    );
+    await _showMessage('출생 정보가 수정되었습니다.');
+  }
+
+  Future<void> _copyFriendCode(String friendCode) async {
+    if (friendCode.isEmpty) {
+      await _showMessage('친구 코드가 아직 없어요. 친구 관리에서 생성해주세요.');
+      return;
+    }
+    try {
+      await Clipboard.setData(ClipboardData(text: friendCode));
+      await _showMessage('친구 코드가 복사되었습니다.');
+    } catch (_) {
+      await _showMessage('클립보드에 복사하지 못했어요. 다시 시도해주세요.');
+    }
+  }
+
+  Future<void> _openNicknameDialog(String displayName) async {
+    await _showGlassDialog(
+      _EditNicknameDialog(initialValue: displayName, onSave: _saveDisplayName),
+    );
+  }
+
+  Future<void> _openBirthInfoDialog(
+    BirthInfo? birthInfo,
+    String displayName,
+  ) async {
+    await _showGlassDialog(
+      _EditBirthInfoDialog(
+        initialBirthInfo: birthInfo,
+        displayName: displayName,
+        placeResolver: _placeResolver,
+        onSave: _saveBirthInfo,
+      ),
+    );
+  }
+
+  Future<void> _logout() async {
+    await ref.read(authRepositoryProvider).signOut();
+    ref.read(currentUserProvider.notifier).state = null;
+    ref.invalidate(currentUserProfileProvider);
+    ref.invalidate(currentBirthInfoProvider);
+    ref.invalidate(myNatalChartProvider);
+    ref.invalidate(todayHoroscopeProvider);
+    ref.invalidate(friendListProvider);
+    ref.invalidate(receivedRequestsProvider);
+    ref.invalidate(sentRequestsProvider);
+
+    if (!mounted) {
+      return;
+    }
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LandingScreen()),
+      (_) => false,
+    );
+  }
+
+  Future<T?> _showGlassDialog<T>(Widget child) {
+    return showGeneralDialog<T>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'close',
+      barrierColor: Colors.transparent,
+      transitionDuration: const Duration(milliseconds: 220),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+        return Material(
+          color: Colors.transparent,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 7, sigmaY: 7),
+                  child: Container(color: _C.overlay),
+                ),
+              ),
+              Positioned.fill(
+                child: SafeArea(
+                  child: AnimatedPadding(
+                    duration: const Duration(milliseconds: 180),
+                    curve: Curves.easeOut,
+                    padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + bottomInset),
+                    child: Center(child: SingleChildScrollView(child: child)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+          reverseCurve: Curves.easeInCubic,
+        );
+        return FadeTransition(
+          opacity: curved,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.96, end: 1).animate(curved),
+            child: child,
+          ),
+        );
+      },
+    );
+  }
+
+  String _dateText(BirthInfo? birth) {
+    if (birth == null) {
+      return '-';
+    }
+    return '${birth.dateTime.year}-${_pad(birth.dateTime.month)}-${_pad(birth.dateTime.day)}';
+  }
+
+  String _timeText(BirthInfo? birth) {
+    if (birth == null) {
+      return '-';
+    }
+    return '${_pad(birth.dateTime.hour)}:${_pad(birth.dateTime.minute)}';
+  }
+
+  String _pad(int value) => value.toString().padLeft(2, '0');
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: padding ?? const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: _C.cardBorder, width: 1),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [_C.glassStart, _C.glassEnd],
-        ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x26000000),
-            blurRadius: 20,
-            offset: Offset(0, 8),
+    final birth = ref.watch(currentBirthInfoProvider);
+    final asyncChart = ref.watch(myNatalChartProvider);
+    final profile = ref.watch(currentUserProfileProvider).valueOrNull;
+    final user = ref.watch(currentUserProvider);
+    final displayName = _displayNameOf(profile, birth);
+    final friendCode = (profile?.friendCode ?? user?.friendCode ?? '').trim();
+    final profileSunSign = profile?.sunSign;
+    final signLabel = asyncChart.when(
+      data: (chart) => zodiacLabelKo(chart.sunSign),
+      loading: () =>
+          profileSunSign != null ? zodiacLabelKo(profileSunSign) : '',
+      error: (error, stackTrace) =>
+          profileSunSign != null ? zodiacLabelKo(profileSunSign) : '',
+    );
+
+    return StarBackground(
+      child: SafeArea(
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 156),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _ProfileHeader(
+                displayName: displayName,
+                signLabel: signLabel,
+                initial: firstLetter(displayName, fallback: '별'),
+                onEdit: () => _openNicknameDialog(displayName),
+              ),
+              const SizedBox(height: 24),
+              _GlassSurface(
+                glowColor: const Color(0x262B7FFF),
+                glowLeft: -64,
+                glowTop: -64,
+                glowSize: 160,
+                padding: const EdgeInsets.fromLTRB(24, 22, 24, 22),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            '내 친구 코드',
+                            style: TextStyle(
+                              color: _C.accent,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              height: 1.43,
+                              letterSpacing: -0.2,
+                              fontFamily: 'Pretendard',
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            friendCode.isNotEmpty ? friendCode : '—',
+                            style: GoogleFonts.sulphurPoint(
+                              color: _C.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.w400,
+                              height: 1.28,
+                              letterSpacing: 2.4,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            '친구에게 이 코드를 공유하세요',
+                            style: TextStyle(
+                              color: Color(0xB38EC5FF),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w400,
+                              height: 1.33,
+                              letterSpacing: -0.2,
+                              fontFamily: 'Pretendard',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    _GlassIconButton(
+                      tooltip: '친구 코드 복사',
+                      onTap: () => _copyFriendCode(friendCode),
+                      child: const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CustomPaint(painter: _CopyIconPainter()),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  const Text(
+                    '출생 정보',
+                    style: TextStyle(
+                      color: _C.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      height: 1.4,
+                      letterSpacing: -0.2,
+                      fontFamily: 'Pretendard',
+                    ),
+                  ),
+                  const Spacer(),
+                  _GlassPillAction(
+                    label: '수정',
+                    labelColor: _C.accent,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 17,
+                      vertical: 9,
+                    ),
+                    onTap: () => _openBirthInfoDialog(birth, displayName),
+                    leading: const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CustomPaint(painter: _EditIconPainter()),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _GlassSurface(
+                glowColor: const Color(0x26AD46FF),
+                glowLeft: 250,
+                glowTop: 136,
+                glowSize: 128,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 24,
+                ),
+                child: Column(
+                  children: [
+                    _BirthRow(
+                      iconPainter: _CalendarIconPainter(),
+                      label: '생년월일',
+                      value: _dateText(birth),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      child: Divider(color: _C.divider, height: 1),
+                    ),
+                    _BirthRow(
+                      iconPainter: _ClockIconPainter(),
+                      label: '출생 시간',
+                      value: _timeText(birth),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      child: Divider(color: _C.divider, height: 1),
+                    ),
+                    _BirthRow(
+                      iconPainter: _PinIconPainter(),
+                      label: '출생지',
+                      value: birth?.placeName?.trim().isNotEmpty == true
+                          ? birth!.placeName!.trim()
+                          : '-',
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              _GlassPillButton(
+                label: '로그아웃',
+                onTap: _logout,
+                leading: const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CustomPaint(painter: _LogoutIconPainter()),
+                ),
+              ),
+            ],
           ),
-          BoxShadow(
-            color: Color(0x801E3A8A),
-            blurRadius: 40,
-            offset: Offset(0, 16),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileHeader extends StatelessWidget {
+  const _ProfileHeader({
+    required this.displayName,
+    required this.signLabel,
+    required this.initial,
+    required this.onEdit,
+  });
+
+  final String displayName;
+  final String signLabel;
+  final String initial;
+  final VoidCallback onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 200,
+      child: Stack(
+        alignment: Alignment.topCenter,
+        children: [
+          Positioned(
+            top: 24,
+            child: Container(
+              width: 160,
+              height: 160,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Color(0x262B7FFF),
+              ),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 64, sigmaY: 64),
+                child: const SizedBox.expand(),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 24,
+            child: Container(
+              width: 96,
+              height: 96,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [_C.avatarStart, _C.avatarEnd],
+                ),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x4D3B82F6),
+                    blurRadius: 10,
+                    offset: Offset(0, 0),
+                  ),
+                ],
+              ),
+              alignment: Alignment.center,
+              child: Container(
+                width: 96,
+                height: 96,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0x1AFFFFFF), Color(0x00000000)],
+                  ),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  initial,
+                  style: const TextStyle(
+                    color: _C.white,
+                    fontSize: 30,
+                    fontWeight: FontWeight.w600,
+                    height: 1.2,
+                    letterSpacing: -0.2,
+                    fontFamily: 'Pretendard',
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        displayName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: _C.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w500,
+                          height: 1.33,
+                          letterSpacing: -0.2,
+                          fontFamily: 'Pretendard',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    _GlassIconButton(
+                      size: 33.256,
+                      radius: 28,
+                      tooltip: '닉네임 수정',
+                      onTap: onEdit,
+                      child: const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CustomPaint(painter: _EditHeaderIconPainter()),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  signLabel,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: _C.accent,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w400,
+                    height: 1.5,
+                    letterSpacing: -0.2,
+                    fontFamily: 'Pretendard',
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _GlassSurface extends StatelessWidget {
+  const _GlassSurface({
+    required this.child,
+    this.padding,
+    this.glowColor,
+    this.glowLeft,
+    this.glowTop,
+    this.glowSize = 160,
+  });
+
+  final Widget child;
+  final EdgeInsetsGeometry? padding;
+  final Color? glowColor;
+  final double? glowLeft;
+  final double? glowTop;
+  final double glowSize;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: _C.cardBorder, width: 0.636),
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0x14FFFFFF), Color(0x08FFFFFF)],
+            ),
+            boxShadow: _glassBoxShadow,
+          ),
+          child: Stack(
+            children: [
+              if (glowColor != null)
+                Positioned(
+                  left: glowLeft,
+                  top: glowTop,
+                  child: Container(
+                    width: glowSize,
+                    height: glowSize,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: glowColor,
+                    ),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 64, sigmaY: 64),
+                      child: const SizedBox.expand(),
+                    ),
+                  ),
+                ),
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.15),
+                      width: 0.5,
+                    ),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: padding ?? const EdgeInsets.all(24),
+                child: child,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GlassIconButton extends StatelessWidget {
+  const _GlassIconButton({
+    required this.onTap,
+    required this.child,
+    required this.tooltip,
+    this.size = 45.26,
+    this.radius = 16,
+  });
+
+  final VoidCallback onTap;
+  final Widget child;
+  final String tooltip;
+  final double size;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(radius),
+            border: Border.all(color: _C.pillBorder, width: 0.636),
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0x1AFFFFFF), Color(0x0DFFFFFF)],
+            ),
+            boxShadow: _glassBoxShadow,
+          ),
+          alignment: Alignment.center,
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+class _GlassPillAction extends StatelessWidget {
+  const _GlassPillAction({
+    required this.label,
+    required this.onTap,
+    this.leading,
+    this.labelColor = _C.white,
+    this.padding = const EdgeInsets.symmetric(horizontal: 24, vertical: 17),
+  });
+
+  final String label;
+  final VoidCallback onTap;
+  final Widget? leading;
+  final Color labelColor;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: padding,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(9999),
+          border: Border.all(color: _C.pillBorder, width: 0.636),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0x1AFFFFFF), Color(0x0DFFFFFF)],
+          ),
+          boxShadow: _glassBoxShadow,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (leading != null) ...[leading!, const SizedBox(width: 5)],
+            Text(
+              label,
+              style: TextStyle(
+                color: labelColor,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                height: 1.43,
+                letterSpacing: -0.2,
+                fontFamily: 'Pretendard',
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GlassPillButton extends StatelessWidget {
+  const _GlassPillButton({
+    required this.label,
+    required this.onTap,
+    this.leading,
+    this.filled = false,
+    this.isLoading = false,
+  });
+
+  final String label;
+  final VoidCallback onTap;
+  final Widget? leading;
+  final bool filled;
+  final bool isLoading;
+
+  @override
+  Widget build(BuildContext context) {
+    final textColor = _C.white;
+    return GestureDetector(
+      onTap: isLoading ? null : onTap,
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 150),
+        opacity: isLoading ? 0.75 : 1,
+        child: Container(
+          height: 62,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(9999),
+            border: Border.all(color: _C.pillBorder, width: 0.636),
+            gradient: filled
+                ? const LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: [_C.saveStart, _C.saveEnd],
+                  )
+                : const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0x1AFFFFFF), Color(0x0DFFFFFF)],
+                  ),
+            boxShadow: _glassBoxShadow,
+          ),
+          alignment: Alignment.center,
+          child: isLoading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: _C.white,
+                  ),
+                )
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (leading != null) ...[
+                      leading!,
+                      const SizedBox(width: 8),
+                    ],
+                    Text(
+                      label,
+                      style: TextStyle(
+                        color: textColor,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        height: 1.56,
+                        letterSpacing: -0.2,
+                        fontFamily: 'Pretendard',
+                      ),
+                    ),
+                  ],
+                ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BirthRow extends StatelessWidget {
+  const _BirthRow({
+    required this.iconPainter,
+    required this.label,
+    required this.value,
+  });
+
+  final CustomPainter iconPainter;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 16,
+          height: 16,
+          child: CustomPaint(painter: iconPainter),
+        ),
+        const SizedBox(width: 12),
+        Text(
+          label,
+          style: const TextStyle(
+            color: _C.accent,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            height: 1.43,
+            letterSpacing: -0.2,
+            fontFamily: 'Pretendard',
+          ),
+        ),
+        const Spacer(),
+        Flexible(
+          child: Text(
+            value,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.right,
+            style: const TextStyle(
+              color: Color(0xE6FFFFFF),
+              fontSize: 16,
+              fontWeight: FontWeight.w400,
+              height: 1.5,
+              letterSpacing: -0.2,
+              fontFamily: 'Pretendard',
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DialogCard extends StatelessWidget {
+  const _DialogCard({
+    required this.title,
+    required this.child,
+    required this.onClose,
+  });
+
+  final String title;
+  final Widget child;
+  final VoidCallback? onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 345),
+      child: _GlassSurface(
+        glowColor: const Color(0x262B7FFF),
+        glowLeft: 247,
+        glowTop: -64,
+        glowSize: 160,
+        padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      color: _C.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      height: 1.4,
+                      letterSpacing: -0.2,
+                      fontFamily: 'Pretendard',
+                    ),
+                  ),
+                ),
+                _GlassIconButton(
+                  size: 38,
+                  radius: 9999,
+                  tooltip: '닫기',
+                  onTap: onClose ?? () {},
+                  child: Icon(
+                    Icons.close_rounded,
+                    size: 20,
+                    color: Colors.white.withValues(alpha: 0.9),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            child,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FieldLabel extends StatelessWidget {
+  const _FieldLabel(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: const TextStyle(
+        color: Color(0xFFBEDBFF),
+        fontSize: 14,
+        fontWeight: FontWeight.w500,
+        height: 1.43,
+        letterSpacing: -0.2,
+        fontFamily: 'Pretendard',
+      ),
+    );
+  }
+}
+
+class _GlassFieldShell extends StatelessWidget {
+  const _GlassFieldShell({required this.child, this.hasError = false});
+
+  final Widget child;
+  final bool hasError;
+
+  @override
+  Widget build(BuildContext context) {
+    final borderColor = hasError ? _C.error : _C.cardBorder;
+    return Container(
+      height: 50,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor, width: 0.636),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0x14FFFFFF), Color(0x08FFFFFF)],
+        ),
+        boxShadow: _glassBoxShadow,
+      ),
+      alignment: Alignment.centerLeft,
       child: child,
     );
   }
 }
 
+class _DisplayInput extends StatelessWidget {
+  const _DisplayInput({
+    required this.value,
+    required this.placeholder,
+    required this.onTap,
+    this.hasError = false,
+  });
+
+  final String? value;
+  final String placeholder;
+  final VoidCallback onTap;
+  final bool hasError;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = value?.trim() ?? '';
+    final showPlaceholder = text.isEmpty;
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: _GlassFieldShell(
+        hasError: hasError,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 17),
+          child: Text(
+            showPlaceholder ? placeholder : text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: showPlaceholder ? _C.inputHint : _C.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w400,
+              height: 1.5,
+              letterSpacing: -0.2,
+              fontFamily: 'Pretendard',
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EditNicknameDialog extends StatefulWidget {
+  const _EditNicknameDialog({required this.initialValue, required this.onSave});
+
+  final String initialValue;
+  final Future<void> Function(String value) onSave;
+
+  @override
+  State<_EditNicknameDialog> createState() => _EditNicknameDialogState();
+}
+
+class _EditNicknameDialogState extends State<_EditNicknameDialog> {
+  late final TextEditingController _controller;
+  String? _error;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialValue);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final value = _controller.text.trim();
+    if (value.isEmpty) {
+      setState(() => _error = '닉네임을 입력해주세요.');
+      return;
+    }
+    if (value.length > 20) {
+      setState(() => _error = '닉네임은 20자 이내로 입력해주세요.');
+      return;
+    }
+    if (value == widget.initialValue.trim()) {
+      Navigator.of(context).pop(false);
+      return;
+    }
+
+    setState(() {
+      _isSaving = true;
+      _error = null;
+    });
+    try {
+      await widget.onSave(value);
+      if (!mounted) {
+        return;
+      }
+      Navigator.of(context).pop(true);
+    } on _UiMessageException catch (e) {
+      if (mounted) {
+        setState(() => _error = e.message);
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _error = '닉네임을 저장하지 못했어요. 다시 시도해주세요.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _DialogCard(
+      title: '닉네임 수정',
+      onClose: _isSaving ? null : () => Navigator.of(context).pop(false),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const _FieldLabel('새 닉네임'),
+          const SizedBox(height: 8),
+          _GlassFieldShell(
+            hasError: _error != null,
+            child: TextField(
+              controller: _controller,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _submit(),
+              enabled: !_isSaving,
+              style: const TextStyle(
+                color: _C.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w400,
+                height: 1.5,
+                letterSpacing: -0.2,
+                fontFamily: 'Pretendard',
+              ),
+              cursorColor: _C.accent,
+              decoration: const InputDecoration(
+                border: InputBorder.none,
+                isCollapsed: true,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 17,
+                  vertical: 13,
+                ),
+              ),
+            ),
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              _error!,
+              style: const TextStyle(
+                color: _C.error,
+                fontSize: 12,
+                fontWeight: FontWeight.w400,
+                height: 1.33,
+                letterSpacing: -0.2,
+                fontFamily: 'Pretendard',
+              ),
+            ),
+          ],
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: _GlassPillButton(
+                  label: '취소',
+                  onTap: () => Navigator.of(context).pop(false),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _GlassPillButton(
+                  label: '저장',
+                  filled: true,
+                  isLoading: _isSaving,
+                  onTap: _submit,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EditBirthInfoDialog extends StatefulWidget {
+  const _EditBirthInfoDialog({
+    required this.initialBirthInfo,
+    required this.displayName,
+    required this.placeResolver,
+    required this.onSave,
+  });
+
+  final BirthInfo? initialBirthInfo;
+  final String displayName;
+  final PlaceResolver placeResolver;
+  final Future<void> Function(BirthInfo birthInfo) onSave;
+
+  @override
+  State<_EditBirthInfoDialog> createState() => _EditBirthInfoDialogState();
+}
+
+class _EditBirthInfoDialogState extends State<_EditBirthInfoDialog> {
+  DateTime? _selectedDate;
+  TimeOfDay? _selectedTime;
+  late final TextEditingController _placeController;
+  String? _error;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final birth = widget.initialBirthInfo;
+    if (birth != null) {
+      _selectedDate = DateTime(
+        birth.dateTime.year,
+        birth.dateTime.month,
+        birth.dateTime.day,
+      );
+      _selectedTime = TimeOfDay(
+        hour: birth.dateTime.hour,
+        minute: birth.dateTime.minute,
+      );
+    }
+    _placeController = TextEditingController(text: birth?.placeName ?? '');
+  }
+
+  @override
+  void dispose() {
+    _placeController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate ?? DateTime(1995, 2, 15),
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
+      helpText: '생년월일 선택',
+      cancelText: '취소',
+      confirmText: '확인',
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: const ColorScheme.dark(
+            primary: Color(0xFF1A5FD4),
+            onPrimary: Colors.white,
+            surface: Color(0xFF0D1830),
+            onSurface: Colors.white,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null) {
+      setState(() {
+        _selectedDate = picked;
+        _error = null;
+      });
+    }
+  }
+
+  Future<void> _pickTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _selectedTime ?? const TimeOfDay(hour: 12, minute: 0),
+      helpText: '출생 시간 선택',
+      cancelText: '취소',
+      confirmText: '확인',
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: const ColorScheme.dark(
+            primary: Color(0xFF1A5FD4),
+            onPrimary: Colors.white,
+            surface: Color(0xFF0D1830),
+            onSurface: Colors.white,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null) {
+      setState(() {
+        _selectedTime = picked;
+        _error = null;
+      });
+    }
+  }
+
+  Future<void> _submit() async {
+    if (_selectedDate == null) {
+      setState(() => _error = '생년월일을 선택해주세요.');
+      return;
+    }
+    if (_selectedTime == null) {
+      setState(() => _error = '출생 시간을 선택해주세요.');
+      return;
+    }
+
+    setState(() {
+      _isSaving = true;
+      _error = null;
+    });
+
+    try {
+      final dt = DateTime(
+        _selectedDate!.year,
+        _selectedDate!.month,
+        _selectedDate!.day,
+        _selectedTime!.hour,
+        _selectedTime!.minute,
+      );
+      final placeQuery = _placeController.text.trim();
+
+      double latitude;
+      double longitude;
+      String? placeName;
+
+      if (placeQuery.isEmpty) {
+        latitude = 37.5665;
+        longitude = 126.9780;
+        placeName = '서울특별시';
+      } else if (widget.placeResolver.supportsForwardGeocoding) {
+        final result = await widget.placeResolver.resolveDetailed(placeQuery);
+        switch (result) {
+          case PlaceResolutionSuccess(:final place):
+            latitude = place.latitude;
+            longitude = place.longitude;
+            placeName = place.placeName;
+          case PlaceResolutionFailure(:final kind):
+            throw _UiMessageException(_placeErrorMessage(kind));
+        }
+      } else {
+        final initial = widget.initialBirthInfo;
+        final samePlace =
+            initial?.placeName?.trim().isNotEmpty == true &&
+            initial!.placeName!.trim() == placeQuery;
+        if (!samePlace) {
+          throw const _UiMessageException(
+            '현재 환경에서는 출생지 좌표를 정확히 갱신할 수 없어 Android에서 수정해주세요.',
+          );
+        }
+        latitude = initial.latitude;
+        longitude = initial.longitude;
+        placeName = placeQuery;
+      }
+
+      final birthInfo = BirthInfo(
+        nickname: widget.displayName,
+        dateTime: dt,
+        latitude: latitude,
+        longitude: longitude,
+        utcOffset: widget.initialBirthInfo?.utcOffset ?? '+09:00',
+        placeName: placeName,
+      );
+
+      final initial = widget.initialBirthInfo;
+      final isSameAsInitial =
+          initial != null &&
+          initial.dateTime == birthInfo.dateTime &&
+          initial.latitude == birthInfo.latitude &&
+          initial.longitude == birthInfo.longitude &&
+          initial.utcOffset == birthInfo.utcOffset &&
+          (initial.placeName ?? '') == (birthInfo.placeName ?? '') &&
+          initial.nickname == birthInfo.nickname;
+      if (isSameAsInitial) {
+        if (!mounted) {
+          return;
+        }
+        Navigator.of(context).pop(false);
+        return;
+      }
+
+      await widget.onSave(birthInfo);
+      if (!mounted) {
+        return;
+      }
+      Navigator.of(context).pop(true);
+    } on _UiMessageException catch (e) {
+      if (mounted) {
+        setState(() => _error = e.message);
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _error = '출생 정보를 저장하지 못했어요. 다시 시도해주세요.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
+  }
+
+  String _dateText() {
+    final date = _selectedDate;
+    if (date == null) {
+      return '';
+    }
+    return '${date.year}-${_pad(date.month)}-${_pad(date.day)}';
+  }
+
+  String _timeText() {
+    final time = _selectedTime;
+    if (time == null) {
+      return '';
+    }
+    return '${_pad(time.hour)}:${_pad(time.minute)}';
+  }
+
+  String _pad(int value) => value.toString().padLeft(2, '0');
+
+  String _placeErrorMessage(PlaceResolutionFailureKind kind) {
+    switch (kind) {
+      case PlaceResolutionFailureKind.emptyQuery:
+        return '출생지를 입력해주세요.';
+      case PlaceResolutionFailureKind.notFound:
+        return '출생지를 찾지 못했어요. 더 구체적으로 입력해주세요.';
+      case PlaceResolutionFailureKind.platformError:
+        return '주소를 변환하는 중 오류가 발생했어요. 다시 시도해주세요.';
+      case PlaceResolutionFailureKind.unsupportedPlatform:
+        return '현재 환경에서는 출생지 자동 변환이 제한돼요.';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _DialogCard(
+      title: '출생 정보 수정',
+      onClose: _isSaving ? null : () => Navigator.of(context).pop(false),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const _FieldLabel('생년월일'),
+          const SizedBox(height: 8),
+          _DisplayInput(
+            value: _dateText(),
+            placeholder: '생년월일을 선택해주세요',
+            onTap: _pickDate,
+            hasError: _error == '생년월일을 선택해주세요.',
+          ),
+          const SizedBox(height: 20),
+          const _FieldLabel('출생 시간'),
+          const SizedBox(height: 8),
+          _DisplayInput(
+            value: _timeText(),
+            placeholder: '출생 시간을 선택해주세요',
+            onTap: _pickTime,
+            hasError: _error == '출생 시간을 선택해주세요.',
+          ),
+          const SizedBox(height: 20),
+          const _FieldLabel('출생지'),
+          const SizedBox(height: 8),
+          _GlassFieldShell(
+            child: TextField(
+              controller: _placeController,
+              enabled: !_isSaving,
+              style: const TextStyle(
+                color: _C.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w400,
+                height: 1.5,
+                letterSpacing: -0.2,
+                fontFamily: 'Pretendard',
+              ),
+              cursorColor: _C.accent,
+              decoration: const InputDecoration(
+                hintText: '서울특별시',
+                hintStyle: TextStyle(
+                  color: _C.inputHint,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w400,
+                  height: 1.5,
+                  letterSpacing: -0.2,
+                  fontFamily: 'Pretendard',
+                ),
+                border: InputBorder.none,
+                isCollapsed: true,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 17,
+                  vertical: 13,
+                ),
+              ),
+            ),
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              _error!,
+              style: const TextStyle(
+                color: _C.error,
+                fontSize: 12,
+                fontWeight: FontWeight.w400,
+                height: 1.33,
+                letterSpacing: -0.2,
+                fontFamily: 'Pretendard',
+              ),
+            ),
+          ],
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: _GlassPillButton(
+                  label: '취소',
+                  onTap: () => Navigator.of(context).pop(false),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _GlassPillButton(
+                  label: '저장',
+                  filled: true,
+                  isLoading: _isSaving,
+                  onTap: _submit,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _EditIconPainter extends CustomPainter {
+  const _EditIconPainter();
+
   @override
   void paint(Canvas canvas, Size size) {
     final r = size.width / 16;
@@ -208,10 +1706,16 @@ class _EditIconPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_) => false;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _EditHeaderIconPainter extends _EditIconPainter {
+  const _EditHeaderIconPainter();
 }
 
 class _CopyIconPainter extends CustomPainter {
+  const _CopyIconPainter();
+
   @override
   void paint(Canvas canvas, Size size) {
     final r = size.width / 20;
@@ -266,39 +1770,12 @@ class _CopyIconPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_) => false;
-}
-
-class _ShareIconPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final r = size.width / 20;
-    final p = Paint()
-      ..color = _C.accent
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.66663 * r
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    canvas.drawCircle(Offset(15.0 * r, 4.166 * r), 2.5 * r, p);
-    canvas.drawCircle(Offset(5.0 * r, 10.0 * r), 2.5 * r, p);
-    canvas.drawCircle(Offset(15.0 * r, 15.833 * r), 2.5 * r, p);
-    canvas.drawLine(
-      Offset(7.158 * r, 11.258 * r),
-      Offset(12.850 * r, 14.574 * r),
-      p,
-    );
-    canvas.drawLine(
-      Offset(12.841 * r, 5.425 * r),
-      Offset(7.158 * r, 8.741 * r),
-      p,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_) => false;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _CalendarIconPainter extends CustomPainter {
+  const _CalendarIconPainter();
+
   @override
   void paint(Canvas canvas, Size size) {
     final r = size.width / 16;
@@ -337,10 +1814,12 @@ class _CalendarIconPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_) => false;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _ClockIconPainter extends CustomPainter {
+  const _ClockIconPainter();
+
   @override
   void paint(Canvas canvas, Size size) {
     final r = size.width / 16;
@@ -356,10 +1835,12 @@ class _ClockIconPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_) => false;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _PinIconPainter extends CustomPainter {
+  const _PinIconPainter();
+
   @override
   void paint(Canvas canvas, Size size) {
     final r = size.width / 16;
@@ -373,7 +1854,7 @@ class _PinIconPainter extends CustomPainter {
       ..moveTo(13.326 * r, 6.663 * r)
       ..cubicTo(
         13.326 * r,
-        9.990 * r,
+        9.99 * r,
         9.635 * r,
         13.455 * r,
         8.396 * r,
@@ -382,7 +1863,7 @@ class _PinIconPainter extends CustomPainter {
       ..cubicTo(
         8.281 * r,
         14.612 * r,
-        8.140 * r,
+        8.14 * r,
         14.659 * r,
         7.996 * r,
         14.659 * r,
@@ -399,7 +1880,7 @@ class _PinIconPainter extends CustomPainter {
         6.356 * r,
         13.455 * r,
         2.665 * r,
-        9.990 * r,
+        9.99 * r,
         2.665 * r,
         6.663 * r,
       )
@@ -420,7 +1901,7 @@ class _PinIconPainter extends CustomPainter {
         1.333 * r,
       )
       ..cubicTo(
-        9.410 * r,
+        9.41 * r,
         1.333 * r,
         10.765 * r,
         1.894 * r,
@@ -441,10 +1922,12 @@ class _PinIconPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_) => false;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _LogoutIconPainter extends CustomPainter {
+  const _LogoutIconPainter();
+
   @override
   void paint(Canvas canvas, Size size) {
     final r = size.width / 20;
@@ -473,454 +1956,13 @@ class _LogoutIconPainter extends CustomPainter {
     canvas.drawPath(door, p);
     canvas.drawLine(
       Offset(13.333 * r, 14.166 * r),
-      Offset(17.5 * r, 10.0 * r),
+      Offset(17.5 * r, 10 * r),
       p,
     );
-    canvas.drawLine(
-      Offset(17.5 * r, 10.0 * r),
-      Offset(13.333 * r, 5.833 * r),
-      p,
-    );
-    canvas.drawLine(Offset(17.5 * r, 10.0 * r), Offset(7.5 * r, 10.0 * r), p);
+    canvas.drawLine(Offset(17.5 * r, 10 * r), Offset(13.333 * r, 5.833 * r), p);
+    canvas.drawLine(Offset(17.5 * r, 10 * r), Offset(7.5 * r, 10 * r), p);
   }
 
   @override
-  bool shouldRepaint(_) => false;
-}
-
-class _ActionIconButton extends StatelessWidget {
-  const _ActionIconButton({
-    required this.painter,
-    required this.onTap,
-    required this.tooltip,
-  });
-
-  final CustomPainter painter;
-  final VoidCallback onTap;
-  final String tooltip;
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: _C.headerBorder, width: 1),
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0x1AFFFFFF), Color(0x0DFFFFFF)],
-            ),
-          ),
-          child: Center(
-            child: SizedBox(
-              width: 20,
-              height: 20,
-              child: CustomPaint(painter: painter),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _BirthRow extends StatelessWidget {
-  const _BirthRow({
-    required this.iconPainter,
-    required this.label,
-    required this.value,
-  });
-
-  final CustomPainter iconPainter;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        SizedBox(
-          width: 16,
-          height: 16,
-          child: CustomPaint(painter: iconPainter),
-        ),
-        const SizedBox(width: 12),
-        Text(
-          label,
-          style: const TextStyle(
-            color: _C.accent,
-            fontSize: 14,
-            fontWeight: FontWeight.w300,
-            fontFamily: 'Pretendard',
-          ),
-        ),
-        const Spacer(),
-        Flexible(
-          child: Text(
-            value,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.right,
-            style: const TextStyle(
-              color: _C.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w400,
-              fontFamily: 'Pretendard',
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class MyPageScreen extends ConsumerWidget {
-  const MyPageScreen({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final birth = ref.watch(currentBirthInfoProvider);
-    final asyncChart = ref.watch(myNatalChartProvider);
-    final profile = ref.watch(currentUserProfileProvider).valueOrNull;
-    final birthDisplay = birth ?? BirthInfo.demo();
-    final user = ref.watch(currentUserProvider);
-    final friendCode = (profile?.friendCode ?? user?.friendCode ?? '').trim();
-
-    final initial = firstLetter(birthDisplay.nickname, fallback: '별');
-    final signLabel = asyncChart.when(
-      data: (chart) => zodiacLabelKo(chart.sunSign),
-      loading: () => '...',
-      error: (_, __) => '',
-    );
-    final birthDateStr = birth == null
-        ? '-'
-        : '${birthDisplay.dateTime.year}-${_pad(birthDisplay.dateTime.month)}-${_pad(birthDisplay.dateTime.day)}';
-    final birthTimeStr = birth == null
-        ? '-'
-        : '${_pad(birthDisplay.dateTime.hour)}:${_pad(birthDisplay.dateTime.minute)}';
-    final birthPlaceStr = birth?.placeName ?? '-';
-
-    return StarBackground(
-      child: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(24, 0, 24, 160),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 24),
-              Column(
-                children: [
-                  Container(
-                    width: 96,
-                    height: 96,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: const Color(0xFF3B82F6),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x803B82F6),
-                          blurRadius: 24,
-                          offset: Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      initial,
-                      style: const TextStyle(
-                        color: _C.white,
-                        fontSize: 30,
-                        fontWeight: FontWeight.w400,
-                        fontFamily: 'Inter',
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    birthDisplay.nickname.isNotEmpty
-                        ? birthDisplay.nickname
-                        : '닉네임 없음',
-                    style: const TextStyle(
-                      color: _C.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w300,
-                      fontFamily: 'Pretendard',
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    signLabel,
-                    style: const TextStyle(
-                      color: _C.accent,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w400,
-                      fontFamily: 'Pretendard',
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 32),
-              _GlassCard(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            '내 친구 코드',
-                            style: TextStyle(
-                              color: _C.accent,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w300,
-                              fontFamily: 'Pretendard',
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            friendCode.isNotEmpty ? friendCode : '—',
-                            style: const TextStyle(
-                              color: _C.white,
-                              fontSize: 24,
-                              fontFamily: 'Menlo',
-                              letterSpacing: 2.4,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          const Text(
-                            '친구 코드가 있으면 친구에게 공유하고 함께 별자리를 탐색해보세요',
-                            style: TextStyle(
-                              color: _C.accentDim,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w300,
-                              fontFamily: 'Pretendard',
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    _ActionIconButton(
-                      tooltip: '복사',
-                      painter: _CopyIconPainter(),
-                      onTap: () {
-                        if (friendCode.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('친구 코드가 아직 없어요. 친구 관리에서 생성해주세요.'),
-                            ),
-                          );
-                          return;
-                        }
-                        Clipboard.setData(ClipboardData(text: friendCode));
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('친구 코드가 복사되었습니다')),
-                        );
-                      },
-                    ),
-                    const SizedBox(width: 10),
-                    _ActionIconButton(
-                      tooltip: '공유',
-                      painter: _ShareIconPainter(),
-                      onTap: () async {
-                        if (friendCode.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('친구 코드가 아직 없어요. 친구 관리에서 생성해주세요.'),
-                            ),
-                          );
-                          return;
-                        }
-                        try {
-                          await Share.share(
-                            'Stellara에서 함께 별자리 궁합 봐요! 🌟\n'
-                            '친구 코드: $friendCode\n\n'
-                            '#Stellara #점성술',
-                            subject: 'Stellara 친구 초대',
-                          );
-                        } catch (_) {
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('공유를 지원하지 않는 환경이에요.'),
-                              ),
-                            );
-                          }
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  const Text(
-                    '출생 정보',
-                    style: TextStyle(
-                      color: _C.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w300,
-                      fontFamily: 'Inter',
-                    ),
-                  ),
-                  const Spacer(),
-                  GestureDetector(
-                    onTap: () async {
-                      final changed = await Navigator.of(context).push<bool>(
-                        MaterialPageRoute(
-                          builder: (_) => OnboardingScreen(
-                            initialBirthInfo: birth,
-                            isEditing: true,
-                          ),
-                        ),
-                      );
-                      if (changed == true && context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('출생 정보가 수정되었습니다')),
-                        );
-                      }
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(9999),
-                        border: Border.all(color: _C.headerBorder, width: 1),
-                        gradient: const LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [Color(0x1AFFFFFF), Color(0x0DFFFFFF)],
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CustomPaint(painter: _EditIconPainter()),
-                          ),
-                          const SizedBox(width: 5),
-                          const Text(
-                            '수정',
-                            style: TextStyle(
-                              color: _C.accent,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                              fontFamily: 'Pretendard',
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              _GlassCard(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 8,
-                ),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 16),
-                    _BirthRow(
-                      iconPainter: _CalendarIconPainter(),
-                      label: '생년월일',
-                      value: birthDateStr,
-                    ),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 16),
-                      child: Divider(color: Color(0x1AFFFFFF), height: 1),
-                    ),
-                    _BirthRow(
-                      iconPainter: _ClockIconPainter(),
-                      label: '출생 시간',
-                      value: birthTimeStr,
-                    ),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 16),
-                      child: Divider(color: Color(0x1AFFFFFF), height: 1),
-                    ),
-                    _BirthRow(
-                      iconPainter: _PinIconPainter(),
-                      label: '출생지',
-                      value: birthPlaceStr,
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 28),
-              GestureDetector(
-                onTap: () async {
-                  await FirebaseAuth.instance.signOut();
-                  ref.read(currentUserProvider.notifier).state = null;
-                  if (context.mounted) {
-                    Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(builder: (_) => const LandingScreen()),
-                      (_) => false,
-                    );
-                  }
-                },
-                child: Container(
-                  height: 60,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(9999),
-                    border: Border.all(color: _C.headerBorder, width: 1),
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0x1AFFFFFF), Color(0x0DFFFFFF)],
-                    ),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x26000000),
-                        blurRadius: 20,
-                        offset: Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CustomPaint(painter: _LogoutIconPainter()),
-                      ),
-                      const SizedBox(width: 10),
-                      const Text(
-                        '로그아웃',
-                        style: TextStyle(
-                          color: _C.whiteDim,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w500,
-                          fontFamily: 'Pretendard',
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  String _pad(int value) => value.toString().padLeft(2, '0');
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

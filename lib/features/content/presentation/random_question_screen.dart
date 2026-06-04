@@ -8,6 +8,7 @@ import '../../../core/env/env.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/astro_text.dart';
 import '../../astrology/application/astrology_providers.dart';
+import '../../astrology/domain/birth_info.dart';
 import '../../astrology/domain/natal_chart.dart';
 import '../../compatibility/application/compatibility_providers.dart';
 import '../../compatibility/domain/synastry_result.dart';
@@ -35,11 +36,7 @@ class _C {
 }
 
 class _GlassCard extends StatelessWidget {
-  const _GlassCard({
-    required this.child,
-    this.borderRadius = 24,
-    this.padding,
-  });
+  const _GlassCard({required this.child, this.borderRadius = 24, this.padding});
 
   final Widget child;
   final double borderRadius;
@@ -815,6 +812,7 @@ class RandomQuestionScreen extends ConsumerStatefulWidget {
 class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
   String? _selectedFriendUid;
   bool _hasRequestedQuestion = false;
+  bool _shouldBypassSessionReuse = false;
   bool _showAnswer = false;
   bool _isGeneratingQuestion = false;
   bool _isGeneratingAnswer = false;
@@ -854,7 +852,8 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
 
     try {
       final myChartVersion =
-          ref.read(currentBirthInfoProvider)?.chartVersion ?? 'missing-my-chart';
+          ref.read(currentBirthInfoProvider)?.chartVersion ??
+          'missing-my-chart';
       final session = await ref
           .read(randomQuestionSessionRepositoryProvider)
           .loadOrGenerateQuestion(
@@ -864,7 +863,8 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
             friendUid: selectedFriend.uid,
             friendNickname: selectedFriend.nickname,
             friendChartVersion: friendChartVersion,
-            reuseExistingIfAvailable: !_hasRequestedQuestion,
+            reuseExistingIfAvailable:
+                !_hasRequestedQuestion && !_shouldBypassSessionReuse,
             mySign: mySign,
             friendSign: selectedFriend.sunSign,
             myChart: myChart,
@@ -877,6 +877,7 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
       setState(() {
         _session = session;
         _hasRequestedQuestion = true;
+        _shouldBypassSessionReuse = false;
       });
     } catch (e) {
       if (!mounted) {
@@ -976,6 +977,32 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<BirthInfo?>(currentBirthInfoProvider, (previous, next) {
+      final changed =
+          previous?.chartVersion != next?.chartVersion ||
+          previous?.nickname != next?.nickname;
+      if (!changed || !mounted) {
+        return;
+      }
+      setState(() {
+        _session = null;
+        _showAnswer = false;
+        _hasRequestedQuestion = false;
+        _shouldBypassSessionReuse = true;
+      });
+    });
+    ref.listen<String?>(myNicknameProvider, (previous, next) {
+      if (previous == next || !mounted) {
+        return;
+      }
+      setState(() {
+        _session = null;
+        _showAnswer = false;
+        _hasRequestedQuestion = false;
+        _shouldBypassSessionReuse = true;
+      });
+    });
+
     final friendsAsync = ref.watch(friendListProvider);
     final myUid = ref.watch(myUidProvider);
     final myNickname = ref.watch(myNicknameProvider) ?? '나';
@@ -1023,7 +1050,8 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
                 ),
                 const SizedBox(height: 24),
                 friendsAsync.when(
-                  loading: () => const Center(child: CircularProgressIndicator()),
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
                   error: (error, _) => _GlassCard(
                     child: Text(
                       '친구 목록을 불러오지 못했어요: $error',
@@ -1216,6 +1244,7 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
                         setState(() {
                           _selectedFriendUid = value;
                           _hasRequestedQuestion = false;
+                          _shouldBypassSessionReuse = false;
                           _showAnswer = false;
                           _session = null;
                         });
@@ -1412,7 +1441,8 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
                           mySign: mySign,
                           myChart: myChart,
                           friendChartVersion:
-                              friendBirth?.chartVersion ?? 'missing-friend-chart',
+                              friendBirth?.chartVersion ??
+                              'missing-friend-chart',
                           friendChart: canUseAi ? friendChart : null,
                           synastry: synastry,
                         ),
@@ -1501,9 +1531,7 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
                         SizedBox(
                           width: 20,
                           height: 20,
-                          child: CustomPaint(
-                            painter: _ShareWhiteIconPainter(),
-                          ),
+                          child: CustomPaint(painter: _ShareWhiteIconPainter()),
                         ),
                         const SizedBox(width: 8),
                         const Text(
