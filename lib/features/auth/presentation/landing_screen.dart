@@ -335,8 +335,8 @@ class _GlassButton extends StatelessWidget {
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
           child: Container(
-            width: isPrimary ? 346 : 345,
-            padding: const EdgeInsets.symmetric(vertical: 17.612),
+            width: double.infinity,
+            height: isPrimary ? 61 : 49,
             decoration: BoxDecoration(
               gradient: _gradient,
               borderRadius: BorderRadius.circular(9999),
@@ -367,8 +367,9 @@ class _GlassButton extends StatelessWidget {
                 label,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 20,
+                  fontSize: 18,
                   fontWeight: FontWeight.w700,
+                  letterSpacing: -0.2,
                   height: 1.0,
                 ),
               ),

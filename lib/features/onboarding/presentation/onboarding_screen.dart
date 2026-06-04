@@ -1,8 +1,9 @@
 // lib/features/onboarding/presentation/onboarding_screen.dart
 //
-// ONBOARDING-001 — 별자리의 초대 (4단계 스텝 방식)
+// ONBOARDING — 별자리의 초대 (4단계 스텝 방식)
+// Figma Screens 6/7/8/9 기준
 //
-// Step 0: 이름(displayName) 입력 ← NEW
+// Step 0: 이름(displayName) 입력
 // Step 1: 생년월일 입력
 // Step 2: 출생 시간 입력
 // Step 3: 출생지 입력 → 완료 시 Firestore 저장
@@ -15,11 +16,17 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../../astrology/domain/birth_info.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../users/application/user_providers.dart';
 import '../data/place_resolver.dart';
 import '../app_shell.dart';
+
+const _glassBoxShadow = [
+  BoxShadow(color: Color(0x26000000), blurRadius: 4, offset: Offset(0, 4)),
+  BoxShadow(color: Color(0x801E3A8A), blurRadius: 20, offset: Offset(0, 5)),
+];
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({
@@ -42,11 +49,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _nameCtrl = TextEditingController();
   String? _nameError;
 
-  // 네이티브 Picker로 선택된 값 (TextField 대신)
+  // 네이티브 Picker로 선택된 값
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
 
-  // 출생지 (자유 텍스트 유지 — geocoding 연동)
+  // 출생지
   final _placeCtrl = TextEditingController();
 
   String? _error;
@@ -62,9 +69,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   @override
   void initState() {
     super.initState();
-    // 마이페이지 수정 모드: 이름 step 은 건너뛰고 생년월일부터 시작
     if (widget.isEditing) _step = 1;
-    // 기존 displayName 이 있으면 이름 필드에 채워 둠
     final profile = ref.read(currentUserProfileProvider).valueOrNull;
     if (profile != null) {
       _nameCtrl.text = profile.effectiveDisplayName;
@@ -153,7 +158,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     setState(() => _error = null);
     switch (_step) {
       case 0:
-        // 이름 검증
         final nameErr = _validateName(_nameCtrl.text);
         if (nameErr != null) {
           setState(() => _nameError = nameErr);
@@ -192,13 +196,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     });
 
     try {
-      // ── 1. 생년월일 (네이티브 Picker로 선택됨) ────────────────────
       if (_selectedDate == null) {
         setState(() => _error = '생년월일을 선택해주세요.');
         return;
       }
-
-      // ── 2. 출생 시간 (필수값 — step 2에서 이미 검증됨) ───────────
       if (_selectedTime == null) {
         setState(() => _error = '출생 시간을 선택해주세요.');
         return;
@@ -207,22 +208,20 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       final minute = _selectedTime!.minute;
 
       final dt = DateTime(
-        _selectedDate!.year, _selectedDate!.month, _selectedDate!.day,
-        hour, minute,
+        _selectedDate!.year,
+        _selectedDate!.month,
+        _selectedDate!.day,
+        hour,
+        minute,
       );
 
-      // ── 3. 출생지 Geocoding ─────────────────────────────────────
       double latitude;
       double longitude;
       String? placeName;
       final placeQuery = _placeCtrl.text.trim();
 
       if (placeQuery.isEmpty) {
-        // 출생지 미입력 → 서울 기본값으로 안내 후 처리
-        if (kDebugMode) {
-          // ignore: avoid_print
-          print('[Onboarding] 출생지 미입력 → 서울 기본값 사용');
-        }
+        if (kDebugMode) print('[Onboarding] 출생지 미입력 → 서울 기본값 사용');
         latitude = 37.5665;
         longitude = 126.9780;
         placeName = '서울특별시';
@@ -234,7 +233,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             longitude = place.longitude;
             placeName = place.placeName;
             if (kDebugMode) {
-              // ignore: avoid_print
               print('[Onboarding] 장소 변환 성공: "$placeQuery" → '
                   'lat=${place.latitude}, lng=${place.longitude}');
             }
@@ -243,25 +241,20 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             return;
         }
       } else {
-        // Web 등 geocoding 미지원 플랫폼 → 사용자 입력값 + 서울 좌표 fallback
         latitude = 37.5665;
         longitude = 126.9780;
         placeName = placeQuery;
         if (kDebugMode) {
-          // ignore: avoid_print
-          print('[Onboarding] geocoding 미지원 플랫폼 → 서울 좌표 fallback, placeName="$placeQuery"');
+          print('[Onboarding] geocoding 미지원 → 서울 fallback, placeName="$placeQuery"');
         }
       }
 
-      // ── 4. BirthInfo 구성 ────────────────────────────────────────
-      // BirthInfo.nickname 은 displayName 을 우선 사용.
-      // utcOffset: 현재 한국 앱 대상이므로 기본 +09:00.
       final enteredName = _nameCtrl.text.trim();
       final displayName = enteredName.isNotEmpty
           ? enteredName
-          : (ref.read(currentUserProfileProvider).valueOrNull?.effectiveDisplayName
-              ?? ref.read(currentUserProvider)?.effectiveDisplayName
-              ?? '별자리');
+          : (ref.read(currentUserProfileProvider).valueOrNull?.effectiveDisplayName ??
+              ref.read(currentUserProvider)?.effectiveDisplayName ??
+              '별자리');
 
       final birth = BirthInfo(
         nickname: displayName,
@@ -273,13 +266,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       );
 
       if (kDebugMode) {
-        // ignore: avoid_print
         print('[Onboarding] 저장할 BirthInfo: ${birth.chartVersion}');
       }
 
-      // ── 5. 로그인 확인 ───────────────────────────────────────────
-      final uid = ref.read(currentUserProvider)?.uid
-          ?? ref.read(currentUserIdProvider).valueOrNull;
+      final uid = ref.read(currentUserProvider)?.uid ??
+          ref.read(currentUserIdProvider).valueOrNull;
       if (uid == null) {
         setState(() => _error = '로그인 정보를 찾을 수 없어요. 앱을 재시작해주세요.');
         return;
@@ -292,17 +283,17 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         displayName: displayName,
       );
 
-      // Firestore stream 이 실제로 최신 birth 를 반영한 뒤에만 재분석을 시작한다.
-      // 그렇지 않으면 저장 직후 old birth 로 한 번 더 요청하는 race 가 생길 수 있다.
       try {
         // ignore: deprecated_member_use
         await ref
             .read(currentUserProfileProvider.stream)
-            .firstWhere((profile) => profile?.birthInfo?.chartVersion == birth.chartVersion)
+            .firstWhere(
+              (profile) =>
+                  profile?.birthInfo?.chartVersion == birth.chartVersion,
+            )
             .timeout(const Duration(seconds: 5));
       } on TimeoutException catch (e) {
         if (kDebugMode) {
-          // ignore: avoid_print
           print('[Onboarding] profile sync 대기 timeout (계속 진행): $e');
         }
       }
@@ -353,9 +344,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   Future<bool> _confirmDiscardIfNeeded() async {
-    if (!widget.isEditing || !_hasUnsavedChanges) {
-      return true;
-    }
+    if (!widget.isEditing || !_hasUnsavedChanges) return true;
     final shouldLeave = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -382,6 +371,52 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     Navigator.of(context).pop(false);
   }
 
+  // ── 진행바 (Step X / 4) ─────────────────────────────────────────
+  Widget _buildProgressBar() {
+    final totalSteps = widget.isEditing ? 3 : 4;
+    final currentFill = widget.isEditing ? _step : _step + 1;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Container(
+          height: 2,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: FractionallySizedBox(
+            alignment: Alignment.centerLeft,
+            widthFactor: (currentFill / totalSteps).clamp(0.0, 1.0),
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF51A2FF), Color(0xFF155DFC)],
+                ),
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // ── 스텝별 아이콘 ───────────────────────────────────────────────
+  IconData get _stepIcon {
+    if (widget.isEditing) {
+      switch (_step) {
+        case 1: return Icons.calendar_today_outlined;
+        case 2: return Icons.access_time_outlined;
+        default: return Icons.location_on_outlined;
+      }
+    }
+    switch (_step) {
+      case 0: return Icons.person_outline_rounded;
+      case 1: return Icons.calendar_today_outlined;
+      case 2: return Icons.access_time_outlined;
+      default: return Icons.location_on_outlined;
+    }
+  }
+
   // ── UI ──────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
@@ -393,114 +428,113 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         if (!mounted || !canLeave) return;
         Navigator.of(context).pop(false);
       },
-      child: Scaffold(
-        body: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Color(0xFF0A0A1F), Color(0xFF08235F)],
-            ),
-          ),
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
+      child: StarBackground(
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          body: SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Column(
                 children: [
-                  if (widget.isEditing)
+                  // ── 헤더 (수정 모드: 뒤로가기 버튼) ──────────────
+                  if (widget.isEditing) ...[
+                    const SizedBox(height: 8),
                     Align(
                       alignment: Alignment.centerLeft,
-                      child: IconButton(
-                        onPressed: _isSubmitting ? null : _handleBackToMyPage,
-                        icon: const Icon(
-                          Icons.arrow_back_ios_new_rounded,
-                          color: Colors.white,
+                      child: GestureDetector(
+                        onTap: _isSubmitting ? null : _handleBackToMyPage,
+                        child: Container(
+                          width: 37,
+                          height: 37,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [Color(0x1AFFFFFF), Color(0x0DFFFFFF)],
+                            ),
+                            borderRadius: BorderRadius.circular(28),
+                            border: Border.all(
+                              color: const Color(0x26FFFFFF),
+                              width: 0.636,
+                            ),
+                            boxShadow: _glassBoxShadow,
+                          ),
+                          child: const Icon(
+                            Icons.arrow_back_ios_new_rounded,
+                            color: Colors.white,
+                            size: 16,
+                          ),
                         ),
-                        tooltip: '마이페이지로 돌아가기',
                       ),
-                    )
-                  else
-                    const SizedBox(height: 32),
+                    ),
+                  ] else
+                    const SizedBox(height: 181),
 
-                  // 아이콘
+                  // ── 아이콘 ──────────────────────────────────────
                   Container(
-                    width: 72,
-                    height: 72,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF1A5FD4),
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
                       shape: BoxShape.circle,
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFF51A2FF), Color(0xFF155DFC)],
+                      ),
+                      boxShadow: const [
+                        BoxShadow(color: Color(0x4D3B82F6), blurRadius: 10),
+                      ],
                     ),
-                    child: const Icon(
-                      Icons.calendar_month_rounded,
-                      color: Colors.white,
-                      size: 32,
-                    ),
+                    child: Icon(_stepIcon, color: Colors.white, size: 32),
                   ),
 
                   const SizedBox(height: 16),
 
+                  // ── 타이틀 ──────────────────────────────────────
                   Text(
                     widget.isEditing ? '출생 정보 수정' : '별자리의 초대',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 24,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: -0.2,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    // 마이페이지 수정 모드는 step 1~3(1-based: 1~3 of 3)
                     widget.isEditing
                         ? 'Step ${_step} of 3'
                         : 'Step ${_step + 1} of 4',
                     style: const TextStyle(
-                      color: Color(0xFF5B9BFF),
-                      fontSize: 14,
+                      color: Color(0xFF8EC5FF),
+                      fontSize: 12,
+                      letterSpacing: -0.2,
                     ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // 진행 바 (4칸, 수정 모드 3칸)
-                  Row(
-                    children: List.generate(widget.isEditing ? 3 : 4, (i) {
-                      final filled = widget.isEditing ? i < _step : i <= _step;
-                      final last = i == (widget.isEditing ? 2 : 3);
-                      return Expanded(
-                        child: Container(
-                          height: 3,
-                          margin: EdgeInsets.only(right: last ? 0 : 4),
-                          decoration: BoxDecoration(
-                            color: filled
-                                ? const Color(0xFF1A5FD4)
-                                : Colors.white12,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                      );
-                    }),
                   ),
 
                   const SizedBox(height: 32),
 
-                  // 스텝 카드
-                  Expanded(
-                    child: _StepCard(
-                      step: _step,
-                      nameCtrl: _nameCtrl,
-                      nameError: _nameError,
-                      selectedDate: _selectedDate,
-                      selectedTime: _selectedTime,
-                      placeCtrl: _placeCtrl,
-                      error: _error,
-                      onPickDate: _pickDate,
-                      onPickTime: _pickTime,
-                    ),
+                  // ── 진행 바 ──────────────────────────────────────
+                  _buildProgressBar(),
+
+                  const SizedBox(height: 32),
+
+                  // ── 스텝 카드 ────────────────────────────────────
+                  _StepCard(
+                    step: _step,
+                    nameCtrl: _nameCtrl,
+                    nameError: _nameError,
+                    selectedDate: _selectedDate,
+                    selectedTime: _selectedTime,
+                    placeCtrl: _placeCtrl,
+                    error: _error,
+                    onPickDate: _pickDate,
+                    onPickTime: _pickTime,
                   ),
 
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
 
-                  // 버튼
+                  // ── 버튼 ─────────────────────────────────────────
                   _StepButtons(
                     step: _step,
                     isSubmitting: _isSubmitting,
@@ -508,7 +542,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     onPrev: _prev,
                   ),
 
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 48),
                 ],
               ),
             ),
@@ -543,73 +577,73 @@ class _StepCard extends StatelessWidget {
   final VoidCallback onPickDate;
   final VoidCallback onPickTime;
 
-  static const _cardDecoration = BoxDecoration(
-    color: Color(0xD90D1830),
-    borderRadius: BorderRadius.all(Radius.circular(24)),
-    border: Border.fromBorderSide(BorderSide(color: Colors.white12)),
-  );
-
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(28),
-      decoration: _cardDecoration,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0x14FFFFFF), Color(0x08FFFFFF)],
+        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0x1FFFFFFF), width: 0.612),
+        boxShadow: _glassBoxShadow,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
+          // 질문 제목
           Text(
             _title,
+            textAlign: TextAlign.center,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              letterSpacing: -0.2,
             ),
           ),
-          const SizedBox(height: 6),
-          Text(
-            _subtitle,
-            style: const TextStyle(color: Colors.white54, fontSize: 13),
-          ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 8),
 
-          // ── Step 0: 이름(displayName) 입력 ──────────────────────
+          // 부제목
+          SizedBox(
+            width: double.infinity,
+            child: Text(
+              _subtitle,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Color(0xFF8EC5FF),
+                fontSize: 12,
+                letterSpacing: -0.2,
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // ── Step 0: 이름 입력 ──────────────────────────────────
           if (step == 0) ...[
-            const Text('이름', style: TextStyle(color: Colors.white70, fontSize: 14)),
+            _GlassFieldLabel('이름'),
             const SizedBox(height: 8),
-            TextField(
+            _GlassTextInput(
               controller: nameCtrl,
+              hintText: '예: 별이, 나영, 김별',
               autofocus: true,
               maxLength: 20,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                hintText: '예: 별이, 나영, 김별',
-                hintStyle: const TextStyle(color: Colors.white24),
-                counterText: '',
-                filled: true,
-                fillColor: Colors.white.withOpacity(0.07),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFF1A5FD4), width: 1.5),
-                ),
-                errorText: nameError,
-                errorStyle: const TextStyle(color: Colors.redAccent, fontSize: 12),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              ),
+              errorText: nameError,
             ),
           ],
 
-          // ── Step 1: 생년월일 DatePicker ──────────────────────────
+          // ── Step 1: 생년월일 DatePicker ────────────────────────
           if (step == 1) ...[
-            const Text('생년월일', style: TextStyle(color: Colors.white70, fontSize: 14)),
+            _GlassFieldLabel('생년월일'),
             const SizedBox(height: 8),
-            _PickerButton(
-              icon: Icons.calendar_month_outlined,
+            _GlassPickerButton(
+              icon: Icons.calendar_today_outlined,
               label: selectedDate == null
                   ? '날짜 선택'
                   : '${selectedDate!.year}년 ${selectedDate!.month}월 ${selectedDate!.day}일',
@@ -618,64 +652,46 @@ class _StepCard extends StatelessWidget {
             ),
           ],
 
-          // ── Step 2: 출생 시간 TimePicker (필수) ──────────────────
+          // ── Step 2: 출생 시간 TimePicker ──────────────────────
           if (step == 2) ...[
-            const Text('출생 시간', style: TextStyle(color: Colors.white70, fontSize: 14)),
+            _GlassFieldLabel('출생 시간'),
             const SizedBox(height: 8),
-            _PickerButton(
-              icon: Icons.access_time_rounded,
+            _GlassPickerButton(
+              icon: Icons.access_time_outlined,
               label: selectedTime == null
                   ? '시간 선택'
                   : selectedTime!.format(context),
               selected: selectedTime != null,
               onTap: onPickTime,
             ),
-            const SizedBox(height: 8),
-            const Text(
-              '정확한 출생 시간은 상승 별자리(Ascendant) 계산에 필요해요.',
-              style: TextStyle(color: Colors.white38, fontSize: 12),
-            ),
           ],
 
-          // ── Step 3: 출생지 TextField (geocoding 연동) ─────────────
+          // ── Step 3: 출생지 TextField ───────────────────────────
           if (step == 3) ...[
-            const Text('출생지', style: TextStyle(color: Colors.white70, fontSize: 14)),
+            _GlassFieldLabel('출생지'),
             const SizedBox(height: 8),
-            TextField(
+            _GlassTextInput(
               controller: placeCtrl,
+              hintText: '예: 서울특별시',
               keyboardType: TextInputType.streetAddress,
               textCapitalization: TextCapitalization.words,
-              enableSuggestions: true,
-              autocorrect: false,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                hintText: '예: 서울특별시, 부산광역시, 제주시',
-                hintStyle: const TextStyle(color: Colors.white24),
-                prefixIcon: const Icon(Icons.location_on_outlined, color: Colors.white38),
-                filled: true,
-                fillColor: Colors.white.withOpacity(0.07),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFF1A5FD4), width: 1.5),
-                ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              prefixIcon: const Icon(
+                Icons.location_on_outlined,
+                color: Color(0x668EC5FF),
+                size: 20,
               ),
             ),
             if (kIsWeb) ...[
               const SizedBox(height: 8),
               const Text(
-                '웹에서는 자동 좌표 변환이 제한돼요. 정확한 계산은 앱에서 진행해주세요.',
-                style: TextStyle(color: Colors.white38, fontSize: 12),
+                '웹에서는 자동 좌표 변환이 제한돼요.',
+                style: TextStyle(color: Color(0x668EC5FF), fontSize: 12),
               ),
             ] else ...[
               const SizedBox(height: 8),
               const Text(
-                '시/군/구 단위로 입력하면 더 정확해요. 예: 강남구, 해운대구',
-                style: TextStyle(color: Colors.white38, fontSize: 12),
+                '시/군/구 단위로 입력하면 더 정확해요.',
+                style: TextStyle(color: Color(0x668EC5FF), fontSize: 12),
               ),
             ],
           ],
@@ -684,7 +700,11 @@ class _StepCard extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               error!,
-              style: const TextStyle(color: Colors.redAccent, fontSize: 13),
+              style: const TextStyle(
+                color: Color(0xFFFF6B6B),
+                fontSize: 12,
+                letterSpacing: -0.2,
+              ),
             ),
           ],
         ],
@@ -711,9 +731,91 @@ class _StepCard extends StatelessWidget {
   }
 }
 
-// ── Picker 버튼 위젯 ─────────────────────────────────────────────────
-class _PickerButton extends StatelessWidget {
-  const _PickerButton({
+// ── 글래스 입력 필드 (텍스트) ────────────────────────────────────────
+class _GlassTextInput extends StatelessWidget {
+  const _GlassTextInput({
+    required this.controller,
+    required this.hintText,
+    this.autofocus = false,
+    this.maxLength,
+    this.errorText,
+    this.keyboardType,
+    this.textCapitalization = TextCapitalization.none,
+    this.prefixIcon,
+    this.onSubmitted,
+  });
+
+  final TextEditingController controller;
+  final String hintText;
+  final bool autofocus;
+  final int? maxLength;
+  final String? errorText;
+  final TextInputType? keyboardType;
+  final TextCapitalization textCapitalization;
+  final Widget? prefixIcon;
+  final ValueChanged<String>? onSubmitted;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 49,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0x14FFFFFF), Color(0x08FFFFFF)],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: errorText != null
+              ? const Color(0xFFFF6B6B)
+              : const Color(0x1FFFFFFF),
+          width: 0.612,
+        ),
+        boxShadow: _glassBoxShadow,
+      ),
+      child: TextField(
+        controller: controller,
+        autofocus: autofocus,
+        maxLength: maxLength,
+        keyboardType: keyboardType,
+        textCapitalization: textCapitalization,
+        autocorrect: false,
+        onSubmitted: onSubmitted,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 16,
+          letterSpacing: -0.2,
+          height: 1.0,
+        ),
+        cursorColor: const Color(0xFF8EC5FF),
+        decoration: InputDecoration(
+          hintText: hintText,
+          hintStyle: const TextStyle(
+            color: Color(0x808EC5FF),
+            fontSize: 16,
+            fontWeight: FontWeight.w300,
+            letterSpacing: -0.2,
+          ),
+          prefixIcon: prefixIcon,
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          counterText: '',
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 14,
+          ),
+          isDense: true,
+        ),
+      ),
+    );
+  }
+}
+
+// ── 글래스 Picker 버튼 ──────────────────────────────────────────────
+class _GlassPickerButton extends StatelessWidget {
+  const _GlassPickerButton({
     required this.icon,
     required this.label,
     required this.selected,
@@ -730,35 +832,68 @@ class _PickerButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        height: 49,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.07),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: selected ? const Color(0xFF1A5FD4) : Colors.white12,
-            width: selected ? 1.5 : 1,
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0x14FFFFFF), Color(0x08FFFFFF)],
           ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: selected
+                ? const Color(0xFF51A2FF)
+                : const Color(0x1FFFFFFF),
+            width: selected ? 1.5 : 0.612,
+          ),
+          boxShadow: _glassBoxShadow,
         ),
         child: Row(
           children: [
-            Icon(icon, color: selected ? const Color(0xFF5B9BFF) : Colors.white38, size: 20),
+            Icon(
+              icon,
+              color: selected
+                  ? const Color(0xFF8EC5FF)
+                  : const Color(0x668EC5FF),
+              size: 20,
+            ),
             const SizedBox(width: 12),
-            Text(
-              label,
-              style: TextStyle(
-                color: selected ? Colors.white : Colors.white38,
-                fontSize: 15,
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: selected ? Colors.white : const Color(0x80FFFFFF),
+                  fontSize: 16,
+                  letterSpacing: -0.2,
+                ),
               ),
             ),
-            const Spacer(),
-            Icon(
+            const Icon(
               Icons.arrow_forward_ios_rounded,
-              color: Colors.white24,
+              color: Color(0x40FFFFFF),
               size: 14,
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ── 필드 레이블 ─────────────────────────────────────────────────────
+class _GlassFieldLabel extends StatelessWidget {
+  const _GlassFieldLabel(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: const TextStyle(
+        color: Color(0xFFBEDBFF),
+        fontSize: 14,
+        letterSpacing: -0.2,
       ),
     );
   }
@@ -781,63 +916,128 @@ class _StepButtons extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (step == 0) {
-      return SizedBox(
-        width: double.infinity,
-        height: 52,
-        child: _primaryButton('다음', onNext, isSubmitting),
+      return _GlassPrimaryButton(
+        label: '다음',
+        isLoading: isSubmitting,
+        onTap: onNext,
       );
     }
+
     return Row(
       children: [
         Expanded(
-          child: SizedBox(
-            height: 52,
-            child: OutlinedButton(
-              onPressed: isSubmitting ? null : onPrev,
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.white,
-                side: const BorderSide(color: Colors.white30),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
-                ),
-              ),
-              child: const Text('이전',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
-            ),
+          child: _GlassSecondaryButton(
+            label: '이전',
+            isLoading: false,
+            onTap: onPrev,
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: SizedBox(
-            height: 52,
-            child: _primaryButton(step == 3 ? '완료' : '다음', onNext, isSubmitting),
+          child: _GlassPrimaryButton(
+            label: step == 3 ? '완료' : '다음',
+            isLoading: isSubmitting,
+            onTap: onNext,
           ),
         ),
       ],
     );
   }
+}
 
-  Widget _primaryButton(String label, VoidCallback onTap, bool loading) {
-    return ElevatedButton(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFF1A5FD4),
-        foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(30),
+// ── 주 버튼 (파란 그라디언트) ─────────────────────────────────────
+class _GlassPrimaryButton extends StatelessWidget {
+  const _GlassPrimaryButton({
+    required this.label,
+    required this.onTap,
+    this.isLoading = false,
+  });
+
+  final String label;
+  final VoidCallback onTap;
+  final bool isLoading;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: isLoading ? null : onTap,
+      child: Container(
+        height: 61,
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: [Color(0x662B7FFF), Color(0x40155DFC)],
+          ),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: const Color(0x26FFFFFF), width: 0.612),
+          boxShadow: _glassBoxShadow,
         ),
-        elevation: 0,
+        child: Center(
+          child: isLoading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+        ),
       ),
-      onPressed: loading ? null : onTap,
-      child: loading
-          ? const SizedBox(
-              width: 22,
-              height: 22,
-              child: CircularProgressIndicator(
-                  strokeWidth: 2, color: Colors.white),
-            )
-          : Text(label,
-              style: const TextStyle(
-                  fontSize: 16, fontWeight: FontWeight.w600)),
+    );
+  }
+}
+
+// ── 보조 버튼 (이전) ────────────────────────────────────────────────
+class _GlassSecondaryButton extends StatelessWidget {
+  const _GlassSecondaryButton({
+    required this.label,
+    required this.onTap,
+    this.isLoading = false,
+  });
+
+  final String label;
+  final VoidCallback onTap;
+  final bool isLoading;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: isLoading ? null : onTap,
+      child: Container(
+        height: 61,
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0x1AFFFFFF), Color(0x0DFFFFFF)],
+          ),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: const Color(0x26FFFFFF), width: 0.612),
+          boxShadow: _glassBoxShadow,
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              letterSpacing: -0.2,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
