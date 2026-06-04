@@ -1,24 +1,356 @@
 // lib/features/compatibility/presentation/match_screen.dart
-//
-// 궁합 결과 화면 — Figma 궁합결과 구조 기준
-//
-// AppBar: ← | 궁합 결과 | [공유]
-// 메인 카드: 하트 + 이름 + 총점 + 별자리
-// 세부 분석: 감정/대화/연애 카드 (점수 + 바 + 설명)
-// 궁합 요약 카드
-// SNS 공유 버튼
+
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 
-import '../../../core/theme/app_theme.dart';
-import '../../../core/widgets/panel.dart';
 import '../../friends/application/friend_providers.dart';
 import '../../friends/domain/friend.dart';
 import '../../users/application/user_providers.dart';
 import '../application/compatibility_providers.dart';
 import '../domain/synastry_result.dart';
+
+class _C {
+  static const white = Color(0xFFFFFFFF);
+  static const accent = Color(0xFF8EC5FF);
+  static const blue1 = Color(0xFF51A2FF);
+  static const blue2 = Color(0xFF155DFC);
+  static const cardBorder = Color(0x1FFFFFFF);
+  static const headerBorder = Color(0x26FFFFFF);
+  static const glassStart = Color(0x14FFFFFF);
+  static const glassEnd = Color(0x08FFFFFF);
+  static const progressBg = Color(0x0DFFFFFF);
+  static const shareBtnStart = Color(0x402B7FFF);
+  static const shareBtnEnd = Color(0x40155DFC);
+}
+
+class _GlassCard extends StatelessWidget {
+  const _GlassCard({
+    required this.child,
+    this.padding,
+  });
+
+  final Widget child;
+  final EdgeInsetsGeometry? padding;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: padding ?? const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: _C.cardBorder, width: 1),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [_C.glassStart, _C.glassEnd],
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x26000000),
+            blurRadius: 20,
+            offset: Offset(0, 8),
+          ),
+          BoxShadow(
+            color: Color(0x801E3A8A),
+            blurRadius: 40,
+            offset: Offset(0, 16),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+}
+
+class _ProgressBar extends StatefulWidget {
+  const _ProgressBar({required this.percent});
+
+  final int percent;
+
+  @override
+  State<_ProgressBar> createState() => _ProgressBarState();
+}
+
+class _ProgressBarState extends State<_ProgressBar>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _anim = Tween<double>(
+      begin: 0,
+      end: widget.percent / 100.0,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
+    _ctrl.forward();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _anim,
+      builder: (context, child) => Container(
+        height: 6,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(9999),
+          color: _C.progressBg,
+        ),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: FractionallySizedBox(
+            widthFactor: _anim.value,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(9999),
+                gradient: const LinearGradient(colors: [_C.blue1, _C.blue2]),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HeartIconPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final s = size.width / 40;
+    final p = Paint()
+      ..color = const Color(0xFF51A2FF)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.33326 * s
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    final path = Path()
+      ..moveTo(19.9995 * s, 8.333 * s)
+      ..cubicTo(
+        17.4996 * s,
+        5.833 * s,
+        15.433 * s,
+        4.9999 * s,
+        12.4997 * s,
+        4.9999 * s,
+      )
+      ..cubicTo(
+        10.0686 * s,
+        4.9999 * s,
+        7.737 * s,
+        5.9656 * s,
+        6.018 * s,
+        7.6847 * s,
+      )
+      ..cubicTo(
+        4.299 * s,
+        9.4037 * s,
+        3.333 * s,
+        11.735 * s,
+        3.333 * s,
+        14.166 * s,
+      )
+      ..cubicTo(
+        3.333 * s,
+        17.9996 * s,
+        5.833 * s,
+        20.916 * s,
+        8.333 * s,
+        23.333 * s,
+      )
+      ..lineTo(19.9995 * s, 34.999 * s)
+      ..lineTo(31.666 * s, 23.333 * s)
+      ..cubicTo(
+        34.149 * s,
+        20.9 * s,
+        36.666 * s,
+        17.983 * s,
+        36.666 * s,
+        14.166 * s,
+      )
+      ..cubicTo(
+        36.666 * s,
+        11.735 * s,
+        35.7 * s,
+        9.4037 * s,
+        33.981 * s,
+        7.6847 * s,
+      )
+      ..cubicTo(
+        32.262 * s,
+        5.9656 * s,
+        29.930 * s,
+        4.9999 * s,
+        27.499 * s,
+        4.9999 * s,
+      )
+      ..cubicTo(
+        24.566 * s,
+        4.9999 * s,
+        22.499 * s,
+        5.833 * s,
+        19.9995 * s,
+        8.333 * s,
+      )
+      ..close();
+    canvas.drawPath(path, p);
+  }
+
+  @override
+  bool shouldRepaint(_) => false;
+}
+
+class _BackIconPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final r = size.width / 20;
+    final p = Paint()
+      ..color = const Color(0xFF8EC5FF)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.66663 * r
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    canvas.drawLine(
+      Offset(9.9997 * r, 15.833 * r),
+      Offset(4.1665 * r, 9.9997 * r),
+      p,
+    );
+    canvas.drawLine(
+      Offset(4.1665 * r, 9.9997 * r),
+      Offset(9.9997 * r, 4.1665 * r),
+      p,
+    );
+    canvas.drawLine(
+      Offset(15.833 * r, 9.9998 * r),
+      Offset(4.1665 * r, 9.9998 * r),
+      p,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_) => false;
+}
+
+class _ShareAccentIconPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final r = size.width / 20;
+    final p = Paint()
+      ..color = const Color(0xFF8EC5FF)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.66663 * r
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    canvas.drawCircle(Offset(13.7816 * r, 4.1666 * r), 2.5 * r, p);
+    canvas.drawCircle(Offset(3.7818 * r, 9.9997 * r), 2.5 * r, p);
+    canvas.drawCircle(Offset(13.7816 * r, 15.833 * r), 2.5 * r, p);
+    canvas.drawLine(
+      Offset(5.9402 * r, 11.258 * r),
+      Offset(11.6317 * r, 14.575 * r),
+      p,
+    );
+    canvas.drawLine(
+      Offset(11.6234 * r, 5.425 * r),
+      Offset(5.9402 * r, 8.742 * r),
+      p,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_) => false;
+}
+
+class _ShareWhiteIconPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final r = size.width / 20;
+    final p = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.66663 * r
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    canvas.drawCircle(Offset(14.9996 * r, 4.1664 * r), 2.5 * r, p);
+    canvas.drawCircle(Offset(4.9998 * r, 9.9997 * r), 2.5 * r, p);
+    canvas.drawCircle(Offset(14.9996 * r, 15.833 * r), 2.5 * r, p);
+    canvas.drawLine(
+      Offset(7.1582 * r, 11.258 * r),
+      Offset(12.8497 * r, 14.575 * r),
+      p,
+    );
+    canvas.drawLine(
+      Offset(12.8414 * r, 5.4248 * r),
+      Offset(7.1582 * r, 8.7414 * r),
+      p,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_) => false;
+}
+
+class _StarsBg extends StatelessWidget {
+  const _StarsBg({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xFF04081A),
+            Color(0xFF060D2E),
+            Color(0xFF08112A),
+            Color(0xFF030818),
+          ],
+          stops: [0.0, 0.35, 0.65, 1.0],
+        ),
+      ),
+      child: CustomPaint(painter: _StarsPainter(), child: child),
+    );
+  }
+}
+
+class _StarsPainter extends CustomPainter {
+  static final _rng = math.Random(42);
+  static final _pos = List.generate(
+    80,
+    (_) => Offset(_rng.nextDouble(), _rng.nextDouble()),
+  );
+  static final _sz = List.generate(80, (_) => _rng.nextDouble() * 1.5 + 0.5);
+  static final _op = List.generate(80, (_) => _rng.nextDouble() * 0.6 + 0.2);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (var i = 0; i < _pos.length; i++) {
+      canvas.drawCircle(
+        Offset(_pos[i].dx * size.width, _pos[i].dy * size.height),
+        _sz[i],
+        Paint()..color = Colors.white.withValues(alpha: _op[i]),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_) => false;
+}
 
 class MatchScreen extends ConsumerStatefulWidget {
   const MatchScreen({super.key, this.initialFriendUid});
@@ -42,112 +374,191 @@ class _MatchScreenState extends ConsumerState<MatchScreen> {
   Widget build(BuildContext context) {
     final friendsAsync = ref.watch(friendListProvider);
     final friends = friendsAsync.valueOrNull ?? const <Friend>[];
-    final selectedUid = _selectedFriendUid ??
-        widget.initialFriendUid ??
-        (friends.isNotEmpty ? friends.first.uid : null);
-
+    final selectedUid =
+        _selectedFriendUid ?? (friends.isNotEmpty ? friends.first.uid : null);
     final selectedFriend = friends.cast<Friend?>().firstWhere(
-          (f) => f?.uid == selectedUid,
-          orElse: () => null,
-        );
-    final friendName = selectedFriend?.nickname;
+      (f) => f?.uid == selectedUid,
+      orElse: () => null,
+    );
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('궁합 결과'),
-        centerTitle: false,
-        actions: [
-          if (selectedFriend != null)
-            IconButton(
-              icon: const Icon(Icons.share_outlined),
-              onPressed: () => _share(friendName),
-              tooltip: '공유',
-            ),
-        ],
-      ),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-          children: [
-            // ── 친구 선택 (initialFriendUid 없을 때만 표시) ─────────
-            if (widget.initialFriendUid == null) ...[
-              Panel(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      '궁합 볼 친구 선택',
-                      style: TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                    const SizedBox(height: 12),
-                    friendsAsync.when(
-                      loading: () =>
-                          const Center(child: CircularProgressIndicator()),
-                      error: (e, _) => Text('친구 목록을 불러오지 못했어요: $e'),
-                      data: (list) => list.isEmpty
-                          ? const Text('아직 친구가 없어요.\n친구를 추가한 뒤 궁합을 볼 수 있어요.')
-                          : Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: [
-                                for (final f in list)
-                                  ChoiceChip(
-                                    label: Text(f.nickname),
-                                    selected: f.uid == selectedUid,
-                                    onSelected: (_) => setState(
-                                        () => _selectedFriendUid = f.uid),
-                                  ),
-                              ],
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: _StarsBg(
+          child: SafeArea(
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      GestureDetector(
+                        onTap: () => Navigator.maybePop(context),
+                        child: _HeaderIcon(
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CustomPaint(painter: _BackIconPainter()),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Text(
+                          '궁합결과',
+                          textAlign: TextAlign.left,
+                          style: TextStyle(
+                            color: _C.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.w600,
+                            height: 1.33,
+                            letterSpacing: -0.2,
+                            fontFamily: 'Pretendard',
+                          ),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => _share(selectedFriend?.nickname),
+                        child: _HeaderIcon(
+                          child: SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CustomPaint(
+                              painter: _ShareAccentIconPainter(),
                             ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
-
-            // ── 결과 영역 ────────────────────────────────────────────
-            if (selectedUid == null)
-              const Panel(
-                child: Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Center(
-                    child: Text('궁합을 볼 친구를 선택해주세요.'),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              )
-            else
-              _MatchResultBody(
-                friendUid: selectedUid,
-                friendName: friendName,
-                onShare: () => _share(friendName),
+                  const SizedBox(height: 24),
+                  if (widget.initialFriendUid == null) ...[
+                    _GlassCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            '궁합 볼 친구 선택',
+                            style: TextStyle(
+                              color: _C.accent,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              fontFamily: 'Pretendard',
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          friendsAsync.when(
+                            loading: () => const Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                            error: (e, _) => const Text(
+                              '친구 목록을 불러오지 못했어요',
+                              style: TextStyle(color: _C.white),
+                            ),
+                            data: (list) => list.isEmpty
+                                ? const Text(
+                                    '아직 친구가 없어요.',
+                                    style: TextStyle(
+                                      color: _C.white,
+                                      fontFamily: 'Pretendard',
+                                    ),
+                                  )
+                                : Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: [
+                                      for (final f in list)
+                                        GestureDetector(
+                                          onTap: () => setState(
+                                            () => _selectedFriendUid = f.uid,
+                                          ),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 16,
+                                              vertical: 8,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              borderRadius:
+                                                  BorderRadius.circular(9999),
+                                              border: Border.all(
+                                                color: f.uid == selectedUid
+                                                    ? _C.accent
+                                                    : _C.headerBorder,
+                                                width: 1,
+                                              ),
+                                              color: f.uid == selectedUid
+                                                  ? _C.accent.withValues(alpha: 0.2)
+                                                  : Colors.transparent,
+                                            ),
+                                            child: Text(
+                                              f.nickname,
+                                              style: TextStyle(
+                                                color: f.uid == selectedUid
+                                                    ? _C.accent
+                                                    : _C.white,
+                                                fontFamily: 'Pretendard',
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  if (selectedUid == null)
+                    _GlassCard(
+                      child: const Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Center(
+                          child: Text(
+                            '궁합을 볼 친구를 선택해주세요.',
+                            style: TextStyle(
+                              color: _C.white,
+                              fontFamily: 'Pretendard',
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    _MatchResultBody(
+                      friendUid: selectedUid,
+                      friendName: selectedFriend?.nickname,
+                      onShare: () => _share(selectedFriend?.nickname),
+                    ),
+                ],
               ),
-          ],
+            ),
+          ),
         ),
       ),
     );
   }
 
   Future<void> _share(String? name) async {
-    // 결과를 가져와 공유 (provider read)
     final profile = ref.read(currentUserProfileProvider).valueOrNull;
     final myName = profile?.effectiveDisplayName ?? '나';
-    final text = '✨ Stellara 궁합 결과\n'
-        '$myName와 ${name ?? '친구'}의 궁합을 확인해보세요!\n\n'
-        '#Stellara #점성술 #궁합';
+    final text =
+        '✨ Stellara 궁합 결과\n$myName와 ${name ?? '친구'}의 궁합을 확인해보세요!\n\n#Stellara #점성술 #궁합';
     try {
       await Share.share(text, subject: '궁합 결과 공유');
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('공유를 지원하지 않는 환경이에요.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('공유를 지원하지 않는 환경이에요.')));
       }
     }
   }
 }
-
-// ── 결과 본문 (친구 선택 완료 후) ──────────────────────────────────
 
 class _MatchResultBody extends ConsumerWidget {
   const _MatchResultBody({
@@ -171,24 +582,28 @@ class _MatchResultBody extends ConsumerWidget {
           child: CircularProgressIndicator(),
         ),
       ),
-      error: (e, _) =>
-          Panel(child: Text('친구 정보를 불러오지 못했어요: $e')),
+      error: (e, _) => _GlassCard(
+        child: Text(
+          '친구 정보를 불러오지 못했어요: $e',
+          style: const TextStyle(color: _C.white),
+        ),
+      ),
       data: (friendProfile) {
         final friendBirth = friendProfile?.birthInfo;
         if (friendBirth == null) {
-          return const Panel(
-            child: Padding(
+          return _GlassCard(
+            child: const Padding(
               padding: EdgeInsets.all(16),
-              child: Text('친구의 출생 정보가 아직 없어 궁합을 계산할 수 없어요.'),
+              child: Text(
+                '친구의 출생 정보가 아직 없어 궁합을 계산할 수 없어요.',
+                style: TextStyle(color: _C.white, fontFamily: 'Pretendard'),
+              ),
             ),
           );
         }
 
         final resultAsync = ref.watch(
-          matchProvider((
-            friendBirth: friendBirth,
-            friendUid: friendUid,
-          )),
+          matchProvider((friendBirth: friendBirth, friendUid: friendUid)),
         );
 
         return resultAsync.when(
@@ -198,83 +613,17 @@ class _MatchResultBody extends ConsumerWidget {
               child: CircularProgressIndicator(),
             ),
           ),
-          error: (e, _) =>
-              Panel(child: Text('궁합 계산 실패: $e')),
-          data: (result) => Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── 메인 결과 카드 ───────────────────────────────────
-              _MainResultCard(
-                result: result,
-                friendName: friendName,
-                friendZodiac: friendProfile?.sunSign ?? '-',
-              ),
-              const SizedBox(height: 20),
-
-              // ── 세부 분석 ────────────────────────────────────────
-              const Text(
-                '세부 분석',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 12),
-              _DetailCard(
-                label: '감정',
-                score: result.emotionScore,
-                description: result.emotionalMatch,
-              ),
-              const SizedBox(height: 10),
-              _DetailCard(
-                label: '대화',
-                score: result.communicationScore,
-                description: result.communicationStyle,
-              ),
-              const SizedBox(height: 10),
-              _DetailCard(
-                label: '연애',
-                score: result.romanceScore,
-                description: result.romanticMatch,
-              ),
-              const SizedBox(height: 16),
-
-              // ── 궁합 요약 카드 ──────────────────────────────────
-              Panel(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      '궁합 요약',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 15,
-                        color: AppColors.primaryLight,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      result.summary,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppColors.inkMuted,
-                            height: 1.6,
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // ── SNS 공유 버튼 ──────────────────────────────────
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: onShare,
-                  icon: const Icon(Icons.share_outlined),
-                  label: const Text('SNS에 공유하기'),
-                ),
-              ),
-            ],
+          error: (e, _) => _GlassCard(
+            child: Text(
+              '궁합 계산 실패: $e',
+              style: const TextStyle(color: _C.white),
+            ),
+          ),
+          data: (result) => _ResultContent(
+            result: result,
+            friendName: friendName,
+            friendZodiac: friendProfile?.sunSign ?? '-',
+            onShare: onShare,
           ),
         );
       },
@@ -282,91 +631,230 @@ class _MatchResultBody extends ConsumerWidget {
   }
 }
 
-// ── 메인 점수 카드 ─────────────────────────────────────────────────
-
-class _MainResultCard extends StatelessWidget {
-  const _MainResultCard({
+class _ResultContent extends StatefulWidget {
+  const _ResultContent({
     required this.result,
     required this.friendZodiac,
+    required this.onShare,
     this.friendName,
   });
 
   final SynastryResult result;
   final String? friendName;
   final String friendZodiac;
+  final VoidCallback onShare;
+
+  @override
+  State<_ResultContent> createState() => _ResultContentState();
+}
+
+class _ResultContentState extends State<_ResultContent>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<int> _countAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+    _countAnim = IntTween(
+      begin: 0,
+      end: widget.result.totalScore,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutQuart));
+    _ctrl.forward();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Panel(
-      child: Column(
-        children: [
-          const Icon(Icons.favorite_outline_rounded,
-              size: 32, color: AppColors.primaryLight),
-          const SizedBox(height: 8),
-          Text(
-            '나와 ${friendName ?? '친구'}의 궁합',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: AppColors.inkMuted,
-                ),
-          ),
-          const SizedBox(height: 12),
-          Row(
+    final result = widget.result;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _GlassCard(
+          child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(
-                '${result.totalScore}',
-                style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
+              SizedBox(
+                width: 40,
+                height: 40,
+                child: CustomPaint(painter: _HeartIconPainter()),
               ),
-              const Padding(
-                padding: EdgeInsets.only(bottom: 6),
-                child: Text(
-                  '%',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.inkMuted,
+              const SizedBox(height: 8),
+              Text(
+                '나와 ${widget.friendName ?? '친구'}의 궁합',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: _C.accent,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  height: 1.5,
+                  fontFamily: 'Pretendard',
+                ),
+              ),
+              const SizedBox(height: 8),
+              AnimatedBuilder(
+                animation: _countAnim,
+                builder: (context, child) => Text(
+                  '${_countAnim.value}%',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: _C.white,
+                    fontFamily: 'Rationale',
+                    fontSize: 60,
+                    fontWeight: FontWeight.w400,
+                    height: 1.0,
+                    letterSpacing: -0.2,
                   ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              if (widget.friendZodiac.isNotEmpty && widget.friendZodiac != '-')
+                Text(
+                  widget.friendZodiac,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: _C.accent,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    height: 1.5,
+                    fontFamily: 'Pretendard',
+                  ),
+                ),
+              const SizedBox(height: 4),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        _AnalysisCard(
+          label: '감정',
+          percent: result.emotionScore,
+          description: result.emotionalMatch,
+        ),
+        const SizedBox(height: 12),
+        _AnalysisCard(
+          label: '대화',
+          percent: result.communicationScore,
+          description: result.communicationStyle,
+        ),
+        const SizedBox(height: 12),
+        _AnalysisCard(
+          label: '연애 스타일',
+          percent: result.romanceScore,
+          description: result.romanticMatch,
+        ),
+        const SizedBox(height: 16),
+        _GlassCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '궁합 요약',
+                style: TextStyle(
+                  color: _C.accent,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  height: 1.56,
+                  letterSpacing: -0.2,
+                  fontFamily: 'Pretendard',
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                result.summary,
+                style: const TextStyle(
+                  color: _C.white,
+                  fontFamily: 'Inter',
+                  fontSize: 14,
+                  fontWeight: FontWeight.w300,
+                  height: 1.625,
+                  letterSpacing: -0.15,
                 ),
               ),
             ],
           ),
-          if (friendZodiac.isNotEmpty && friendZodiac != '-') ...[
-            const SizedBox(height: 6),
-            Text(
-              friendZodiac,
-              style: const TextStyle(
-                color: AppColors.primaryLight,
-                fontWeight: FontWeight.w600,
+        ),
+        const SizedBox(height: 20),
+        GestureDetector(
+          onTap: widget.onShare,
+          child: Container(
+            height: 61,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(9999),
+              border: Border.all(color: _C.headerBorder, width: 1),
+              gradient: const LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [_C.shareBtnStart, _C.shareBtnEnd],
               ),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x26000000),
+                  blurRadius: 20,
+                  offset: Offset(0, 8),
+                ),
+                BoxShadow(
+                  color: Color(0x661E3A8A),
+                  blurRadius: 40,
+                  offset: Offset(0, 16),
+                ),
+              ],
             ),
-          ],
-        ],
-      ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CustomPaint(painter: _ShareWhiteIconPainter()),
+                ),
+                const SizedBox(width: 10),
+                const Text(
+                  'SNS에 공유하기',
+                  style: TextStyle(
+                    color: _C.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.2,
+                    fontFamily: 'Pretendard',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
 
-// ── 세부 분석 카드 ─────────────────────────────────────────────────
-
-class _DetailCard extends StatelessWidget {
-  const _DetailCard({
+class _AnalysisCard extends StatelessWidget {
+  const _AnalysisCard({
     required this.label,
-    required this.score,
+    required this.percent,
     required this.description,
   });
 
   final String label;
-  final int score;
+  final int percent;
   final String description;
 
   @override
   Widget build(BuildContext context) {
-    return Panel(
+    return _GlassCard(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -374,42 +862,77 @@ class _DetailCard extends StatelessWidget {
               Text(
                 label,
                 style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 15,
+                  color: _C.accent,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  height: 1.5,
+                  fontFamily: 'Pretendard',
                 ),
               ),
               Text(
-                '$score%',
+                '$percent%',
                 style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 15,
-                  color: AppColors.primaryLight,
+                  color: _C.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w400,
+                  height: 1.5,
+                  fontFamily: 'Pretendard',
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(99),
-            child: LinearProgressIndicator(
-              value: score / 100.0,
-              minHeight: 6,
-              backgroundColor: AppColors.line,
-              valueColor:
-                  const AlwaysStoppedAnimation<Color>(AppColors.primaryLight),
-            ),
-          ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
+          _ProgressBar(percent: percent),
+          const SizedBox(height: 10),
           Text(
             description,
             style: const TextStyle(
-              color: AppColors.inkMuted,
-              fontSize: 13,
-              height: 1.4,
+              color: _C.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w400,
+              height: 1.43,
+              letterSpacing: -0.2,
+              fontFamily: 'Pretendard',
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _HeaderIcon extends StatelessWidget {
+  const _HeaderIcon({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 37,
+      height: 37,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: _C.headerBorder, width: 1),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0x1AFFFFFF), Color(0x0DFFFFFF)],
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x26000000),
+            blurRadius: 4,
+            offset: Offset(0, 4),
+          ),
+          BoxShadow(
+            color: Color(0x801E3A8A),
+            blurRadius: 20,
+            offset: Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Center(child: child),
     );
   }
 }
