@@ -317,7 +317,7 @@ class _CodeInputField extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          height: 48,
+          height: 49,
           decoration: BoxDecoration(
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
@@ -333,7 +333,6 @@ class _CodeInputField extends StatelessWidget {
             ),
             boxShadow: _glassBoxShadow,
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           child: TextField(
             controller: controller,
             keyboardType: TextInputType.visiblePassword,
@@ -361,7 +360,7 @@ class _CodeInputField extends StatelessWidget {
               enabledBorder: InputBorder.none,
               focusedBorder: InputBorder.none,
               filled: false,
-              contentPadding: EdgeInsets.zero,
+              contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 14),
               counterText: '',
               isDense: true,
             ),

@@ -1015,7 +1015,8 @@ class _GlassFieldShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final borderColor = hasError ? _C.error : _C.cardBorder;
     return Container(
-      height: 50,
+      height: 49,
+      alignment: Alignment.centerLeft,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: borderColor, width: 0.636),
@@ -1026,7 +1027,6 @@ class _GlassFieldShell extends StatelessWidget {
         ),
         boxShadow: _glassBoxShadow,
       ),
-      alignment: Alignment.centerLeft,
       child: child,
     );
   }
@@ -1163,17 +1163,17 @@ class _EditNicknameDialogState extends State<_EditNicknameDialog> {
                 color: _C.white,
                 fontSize: 16,
                 fontWeight: FontWeight.w400,
-                height: 1.5,
+                height: 1.0,
                 letterSpacing: -0.2,
                 fontFamily: 'Pretendard',
               ),
               cursorColor: _C.accent,
               decoration: const InputDecoration(
                 border: InputBorder.none,
-                isCollapsed: true,
+                isDense: true,
                 contentPadding: EdgeInsets.symmetric(
                   horizontal: 17,
-                  vertical: 13,
+                  vertical: 14,
                 ),
               ),
             ),
@@ -1493,7 +1493,7 @@ class _EditBirthInfoDialogState extends State<_EditBirthInfoDialog> {
                 color: _C.white,
                 fontSize: 16,
                 fontWeight: FontWeight.w400,
-                height: 1.5,
+                height: 1.0,
                 letterSpacing: -0.2,
                 fontFamily: 'Pretendard',
               ),
@@ -1504,15 +1504,15 @@ class _EditBirthInfoDialogState extends State<_EditBirthInfoDialog> {
                   color: _C.inputHint,
                   fontSize: 16,
                   fontWeight: FontWeight.w400,
-                  height: 1.5,
+                  height: 1.0,
                   letterSpacing: -0.2,
                   fontFamily: 'Pretendard',
                 ),
                 border: InputBorder.none,
-                isCollapsed: true,
+                isDense: true,
                 contentPadding: EdgeInsets.symmetric(
                   horizontal: 17,
-                  vertical: 13,
+                  vertical: 14,
                 ),
               ),
             ),

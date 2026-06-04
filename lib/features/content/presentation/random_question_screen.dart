@@ -879,6 +879,20 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
         _hasRequestedQuestion = true;
         _shouldBypassSessionReuse = false;
       });
+
+      // ── [DEV] 로컬 fallback 토스트 ──────────────────────────────────────
+      // AI 생성 실패 시(키 오류·quota 초과 등) 로컬 질문으로 대체됐음을 알림.
+      // 운영 배포 전 아래 블록 전체를 주석 처리하거나 삭제하세요.
+      if (Env.aiRemoteEnabled && !session.isRemoteAi) {
+        ScaffoldMessenger.of(this.context).showSnackBar(
+          const SnackBar(
+            content: Text('AI 연결 실패 — 기본 질문으로 대체됐어요. (API 키를 확인해주세요)'),
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+      // ── [DEV] 토스트 끝 ─────────────────────────────────────────────────
+
     } catch (e) {
       if (!mounted) {
         return;

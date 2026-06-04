@@ -684,6 +684,7 @@ class _SearchField extends StatelessWidget {
                 focusedBorder: InputBorder.none,
                 filled: false,
                 contentPadding: EdgeInsets.zero,
+                isDense: true,
               ),
             ),
           ),

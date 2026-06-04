@@ -381,6 +381,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                             hintText: '',
                             obscureText: _obscurePw,
                             suffixIcon: IconButton(
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
                               icon: Icon(
                                 _obscurePw
                                     ? Icons.visibility_off_outlined
@@ -430,6 +432,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                                     ),
                                   ),
                                 IconButton(
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
                                   icon: Icon(
                                     _obscurePwConfirm
                                         ? Icons.visibility_off_outlined

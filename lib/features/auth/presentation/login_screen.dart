@@ -196,6 +196,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         hintText: '',
                         obscureText: _obscurePw,
                         suffixIcon: IconButton(
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
                           icon: Icon(
                             _obscurePw
                                 ? Icons.visibility_off_outlined
