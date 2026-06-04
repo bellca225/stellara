@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/panel.dart';
 import '../application/horoscope_providers.dart';
 import '../domain/horoscope.dart';
@@ -183,38 +184,40 @@ class TodayScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: SafeArea(
-        child: asyncHoroscope.when(
-          loading: () => const _LoadingSkeleton(),
-          error: (error, _) => Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: _GlassCard(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      error is StateError
-                          ? error.message
-                          : '오늘의 운세를 불러오지 못했어요.',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: _C.accent,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
+      body: StarBackground(
+        child: SafeArea(
+          child: asyncHoroscope.when(
+            loading: () => const _LoadingSkeleton(),
+            error: (error, _) => Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: _GlassCard(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        error is StateError
+                            ? error.message
+                            : '오늘의 운세를 불러오지 못했어요.',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: _C.accent,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextButton(
-                      onPressed: () => ref.invalidate(todayHoroscopeProvider),
-                      child: const Text('다시 시도'),
-                    ),
-                  ],
+                      const SizedBox(height: 16),
+                      TextButton(
+                        onPressed: () => ref.invalidate(todayHoroscopeProvider),
+                        child: const Text('다시 시도'),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
+            data: (horoscope) => _HoroscopeBody(horoscope: horoscope),
           ),
-          data: (horoscope) => _HoroscopeBody(horoscope: horoscope),
         ),
       ),
     );

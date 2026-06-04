@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../core/env/env.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/astro_text.dart';
 import '../../astrology/application/astrology_providers.dart';
 import '../../astrology/domain/natal_chart.dart';
@@ -986,59 +987,61 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(24, 0, 24, 120),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 24),
-              const Text(
-                '랜덤질문',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: _C.white,
-                  fontSize: 30,
-                  fontWeight: FontWeight.w600,
-                  height: 1.2,
-                  letterSpacing: -0.2,
-                  fontFamily: 'Pretendard',
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                '친구를 선택하고 점성술 질문을 받아보세요',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: _C.accent,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w400,
-                  height: 1.43,
-                  letterSpacing: -0.2,
-                  fontFamily: 'Pretendard',
-                ),
-              ),
-              const SizedBox(height: 24),
-              friendsAsync.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (error, _) => _GlassCard(
-                  child: Text(
-                    '친구 목록을 불러오지 못했어요: $error',
-                    style: const TextStyle(color: _C.white),
+      body: StarBackground(
+        child: SafeArea(
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 120),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 24),
+                const Text(
+                  '랜덤질문',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: _C.white,
+                    fontSize: 30,
+                    fontWeight: FontWeight.w600,
+                    height: 1.2,
+                    letterSpacing: -0.2,
+                    fontFamily: 'Pretendard',
                   ),
                 ),
-                data: (friends) => _buildBody(
-                  context,
-                  friends,
-                  myUid,
-                  myNickname,
-                  mySign,
-                  aiEnabled,
-                  myChartAsync,
+                const SizedBox(height: 8),
+                const Text(
+                  '친구를 선택하고 점성술 질문을 받아보세요',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: _C.accent,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w400,
+                    height: 1.43,
+                    letterSpacing: -0.2,
+                    fontFamily: 'Pretendard',
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 24),
+                friendsAsync.when(
+                  loading: () => const Center(child: CircularProgressIndicator()),
+                  error: (error, _) => _GlassCard(
+                    child: Text(
+                      '친구 목록을 불러오지 못했어요: $error',
+                      style: const TextStyle(color: _C.white),
+                    ),
+                  ),
+                  data: (friends) => _buildBody(
+                    context,
+                    friends,
+                    myUid,
+                    myNickname,
+                    mySign,
+                    aiEnabled,
+                    myChartAsync,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
