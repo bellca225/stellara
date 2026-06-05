@@ -1,6 +1,7 @@
 // lib/features/friends/data/friend_repository.dart
 //
 // 친구 관계 Firestore 클라이언트 wrapper.
+import 'package:flutter/foundation.dart';
 //
 // SDD T16/T17/T18/T19 기준 구현:
 //   - 친구 코드 검색: friendCodes/{code} 단건 조회
@@ -12,7 +13,7 @@
 // SDD 4.1 중 Cloud Functions 경로는 Blaze 전환 시 이전. 현재는 클라이언트 직접 처리.
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../domain/friend.dart';
+import '../domain/friend.dart'; // Friend, FriendRequest, SentRequest
 
 class FriendRepository {
   final _db = FirebaseFirestore.instance;
@@ -20,7 +21,11 @@ class FriendRepository {
   // ── 친구 코드 검색 ────────────────────────────────────────────
   Future<Map<String, dynamic>?> findUserByCode(String code) async {
     try {
-      final codeDoc = await _db.collection('friendCodes').doc(code).get();
+      final normalizedCode = code.trim().toUpperCase();
+      final codeDoc = await _db
+          .collection('friendCodes')
+          .doc(normalizedCode)
+          .get();
       if (!codeDoc.exists) return null;
       final uid = codeDoc.data()?['uid'] as String?;
       if (uid == null) return null;
@@ -106,7 +111,10 @@ class FriendRepository {
       return snap.docs
           .map((d) => FriendRequest.fromMap(d.id, d.data()))
           .toList();
-    } catch (_) {
+    } catch (e, st) {
+      // rethrow 하면 FutureProvider error 상태 → 재평가 루프 → freeze
+      // 로그만 남기고 빈 배열 반환 (Rules 미배포 시 PERMISSION_DENIED도 여기서 처리)
+      debugPrint('[FriendRepository] getReceivedRequests 실패: $e\n$st');
       return [];
     }
   }
@@ -170,19 +178,62 @@ class FriendRepository {
         if (!userDoc.exists) continue;
         final data = userDoc.data()!;
 
+        // displayName 우선, 없으면 nickname fallback
+        final friendDisplayName = (data['displayName'] as String?)?.trim();
+        final friendNickname = (data['nickname'] as String?)?.trim() ?? '';
+        final effectiveName = (friendDisplayName?.isNotEmpty == true)
+            ? friendDisplayName!
+            : (friendNickname.isNotEmpty ? friendNickname : friendUid);
+
         friends.add(Friend(
           uid: friendUid,
-          nickname: data['nickname'] as String? ?? '',
+          nickname: effectiveName,
           friendCode: data['friendCode'] as String? ?? '',
-          // sunSign: users/{uid} 에 denormalized 저장 (차트 생성 시 업데이트)
           sunSign: data['sunSign'] as String? ?? '-',
           isFavorite: favoriteIds.contains(friendUid),
         ));
       }
       return friends;
+    } catch (e, st) {
+      debugPrint('[FriendRepository] getFriends 실패: $e\n$st');
+      return [];
+    }
+  }
+
+  // ── 보낸 친구 요청 목록 (pending) ────────────────────────────
+  /// fromUid == uid, status == pending 인 요청을 조회한다.
+  /// toUid 로 users/{toUid} 를 1건씩 조회해 nickname 을 채운다.
+  /// 기존 인덱스 fromUid+status 재사용.
+  Future<List<SentRequest>> getSentRequests(String uid) async {
+    try {
+      final snap = await _db
+          .collection('friendRequests')
+          .where('fromUid', isEqualTo: uid)
+          .where('status', isEqualTo: 'pending')
+          .get();
+
+      final results = <SentRequest>[];
+      for (final doc in snap.docs) {
+        final toUid = doc.data()['toUid'] as String? ?? '';
+        String toNickname = '';
+        if (toUid.isNotEmpty) {
+          final userDoc = await _db.collection('users').doc(toUid).get();
+          toNickname = userDoc.data()?['nickname'] as String? ?? toUid;
+        }
+        results.add(SentRequest.fromMap(doc.id, doc.data(), toNickname: toNickname));
+      }
+      return results;
     } catch (_) {
       return [];
     }
+  }
+
+  // ── 보낸 친구 요청 취소 ───────────────────────────────────────
+  Future<void> cancelRequest(String requestId) async {
+    await _db.collection('friendRequests').doc(requestId).update({
+      'status': 'cancelled',
+      'actedAt': FieldValue.serverTimestamp(),
+    });
   }
 
   // ── 즐겨찾기 업데이트 ─────────────────────────────────────────

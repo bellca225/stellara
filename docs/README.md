@@ -47,6 +47,14 @@
 
 이 문서는 **참고 자료**입니다.
 
+### `AI_PROVIDER_GUIDE.md`
+
+- AI 질문 생성 구조와 env 키 규약
+- OpenAI / Anthropic fallback 규칙
+- 다음 세션에서 Codex가 반드시 따라야 하는 AI 호출 규칙
+
+이 문서는 **AI 작업 필독 문서**입니다.
+
 ## 누가 무엇부터 보면 되나
 
 ### 비개발자 팀원
@@ -67,6 +75,7 @@
 2. `MVP.md`
 3. `SDD.md`
 4. `TASKS.md`
+5. AI 관련 작업이면 `AI_PROVIDER_GUIDE.md`
 
 추천 목적:
 

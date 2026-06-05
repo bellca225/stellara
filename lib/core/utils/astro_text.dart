@@ -50,23 +50,6 @@ const Map<String, String> _aspectNames = {
   'opposition': '대립',
 };
 
-const Map<String, String> _moods = {
-  'calm': '차분함',
-  'energetic': '활기참',
-  'focused': '집중됨',
-  'soft': '부드러움',
-};
-
-const Map<String, String> _colors = {
-  'indigo': '인디고',
-  'blue': '파랑',
-  'red': '빨강',
-  'yellow': '노랑',
-  'green': '초록',
-  'white': '흰색',
-  'black': '검정',
-};
-
 String zodiacNameKo(String raw) {
   final key = raw.trim().toLowerCase();
   return _signNames[key] ?? raw;
@@ -91,16 +74,6 @@ String planetNameKo(String raw) {
 String aspectNameKo(String raw) {
   final key = raw.trim().toLowerCase();
   return _aspectNames[key] ?? raw;
-}
-
-String moodKo(String raw) {
-  final key = raw.trim().toLowerCase();
-  return _moods[key] ?? raw;
-}
-
-String colorKo(String raw) {
-  final key = raw.trim().toLowerCase();
-  return _colors[key] ?? raw;
 }
 
 String signToneKo(String sign) {

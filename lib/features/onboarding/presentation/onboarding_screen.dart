@@ -1,7 +1,9 @@
 // lib/features/onboarding/presentation/onboarding_screen.dart
 //
-// ONBOARDING-001 — 별자리의 초대 (3단계 스텝 방식)
+// ONBOARDING — 별자리의 초대 (4단계 스텝 방식)
+// Figma Screens 6/7/8/9 기준
 //
+// Step 0: 이름(displayName) 입력
 // Step 1: 생년월일 입력
 // Step 2: 출생 시간 입력
 // Step 3: 출생지 입력 → 완료 시 Firestore 저장
@@ -14,11 +16,17 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../../astrology/domain/birth_info.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../users/application/user_providers.dart';
 import '../data/place_resolver.dart';
 import '../app_shell.dart';
+
+const _glassBoxShadow = [
+  BoxShadow(color: Color(0x26000000), blurRadius: 4, offset: Offset(0, 4)),
+  BoxShadow(color: Color(0x801E3A8A), blurRadius: 20, offset: Offset(0, 5)),
+];
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({
@@ -35,11 +43,17 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 }
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
-  int _step = 0; // 0=생년월일, 1=출생시간, 2=출생지
+  int _step = 0; // 0=이름, 1=생년월일, 2=출생시간, 3=출생지
 
-  // 각 스텝 컨트롤러
-  final _dateCtrl = TextEditingController();
-  final _timeCtrl = TextEditingController();
+  // Step 0: 이름(displayName)
+  final _nameCtrl = TextEditingController();
+  String? _nameError;
+
+  // 네이티브 Picker로 선택된 값
+  DateTime? _selectedDate;
+  TimeOfDay? _selectedTime;
+
+  // 출생지
   final _placeCtrl = TextEditingController();
 
   String? _error;
@@ -47,26 +61,96 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   final _placeResolver = PlaceResolver();
 
+  String _initialName = '';
+  DateTime? _initialDate;
+  TimeOfDay? _initialTime;
+  String _initialPlace = '';
+
   @override
   void initState() {
     super.initState();
+    if (widget.isEditing) _step = 1;
+    final profile = ref.read(currentUserProfileProvider).valueOrNull;
+    if (profile != null) {
+      _nameCtrl.text = profile.effectiveDisplayName;
+    }
     final b = widget.initialBirthInfo;
     if (b != null) {
-      String pad(int n) => n.toString().padLeft(2, '0');
-      _dateCtrl.text =
-          '${b.dateTime.year}-${pad(b.dateTime.month)}-${pad(b.dateTime.day)}';
-      _timeCtrl.text =
-          '${pad(b.dateTime.hour)}:${pad(b.dateTime.minute)}';
+      _selectedDate = b.dateTime;
+      _selectedTime = TimeOfDay(
+        hour: b.dateTime.hour,
+        minute: b.dateTime.minute,
+      );
       _placeCtrl.text = b.placeName ?? '';
     }
+    _initialName = _nameCtrl.text.trim();
+    _initialDate = _selectedDate;
+    _initialTime = _selectedTime;
+    _initialPlace = _placeCtrl.text.trim();
   }
 
   @override
   void dispose() {
-    _dateCtrl.dispose();
-    _timeCtrl.dispose();
+    _nameCtrl.dispose();
     _placeCtrl.dispose();
     super.dispose();
+  }
+
+  // ── 이름 검증 ─────────────────────────────────────────────────────
+  String? _validateName(String value) {
+    final v = value.trim();
+    if (v.isEmpty) return '이름을 입력해주세요.';
+    if (v.length > 20) return '20자 이내로 입력해주세요.';
+    return null;
+  }
+
+  // ── 날짜 선택 ─────────────────────────────────────────────────────
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate ?? DateTime(1995, 2, 15),
+      firstDate: DateTime(1900),
+      lastDate: now,
+      helpText: '생년월일 선택',
+      cancelText: '취소',
+      confirmText: '확인',
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: const ColorScheme.dark(
+            primary: Color(0xFF1A5FD4),
+            onPrimary: Colors.white,
+            surface: Color(0xFF0D1830),
+            onSurface: Colors.white,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null) setState(() => _selectedDate = picked);
+  }
+
+  // ── 시간 선택 ─────────────────────────────────────────────────────
+  Future<void> _pickTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _selectedTime ?? const TimeOfDay(hour: 12, minute: 0),
+      helpText: '출생 시간 선택',
+      cancelText: '취소',
+      confirmText: '확인',
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: const ColorScheme.dark(
+            primary: Color(0xFF1A5FD4),
+            onPrimary: Colors.white,
+            surface: Color(0xFF0D1830),
+            onSurface: Colors.white,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null) setState(() => _selectedTime = picked);
   }
 
   // ── 다음 스텝으로 ───────────────────────────────────────────────
@@ -74,58 +158,34 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     setState(() => _error = null);
     switch (_step) {
       case 0:
-        if (!_validateDate(_dateCtrl.text)) return;
-        setState(() => _step = 1);
+        final nameErr = _validateName(_nameCtrl.text);
+        if (nameErr != null) {
+          setState(() => _nameError = nameErr);
+          return;
+        }
+        setState(() {
+          _nameError = null;
+          _step = 1;
+        });
       case 1:
-        if (!_validateTime(_timeCtrl.text)) return;
+        if (_selectedDate == null) {
+          setState(() => _error = '생년월일을 선택해주세요.');
+          return;
+        }
         setState(() => _step = 2);
       case 2:
+        if (_selectedTime == null) {
+          setState(() => _error = '출생 시간을 선택해주세요.');
+          return;
+        }
+        setState(() => _step = 3);
+      case 3:
         _submit();
     }
   }
 
   void _prev() {
     if (_step > 0) setState(() => _step--);
-  }
-
-  // ── 유효성 검사 ─────────────────────────────────────────────────
-  bool _validateDate(String value) {
-    final parts = value.trim().split('-');
-    if (parts.length != 3) {
-      setState(() => _error = '형식: 1995-02-15');
-      return false;
-    }
-    try {
-      final y = int.parse(parts[0]);
-      final m = int.parse(parts[1]);
-      final d = int.parse(parts[2]);
-      if (y < 1900 || y > DateTime.now().year) throw FormatException();
-      if (m < 1 || m > 12) throw FormatException();
-      if (d < 1 || d > 31) throw FormatException();
-    } catch (_) {
-      setState(() => _error = '올바른 날짜를 입력해주세요. 예: 1995-02-15');
-      return false;
-    }
-    return true;
-  }
-
-  bool _validateTime(String value) {
-    final trimmed = value.trim();
-    if (trimmed.isEmpty) return true; // 출생 시간은 선택사항
-    final parts = trimmed.split(':');
-    if (parts.length != 2) {
-      setState(() => _error = '형식: 14:30');
-      return false;
-    }
-    try {
-      final h = int.parse(parts[0]);
-      final m = int.parse(parts[1]);
-      if (h < 0 || h > 23 || m < 0 || m > 59) throw FormatException();
-    } catch (_) {
-      setState(() => _error = '올바른 시간을 입력해주세요. 예: 14:30');
-      return false;
-    }
-    return true;
   }
 
   // ── 최종 저장 ────────────────────────────────────────────────────
@@ -136,41 +196,32 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     });
 
     try {
-      // ── 1. 생년월일 파싱 ──────────────────────────────────────────
-      final dateStr = _dateCtrl.text.trim();
-      if (dateStr.isEmpty) {
-        setState(() => _error = '생년월일을 입력해주세요.');
+      if (_selectedDate == null) {
+        setState(() => _error = '생년월일을 선택해주세요.');
         return;
       }
-      final dateParts = dateStr.split('-').map(int.parse).toList();
-      if (dateParts.length != 3) {
-        setState(() => _error = '생년월일 형식을 확인해주세요. 예: 1995-02-15');
+      if (_selectedTime == null) {
+        setState(() => _error = '출생 시간을 선택해주세요.');
         return;
       }
-
-      // ── 2. 출생 시간 파싱 (선택사항) ──────────────────────────────
-      final timeStr = _timeCtrl.text.trim();
-      final timeParts = timeStr.isEmpty
-          ? [0, 0]
-          : timeStr.split(':').map(int.parse).toList();
+      final hour = _selectedTime!.hour;
+      final minute = _selectedTime!.minute;
 
       final dt = DateTime(
-        dateParts[0], dateParts[1], dateParts[2],
-        timeParts[0], timeParts[1],
+        _selectedDate!.year,
+        _selectedDate!.month,
+        _selectedDate!.day,
+        hour,
+        minute,
       );
 
-      // ── 3. 출생지 Geocoding ─────────────────────────────────────
       double latitude;
       double longitude;
       String? placeName;
       final placeQuery = _placeCtrl.text.trim();
 
       if (placeQuery.isEmpty) {
-        // 출생지 미입력 → 서울 기본값으로 안내 후 처리
-        if (kDebugMode) {
-          // ignore: avoid_print
-          print('[Onboarding] 출생지 미입력 → 서울 기본값 사용');
-        }
+        if (kDebugMode) print('[Onboarding] 출생지 미입력 → 서울 기본값 사용');
         latitude = 37.5665;
         longitude = 126.9780;
         placeName = '서울특별시';
@@ -182,7 +233,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             longitude = place.longitude;
             placeName = place.placeName;
             if (kDebugMode) {
-              // ignore: avoid_print
               print('[Onboarding] 장소 변환 성공: "$placeQuery" → '
                   'lat=${place.latitude}, lng=${place.longitude}');
             }
@@ -191,21 +241,23 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             return;
         }
       } else {
-        // Web 등 geocoding 미지원 플랫폼 → 사용자 입력값 + 서울 좌표 fallback
         latitude = 37.5665;
         longitude = 126.9780;
         placeName = placeQuery;
         if (kDebugMode) {
-          // ignore: avoid_print
-          print('[Onboarding] geocoding 미지원 플랫폼 → 서울 좌표 fallback, placeName="$placeQuery"');
+          print('[Onboarding] geocoding 미지원 → 서울 fallback, placeName="$placeQuery"');
         }
       }
 
-      // ── 4. BirthInfo 구성 ────────────────────────────────────────
-      // utcOffset: 현재 한국 앱 대상이므로 기본 +09:00. 해외 출생지는 추후 geocoding
-      // 결과에서 timezone 을 추출하여 자동화 예정.
+      final enteredName = _nameCtrl.text.trim();
+      final displayName = enteredName.isNotEmpty
+          ? enteredName
+          : (ref.read(currentUserProfileProvider).valueOrNull?.effectiveDisplayName ??
+              ref.read(currentUserProvider)?.effectiveDisplayName ??
+              '별자리');
+
       final birth = BirthInfo(
-        nickname: ref.read(currentUserProvider)?.loginId ?? '별자리',
+        nickname: displayName,
         dateTime: dt,
         latitude: latitude,
         longitude: longitude,
@@ -214,13 +266,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       );
 
       if (kDebugMode) {
-        // ignore: avoid_print
         print('[Onboarding] 저장할 BirthInfo: ${birth.chartVersion}');
       }
 
-      // ── 5. 로그인 확인 ───────────────────────────────────────────
-      final uid = ref.read(currentUserProvider)?.uid
-          ?? ref.read(currentUserIdProvider).valueOrNull;
+      final uid = ref.read(currentUserProvider)?.uid ??
+          ref.read(currentUserIdProvider).valueOrNull;
       if (uid == null) {
         setState(() => _error = '로그인 정보를 찾을 수 없어요. 앱을 재시작해주세요.');
         return;
@@ -229,20 +279,21 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       await ref.read(userRepositoryProvider).upsertBirthInfo(
         uid: uid,
         birthInfo: birth,
-        nickname: birth.nickname,
+        nickname: displayName,
+        displayName: displayName,
       );
 
-      // Firestore stream 이 실제로 최신 birth 를 반영한 뒤에만 재분석을 시작한다.
-      // 그렇지 않으면 저장 직후 old birth 로 한 번 더 요청하는 race 가 생길 수 있다.
       try {
         // ignore: deprecated_member_use
         await ref
             .read(currentUserProfileProvider.stream)
-            .firstWhere((profile) => profile?.birthInfo?.chartVersion == birth.chartVersion)
+            .firstWhere(
+              (profile) =>
+                  profile?.birthInfo?.chartVersion == birth.chartVersion,
+            )
             .timeout(const Duration(seconds: 5));
       } on TimeoutException catch (e) {
         if (kDebugMode) {
-          // ignore: avoid_print
           print('[Onboarding] profile sync 대기 timeout (계속 진행): $e');
         }
       }
@@ -279,104 +330,221 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     }
   }
 
+  bool get _hasUnsavedChanges {
+    final currentName = _nameCtrl.text.trim();
+    final currentPlace = _placeCtrl.text.trim();
+    final currentTime = _selectedTime;
+    final sameTime =
+        currentTime?.hour == _initialTime?.hour &&
+        currentTime?.minute == _initialTime?.minute;
+    return currentName != _initialName ||
+        _selectedDate != _initialDate ||
+        !sameTime ||
+        currentPlace != _initialPlace;
+  }
+
+  Future<bool> _confirmDiscardIfNeeded() async {
+    if (!widget.isEditing || !_hasUnsavedChanges) return true;
+    final shouldLeave = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('수정 내용을 나갈까요?'),
+        content: const Text('저장하지 않은 변경 내용은 사라져요.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('계속 수정'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('나가기'),
+          ),
+        ],
+      ),
+    );
+    return shouldLeave ?? false;
+  }
+
+  Future<void> _handleBackToMyPage() async {
+    final canLeave = await _confirmDiscardIfNeeded();
+    if (!mounted || !canLeave) return;
+    Navigator.of(context).pop(false);
+  }
+
+  // ── 진행바 (Step X / 4) ─────────────────────────────────────────
+  Widget _buildProgressBar() {
+    final totalSteps = widget.isEditing ? 3 : 4;
+    final currentFill = widget.isEditing ? _step : _step + 1;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Container(
+          height: 2,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: FractionallySizedBox(
+            alignment: Alignment.centerLeft,
+            widthFactor: (currentFill / totalSteps).clamp(0.0, 1.0),
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF51A2FF), Color(0xFF155DFC)],
+                ),
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // ── 스텝별 아이콘 ───────────────────────────────────────────────
+  IconData get _stepIcon {
+    if (widget.isEditing) {
+      switch (_step) {
+        case 1: return Icons.calendar_today_outlined;
+        case 2: return Icons.access_time_outlined;
+        default: return Icons.location_on_outlined;
+      }
+    }
+    switch (_step) {
+      case 0: return Icons.person_outline_rounded;
+      case 1: return Icons.calendar_today_outlined;
+      case 2: return Icons.access_time_outlined;
+      default: return Icons.location_on_outlined;
+    }
+  }
+
   // ── UI ──────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF0A0A1F), Color(0xFF08235F)],
-          ),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Column(
-              children: [
-                const SizedBox(height: 32),
-
-                // 아이콘
-                Container(
-                  width: 72,
-                  height: 72,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF1A5FD4),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.calendar_month_rounded,
-                    color: Colors.white,
-                    size: 32,
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                Text(
-                  widget.isEditing ? '출생 정보 수정' : '별자리의 초대',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Step ${_step + 1} of 3',
-                  style: const TextStyle(
-                    color: Color(0xFF5B9BFF),
-                    fontSize: 14,
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-
-                // 진행 바
-                Row(
-                  children: List.generate(3, (i) {
-                    return Expanded(
-                      child: Container(
-                        height: 3,
-                        margin: EdgeInsets.only(right: i < 2 ? 4 : 0),
-                        decoration: BoxDecoration(
-                          color: i <= _step
-                              ? const Color(0xFF1A5FD4)
-                              : Colors.white12,
-                          borderRadius: BorderRadius.circular(2),
+    return PopScope<bool>(
+      canPop: !widget.isEditing || !_hasUnsavedChanges,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        final canLeave = await _confirmDiscardIfNeeded();
+        if (!mounted || !canLeave) return;
+        Navigator.of(context).pop(false);
+      },
+      child: StarBackground(
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          body: SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                children: [
+                  // ── 헤더 (수정 모드: 뒤로가기 버튼) ──────────────
+                  if (widget.isEditing) ...[
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: GestureDetector(
+                        onTap: _isSubmitting ? null : _handleBackToMyPage,
+                        child: Container(
+                          width: 37,
+                          height: 37,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [Color(0x1AFFFFFF), Color(0x0DFFFFFF)],
+                            ),
+                            borderRadius: BorderRadius.circular(28),
+                            border: Border.all(
+                              color: const Color(0x26FFFFFF),
+                              width: 0.636,
+                            ),
+                            boxShadow: _glassBoxShadow,
+                          ),
+                          child: const Icon(
+                            Icons.arrow_back_ios_new_rounded,
+                            color: Colors.white,
+                            size: 16,
+                          ),
                         ),
                       ),
-                    );
-                  }),
-                ),
+                    ),
+                  ] else
+                    const SizedBox(height: 181),
 
-                const SizedBox(height: 32),
+                  // ── 아이콘 ──────────────────────────────────────
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFF51A2FF), Color(0xFF155DFC)],
+                      ),
+                      boxShadow: const [
+                        BoxShadow(color: Color(0x4D3B82F6), blurRadius: 10),
+                      ],
+                    ),
+                    child: Icon(_stepIcon, color: Colors.white, size: 32),
+                  ),
 
-                // 스텝 카드
-                Expanded(
-                  child: _StepCard(
+                  const SizedBox(height: 16),
+
+                  // ── 타이틀 ──────────────────────────────────────
+                  Text(
+                    widget.isEditing ? '출생 정보 수정' : '별자리의 초대',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    widget.isEditing
+                        ? 'Step ${_step} of 3'
+                        : 'Step ${_step + 1} of 4',
+                    style: const TextStyle(
+                      color: Color(0xFF8EC5FF),
+                      fontSize: 12,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  // ── 진행 바 ──────────────────────────────────────
+                  _buildProgressBar(),
+
+                  const SizedBox(height: 32),
+
+                  // ── 스텝 카드 ────────────────────────────────────
+                  _StepCard(
                     step: _step,
-                    dateCtrl: _dateCtrl,
-                    timeCtrl: _timeCtrl,
+                    nameCtrl: _nameCtrl,
+                    nameError: _nameError,
+                    selectedDate: _selectedDate,
+                    selectedTime: _selectedTime,
                     placeCtrl: _placeCtrl,
                     error: _error,
+                    onPickDate: _pickDate,
+                    onPickTime: _pickTime,
                   ),
-                ),
 
-                const SizedBox(height: 16),
+                  const SizedBox(height: 20),
 
-                // 버튼
-                _StepButtons(
-                  step: _step,
-                  isSubmitting: _isSubmitting,
-                  onNext: _next,
-                  onPrev: _prev,
-                ),
+                  // ── 버튼 ─────────────────────────────────────────
+                  _StepButtons(
+                    step: _step,
+                    isSubmitting: _isSubmitting,
+                    onNext: _next,
+                    onPrev: _prev,
+                  ),
 
-                const SizedBox(height: 32),
-              ],
+                  const SizedBox(height: 48),
+                ],
+              ),
             ),
           ),
         ),
@@ -389,98 +557,154 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 class _StepCard extends StatelessWidget {
   const _StepCard({
     required this.step,
-    required this.dateCtrl,
-    required this.timeCtrl,
+    required this.nameCtrl,
+    this.nameError,
+    required this.selectedDate,
+    required this.selectedTime,
     required this.placeCtrl,
     required this.error,
+    required this.onPickDate,
+    required this.onPickTime,
   });
 
   final int step;
-  final TextEditingController dateCtrl;
-  final TextEditingController timeCtrl;
+  final TextEditingController nameCtrl;
+  final String? nameError;
+  final DateTime? selectedDate;
+  final TimeOfDay? selectedTime;
   final TextEditingController placeCtrl;
   final String? error;
+  final VoidCallback onPickDate;
+  final VoidCallback onPickTime;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(28),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFF0D1830).withOpacity(0.85),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0x14FFFFFF), Color(0x08FFFFFF)],
+        ),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white12),
+        border: Border.all(color: const Color(0x1FFFFFFF), width: 0.612),
+        boxShadow: _glassBoxShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
+          // 질문 제목
           Text(
             _title,
+            textAlign: TextAlign.center,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              letterSpacing: -0.2,
             ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            _subtitle,
-            style: const TextStyle(color: Colors.white54, fontSize: 13),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            _label,
-            style: const TextStyle(color: Colors.white70, fontSize: 14),
           ),
           const SizedBox(height: 8),
-          TextField(
-            controller: _controller,
-            keyboardType: _keyboardType,
-            textCapitalization: step == 2
-                ? TextCapitalization.words
-                : TextCapitalization.none,
-            enableSuggestions: step == 2,
-            autocorrect: step == 2,
-            style: const TextStyle(color: Colors.white),
-            decoration: InputDecoration(
-              hintText: _hint,
-              hintStyle: const TextStyle(color: Colors.white24),
-              filled: true,
-              fillColor: Colors.white.withOpacity(0.07),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
+
+          // 부제목
+          SizedBox(
+            width: double.infinity,
+            child: Text(
+              _subtitle,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Color(0xFF8EC5FF),
+                fontSize: 12,
+                letterSpacing: -0.2,
               ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(
-                    color: Color(0xFF1A5FD4), width: 1.5),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16, vertical: 14),
             ),
           ),
+
+          const SizedBox(height: 20),
+
+          // ── Step 0: 이름 입력 ──────────────────────────────────
+          if (step == 0) ...[
+            _GlassFieldLabel('이름'),
+            const SizedBox(height: 8),
+            _GlassTextInput(
+              controller: nameCtrl,
+              hintText: '예: 별이, 나영, 김별',
+              autofocus: true,
+              maxLength: 20,
+              errorText: nameError,
+            ),
+          ],
+
+          // ── Step 1: 생년월일 DatePicker ────────────────────────
           if (step == 1) ...[
+            _GlassFieldLabel('생년월일'),
             const SizedBox(height: 8),
-            const Text(
-              '출생 시간을 모른다면 비워두셔도 괜찮아요.',
-              style: TextStyle(color: Colors.white38, fontSize: 12),
+            _GlassPickerButton(
+              icon: Icons.calendar_today_outlined,
+              label: selectedDate == null
+                  ? '날짜 선택'
+                  : '${selectedDate!.year}년 ${selectedDate!.month}월 ${selectedDate!.day}일',
+              selected: selectedDate != null,
+              onTap: onPickDate,
             ),
           ],
-          if (kIsWeb && step == 2) ...[
+
+          // ── Step 2: 출생 시간 TimePicker ──────────────────────
+          if (step == 2) ...[
+            _GlassFieldLabel('출생 시간'),
             const SizedBox(height: 8),
-            const Text(
-              '웹에서는 출생지 자동 변환이 제한될 수 있어요.',
-              style: TextStyle(color: Colors.white38, fontSize: 12),
+            _GlassPickerButton(
+              icon: Icons.access_time_outlined,
+              label: selectedTime == null
+                  ? '시간 선택'
+                  : selectedTime!.format(context),
+              selected: selectedTime != null,
+              onTap: onPickTime,
             ),
           ],
+
+          // ── Step 3: 출생지 TextField ───────────────────────────
+          if (step == 3) ...[
+            _GlassFieldLabel('출생지'),
+            const SizedBox(height: 8),
+            _GlassTextInput(
+              controller: placeCtrl,
+              hintText: '예: 서울특별시',
+              keyboardType: TextInputType.streetAddress,
+              textCapitalization: TextCapitalization.words,
+              prefixIcon: const Icon(
+                Icons.location_on_outlined,
+                color: Color(0x668EC5FF),
+                size: 20,
+              ),
+            ),
+            if (kIsWeb) ...[
+              const SizedBox(height: 8),
+              const Text(
+                '웹에서는 자동 좌표 변환이 제한돼요.',
+                style: TextStyle(color: Color(0x668EC5FF), fontSize: 12),
+              ),
+            ] else ...[
+              const SizedBox(height: 8),
+              const Text(
+                '시/군/구 단위로 입력하면 더 정확해요.',
+                style: TextStyle(color: Color(0x668EC5FF), fontSize: 12),
+              ),
+            ],
+          ],
+
           if (error != null) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             Text(
               error!,
               style: const TextStyle(
-                  color: Colors.redAccent, fontSize: 13),
+                color: Color(0xFFFF6B6B),
+                fontSize: 12,
+                letterSpacing: -0.2,
+              ),
             ),
           ],
         ],
@@ -490,52 +714,188 @@ class _StepCard extends StatelessWidget {
 
   String get _title {
     switch (step) {
-      case 0: return '언제 태어나셨나요?';
-      case 1: return '몇 시에 태어나셨나요?';
+      case 0: return '어떻게 불러드리면 될까요?';
+      case 1: return '언제 태어나셨나요?';
+      case 2: return '몇 시에 태어나셨나요?';
       default: return '어디서 태어나셨나요?';
     }
   }
 
   String get _subtitle {
     switch (step) {
-      case 0: return '정확한 별자리 차트를 위해 필요합니다';
-      case 1: return '정확한 시간은 상승 별자리에 영향을 줍니다';
+      case 0: return '당신만의 별자리 차트를 만들기 위해 필요해요.';
+      case 1: return '정확한 별자리 차트를 위해 필요합니다';
+      case 2: return '정확한 시간은 상승 별자리에 영향을 줍니다';
       default: return '지역에 따라 천체의 위치가 달라집니다';
     }
   }
+}
 
-  String get _label {
-    switch (step) {
-      case 0: return '생년월일';
-      case 1: return '출생 시간';
-      default: return '출생지';
-    }
+// ── 글래스 입력 필드 (텍스트) ────────────────────────────────────────
+class _GlassTextInput extends StatelessWidget {
+  const _GlassTextInput({
+    required this.controller,
+    required this.hintText,
+    this.autofocus = false,
+    this.maxLength,
+    this.errorText,
+    this.keyboardType,
+    this.textCapitalization = TextCapitalization.none,
+    this.prefixIcon,
+    this.onSubmitted,
+  });
+
+  final TextEditingController controller;
+  final String hintText;
+  final bool autofocus;
+  final int? maxLength;
+  final String? errorText;
+  final TextInputType? keyboardType;
+  final TextCapitalization textCapitalization;
+  final Widget? prefixIcon;
+  final ValueChanged<String>? onSubmitted;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 49,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0x14FFFFFF), Color(0x08FFFFFF)],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: errorText != null
+              ? const Color(0xFFFF6B6B)
+              : const Color(0x1FFFFFFF),
+          width: 0.612,
+        ),
+        boxShadow: _glassBoxShadow,
+      ),
+      child: TextField(
+        controller: controller,
+        autofocus: autofocus,
+        maxLength: maxLength,
+        keyboardType: keyboardType,
+        textCapitalization: textCapitalization,
+        autocorrect: false,
+        onSubmitted: onSubmitted,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 16,
+          letterSpacing: -0.2,
+          height: 1.0,
+        ),
+        cursorColor: const Color(0xFF8EC5FF),
+        decoration: InputDecoration(
+          hintText: hintText,
+          hintStyle: const TextStyle(
+            color: Color(0x808EC5FF),
+            fontSize: 16,
+            fontWeight: FontWeight.w300,
+            letterSpacing: -0.2,
+          ),
+          prefixIcon: prefixIcon,
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          counterText: '',
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 14,
+          ),
+          isDense: true,
+        ),
+      ),
+    );
   }
+}
 
-  String get _hint {
-    switch (step) {
-      case 0: return '예: 1995-02-15';
-      case 1: return '예: 14:30';
-      default: return '예: 서울특별시';
-    }
+// ── 글래스 Picker 버튼 ──────────────────────────────────────────────
+class _GlassPickerButton extends StatelessWidget {
+  const _GlassPickerButton({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 49,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0x14FFFFFF), Color(0x08FFFFFF)],
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: selected
+                ? const Color(0xFF51A2FF)
+                : const Color(0x1FFFFFFF),
+            width: selected ? 1.5 : 0.612,
+          ),
+          boxShadow: _glassBoxShadow,
+        ),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              color: selected
+                  ? const Color(0xFF8EC5FF)
+                  : const Color(0x668EC5FF),
+              size: 20,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: selected ? Colors.white : const Color(0x80FFFFFF),
+                  fontSize: 16,
+                  letterSpacing: -0.2,
+                ),
+              ),
+            ),
+            const Icon(
+              Icons.arrow_forward_ios_rounded,
+              color: Color(0x40FFFFFF),
+              size: 14,
+            ),
+          ],
+        ),
+      ),
+    );
   }
+}
 
-  TextInputType get _keyboardType {
-    switch (step) {
-      case 0:
-      case 1:
-        return TextInputType.datetime;
-      default:
-        return TextInputType.streetAddress;
-    }
-  }
+// ── 필드 레이블 ─────────────────────────────────────────────────────
+class _GlassFieldLabel extends StatelessWidget {
+  const _GlassFieldLabel(this.text);
+  final String text;
 
-  TextEditingController get _controller {
-    switch (step) {
-      case 0: return dateCtrl;
-      case 1: return timeCtrl;
-      default: return placeCtrl;
-    }
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: const TextStyle(
+        color: Color(0xFFBEDBFF),
+        fontSize: 14,
+        letterSpacing: -0.2,
+      ),
+    );
   }
 }
 
@@ -556,63 +916,128 @@ class _StepButtons extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (step == 0) {
-      return SizedBox(
-        width: double.infinity,
-        height: 52,
-        child: _primaryButton('다음', onNext, isSubmitting),
+      return _GlassPrimaryButton(
+        label: '다음',
+        isLoading: isSubmitting,
+        onTap: onNext,
       );
     }
+
     return Row(
       children: [
         Expanded(
-          child: SizedBox(
-            height: 52,
-            child: OutlinedButton(
-              onPressed: isSubmitting ? null : onPrev,
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.white,
-                side: const BorderSide(color: Colors.white30),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
-                ),
-              ),
-              child: const Text('이전',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
-            ),
+          child: _GlassSecondaryButton(
+            label: '이전',
+            isLoading: false,
+            onTap: onPrev,
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: SizedBox(
-            height: 52,
-            child: _primaryButton(step == 2 ? '완료' : '다음', onNext, isSubmitting),
+          child: _GlassPrimaryButton(
+            label: step == 3 ? '완료' : '다음',
+            isLoading: isSubmitting,
+            onTap: onNext,
           ),
         ),
       ],
     );
   }
+}
 
-  Widget _primaryButton(String label, VoidCallback onTap, bool loading) {
-    return ElevatedButton(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFF1A5FD4),
-        foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(30),
+// ── 주 버튼 (파란 그라디언트) ─────────────────────────────────────
+class _GlassPrimaryButton extends StatelessWidget {
+  const _GlassPrimaryButton({
+    required this.label,
+    required this.onTap,
+    this.isLoading = false,
+  });
+
+  final String label;
+  final VoidCallback onTap;
+  final bool isLoading;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: isLoading ? null : onTap,
+      child: Container(
+        height: 61,
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: [Color(0x662B7FFF), Color(0x40155DFC)],
+          ),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: const Color(0x26FFFFFF), width: 0.612),
+          boxShadow: _glassBoxShadow,
         ),
-        elevation: 0,
+        child: Center(
+          child: isLoading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+        ),
       ),
-      onPressed: loading ? null : onTap,
-      child: loading
-          ? const SizedBox(
-              width: 22,
-              height: 22,
-              child: CircularProgressIndicator(
-                  strokeWidth: 2, color: Colors.white),
-            )
-          : Text(label,
-              style: const TextStyle(
-                  fontSize: 16, fontWeight: FontWeight.w600)),
+    );
+  }
+}
+
+// ── 보조 버튼 (이전) ────────────────────────────────────────────────
+class _GlassSecondaryButton extends StatelessWidget {
+  const _GlassSecondaryButton({
+    required this.label,
+    required this.onTap,
+    this.isLoading = false,
+  });
+
+  final String label;
+  final VoidCallback onTap;
+  final bool isLoading;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: isLoading ? null : onTap,
+      child: Container(
+        height: 61,
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0x1AFFFFFF), Color(0x0DFFFFFF)],
+          ),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: const Color(0x26FFFFFF), width: 0.612),
+          boxShadow: _glassBoxShadow,
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              letterSpacing: -0.2,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

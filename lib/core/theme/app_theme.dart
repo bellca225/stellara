@@ -112,7 +112,9 @@ ThemeData buildAppTheme() {
         backgroundColor: AppColors.primary,
         foregroundColor: AppColors.ink,
         elevation: 0,
-        minimumSize: const Size.fromHeight(52),
+        // Size.fromHeight(52) sets width=double.infinity, which breaks
+        // buttons placed directly inside Row/Flex children.
+        minimumSize: const Size(64, 52),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.button),
         ),
@@ -124,7 +126,8 @@ ThemeData buildAppTheme() {
       style: OutlinedButton.styleFrom(
         foregroundColor: AppColors.ink,
         side: const BorderSide(color: AppColors.glassBorder, width: 1),
-        minimumSize: const Size.fromHeight(52),
+        // Keep the 52px tap target height without forcing infinite width.
+        minimumSize: const Size(64, 52),
         backgroundColor: AppColors.glass,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.button),
@@ -193,41 +196,57 @@ class StarBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFF0A0A1F), Color(0xFF0F1729), Color(0xFF1E3A8A)],
-          stops: [0.0, 0.3, 1.0],
-        ),
-      ),
-      child: Stack(
-        children: [
-          ...List.generate(40, (i) {
-            final x = (i * 137.5) % 100;
-            final y = (i * 97.3) % 100;
-            final size = (i % 3 + 1).toDouble();
-            final opacity = (i % 5 + 3) / 10;
-            return Positioned(
-              left: x / 100 * 400,
-              top: y / 100 * 900,
-              child: Opacity(
-                opacity: opacity,
-                child: Container(
-                  width: size,
-                  height: size,
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                  ),
-                ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width =
+            constraints.maxWidth.isFinite
+                ? constraints.maxWidth
+                : MediaQuery.sizeOf(context).width;
+        final height =
+            constraints.maxHeight.isFinite
+                ? constraints.maxHeight
+                : MediaQuery.sizeOf(context).height;
+
+        return SizedBox.expand(
+          child: DecoratedBox(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFF0A0A1F), Color(0xFF0F1729), Color(0xFF1E3A8A)],
+                stops: [0.0, 0.3, 1.0],
               ),
-            );
-          }),
-          child,
-        ],
-      ),
+            ),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                ...List.generate(40, (i) {
+                  final x = (i * 137.5) % 100;
+                  final y = (i * 97.3) % 100;
+                  final size = (i % 3 + 1).toDouble();
+                  final opacity = (i % 5 + 3) / 10;
+                  return Positioned(
+                    left: x / 100 * width,
+                    top: y / 100 * height,
+                    child: Opacity(
+                      opacity: opacity,
+                      child: Container(
+                        width: size,
+                        height: size,
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+                child,
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

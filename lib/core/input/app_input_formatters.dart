@@ -32,6 +32,8 @@ class LoginIdTextFormatter extends TextInputFormatter {
 ///
 /// - 영문/숫자만 허용
 /// - 소문자는 대문자로 정규화
+/// - friendCodes/{code} 문서 ID 자체가 대문자 6자리 규칙이므로
+///   검색 입력도 같은 스키마로 맞춘다.
 class FriendCodeTextFormatter extends TextInputFormatter {
   static final RegExp _allowed = RegExp(r'[A-Za-z0-9]');
 

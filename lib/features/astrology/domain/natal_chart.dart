@@ -118,6 +118,30 @@ class NatalChart {
   final String sunSign;
   final String moonSign;
 
+  /// FutureProvider.family 캐시 키로 사용되므로 == / hashCode 필요.
+  /// Big 3 + 첫 번째 행성 degree 조합으로 동등성 판단한다.
+  /// (행성 리스트 전체 비교는 비용이 크므로 핵심 필드만 비교.)
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! NatalChart) return false;
+    return sunSign == other.sunSign &&
+        moonSign == other.moonSign &&
+        ascendantSign == other.ascendantSign &&
+        planets.length == other.planets.length &&
+        (planets.isEmpty ||
+            planets.first.degree == other.planets.first.degree);
+  }
+
+  @override
+  int get hashCode => Object.hash(
+        sunSign,
+        moonSign,
+        ascendantSign,
+        planets.length,
+        planets.isEmpty ? 0 : planets.first.degree,
+      );
+
   /// 빈 차트(로딩 중에 화면이 무너지지 않도록).
   static const empty = NatalChart(
     planets: [],

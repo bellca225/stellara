@@ -2,11 +2,14 @@
 //
 // SDD 8.3 의 `users/{uid}` 컬렉션 스키마를 반영한 도메인 모델.
 //
+// 필드 구분 (displayName 도입 이후):
+//   - loginId     : 로그인 전용 식별자. 화면에 노출하지 않음.
+//   - displayName : 온보딩에서 사용자가 직접 입력한 표시 이름. 화면 전반 노출.
+//   - nickname    : 기존 호환 필드. displayName 미존재 시 fallback.
+//
 // 매핑 규칙 (SDD 8.1)
 //   - Dart `BirthInfo.dateTime` (DateTime, 현지 시각) ↔ Firestore `dateTimeLocal` (String, ISO 8601)
 //   - 변환은 본 파일의 toFirestore/fromFirestore 단계에서만 수행한다.
-//
-// freezed 미사용 정책 유지 (SDD 3.2). 직접 작성한다.
 
 import '../../astrology/domain/birth_info.dart';
 
@@ -17,6 +20,7 @@ class UserProfile {
     required this.loginId,
     required this.nickname,
     required this.profileCompleted,
+    this.displayName,
     this.friendCode,
     this.sunSign,
     this.birthInfo,
@@ -29,31 +33,42 @@ class UserProfile {
   /// Firebase uid. Email/Password Auth 기준.
   final String uid;
 
-  /// 서비스용 아이디. loginIds/{loginId} 에 인덱스 저장.
+  /// 서비스용 로그인 아이디. 로그인 외에는 노출하지 않음.
   final String loginId;
 
   /// "email" | "anonymous" | "kakao".
   final String authProvider;
 
+  /// 온보딩 이름 step 에서 사용자가 직접 입력한 표시 이름.
+  /// null 이면 [nickname] → [loginId] 순으로 fallback.
+  final String? displayName;
+
+  /// 기존 호환 필드. [displayName] 미존재 시 표시 이름으로 사용.
   final String nickname;
 
-  /// 출생정보 + geocoding 결과까지 모두 채워졌는지. 온보딩 미완료 사용자 라우팅에 사용.
+  /// 화면 전반에서 사용할 표시 이름.
+  String get effectiveDisplayName {
+    if (displayName != null && displayName!.trim().isNotEmpty) return displayName!;
+    if (nickname.trim().isNotEmpty && nickname != loginId) return nickname;
+    return loginId;
+  }
+
+  /// 출생정보 + geocoding 결과까지 모두 채워졌는지.
   final bool profileCompleted;
 
-  /// 현재 활성 친구 코드. T16 에서 발급되기 전까지 null 가능.
+  /// 현재 활성 친구 코드.
   final String? friendCode;
 
-  /// 태양 별자리. charts/{uid} 생성 후 동기화됨. 미생성 시 null.
-  /// friend_repository 에서 data['sunSign'] 으로 읽으므로 toFirestore 에 반드시 포함.
+  /// 태양 별자리. charts/{uid} 생성 후 동기화됨.
   final String? sunSign;
 
-  /// 출생정보. 온보딩 진입 전이면 null 가능.
+  /// 출생정보.
   final BirthInfo? birthInfo;
 
-  /// 즐겨찾기 친구 uid 목록. SDD 8.5 제약: 최대 3명, friendship 멤버만.
+  /// 즐겨찾기 친구 uid 목록.
   final List<String> favoriteIds;
 
-  /// `charts/{uid}.chartVersion` 과 동기화. stale 차트 감지에 사용 (T12 ~).
+  /// `charts/{uid}.chartVersion` 과 동기화.
   final String? activeChartVersion;
 
   final DateTime createdAt;
@@ -63,6 +78,7 @@ class UserProfile {
     String? uid,
     String? authProvider,
     String? loginId,
+    String? displayName,
     String? nickname,
     bool? profileCompleted,
     String? friendCode,
@@ -77,6 +93,7 @@ class UserProfile {
       uid: uid ?? this.uid,
       authProvider: authProvider ?? this.authProvider,
       loginId: loginId ?? this.loginId,
+      displayName: displayName ?? this.displayName,
       nickname: nickname ?? this.nickname,
       profileCompleted: profileCompleted ?? this.profileCompleted,
       friendCode: friendCode ?? this.friendCode,
@@ -89,15 +106,12 @@ class UserProfile {
     );
   }
 
-  /// Firestore 저장용 변환. SDD 8.1 매핑 규칙:
-  ///   - `dateTime` 은 ISO 8601 문자열 `dateTimeLocal` 로 직렬화
-  ///   - timestamp 는 Firestore Timestamp 가 아니라 문자열 ISO 8601 로 저장 (테스트/디버그 가독성).
-  ///     운영 단계에서 정렬/쿼리 효율이 필요하면 Timestamp 로 마이그레이션.
   Map<String, dynamic> toFirestore() {
     return {
       'uid': uid,
       'loginId': loginId,
       'authProvider': authProvider,
+      if (displayName != null) 'displayName': displayName,
       'nickname': nickname,
       'profileCompleted': profileCompleted,
       'friendCode': friendCode,
@@ -110,12 +124,12 @@ class UserProfile {
     };
   }
 
-  /// `users/{uid}` 문서 → 도메인 모델. uid 는 문서 ID 에서 받음.
   factory UserProfile.fromFirestore(String uid, Map<String, dynamic> data) {
     return UserProfile(
       uid: uid,
       loginId: (data['loginId'] as String?) ?? '',
       authProvider: (data['authProvider'] as String?) ?? 'email',
+      displayName: data['displayName'] as String?,
       nickname: (data['nickname'] as String?) ?? '익명의 행성',
       profileCompleted: (data['profileCompleted'] as bool?) ?? false,
       friendCode: data['friendCode'] as String?,
@@ -148,12 +162,14 @@ class UserProfile {
     final dtLocal = data['dateTimeLocal'] as String?;
     final lat = data['latitude'];
     final lng = data['longitude'];
-    final offset = data['utcOffset'] as String?;
-    if (dtLocal == null || lat is! num || lng is! num || offset == null) {
-      return null;
-    }
+    final rawOffset = data['utcOffset'] as String?;
+    // dateTimeLocal, 좌표는 필수.
+    // utcOffset은 구버전 호환을 위해 null/빈 값이면 +09:00(한국 표준시) 기본값 사용.
+    if (dtLocal == null || lat is! num || lng is! num) return null;
     final parsed = DateTime.tryParse(dtLocal);
     if (parsed == null) return null;
+    final offset =
+        (rawOffset == null || rawOffset.trim().isEmpty) ? '+09:00' : rawOffset;
     return BirthInfo(
       nickname: (data['nickname'] as String?) ?? '익명의 행성',
       dateTime: parsed,

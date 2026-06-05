@@ -47,6 +47,19 @@ class Env {
   static const _kUseFixtureInDebug = 'USE_FIXTURE_IN_DEBUG';
   static const _kAiRemoteEnabled = 'AI_REMOTE_ENABLED';
 
+  // ── AI 멀티 프로바이더 설정 (Codex 구조와 통일) ─────────────────
+  // AI_PROVIDER_DEFAULT: 기본 호출 프로바이더 ('gemini' | 'openai' | 'anthropic' | 'auto')
+  // AI_PROVIDER_ORDER: fallback 순서 ('gemini,openai,anthropic' 등 comma-separated)
+  //   우선순위: Gemini → OpenAI → Anthropic
+  static const _kAiProviderDefault = 'AI_PROVIDER_DEFAULT';
+  static const _kAiProviderOrder = 'AI_PROVIDER_ORDER';
+  static const _kAiModelOpenAiDefault = 'AI_MODEL_OPENAI_DEFAULT';
+  static const _kAiModelAnthropicDefault = 'AI_MODEL_ANTHROPIC_DEFAULT';
+  static const _kAiModelGeminiDefault = 'AI_MODEL_GEMINI_DEFAULT';
+  static const _kOpenAiApiKey = 'OPENAI_API_KEY';
+  static const _kAnthropicApiKey = 'ANTHROPIC_API_KEY';
+  static const _kGeminiApiKey = 'GEMINI_API_KEY';
+
   /// .env 파일을 메모리에 로드한다. 앱 시작 시 한 번 호출.
   ///
   /// 파일이 없거나 키가 비어있으면 [MissingEnvException] 을 던진다.
@@ -103,6 +116,57 @@ class Env {
   /// 기본 브랜치에서는 원격 AI 호출을 막고 local question set 만 사용한다.
   static bool get aiRemoteEnabled =>
       (dotenv.maybeGet(_kAiRemoteEnabled) ?? 'false').toLowerCase() == 'true';
+
+  // ── AI 멀티 프로바이더 getter ────────────────────────────────────
+
+  /// Gemini API 키. gemini 프로바이더가 첫 번째 우선순위.
+  /// 키가 없으면 빈 문자열 반환 → repository에서 다음 프로바이더(openai)로 fallback.
+  ///
+  /// ⚠️ 보안 주의: 현재 구조는 Flutter 클라이언트에서 직접 API를 호출합니다.
+  ///    .env 파일이 flutter_assets에 번들되므로 APK/IPA 추출 시 키가 노출될 수 있습니다.
+  ///    TODO: 프로덕션 배포 전 Firebase Functions 또는 백엔드 프록시로 이전 권장.
+  static String get geminiApiKey =>
+      dotenv.maybeGet(_kGeminiApiKey)?.trim() ?? '';
+
+  /// OpenAI API 키. Gemini 실패 시 fallback으로 사용.
+  /// 키가 없으면 빈 문자열 반환 → repository에서 다음 프로바이더로 fallback.
+  static String get openAiApiKey =>
+      dotenv.maybeGet(_kOpenAiApiKey)?.trim() ?? '';
+
+  /// Anthropic API 키. OpenAI 실패 시 마지막 fallback으로 사용.
+  static String get anthropicApiKey =>
+      dotenv.maybeGet(_kAnthropicApiKey)?.trim() ?? '';
+
+  /// 기본 AI 프로바이더. 'gemini' | 'openai' | 'anthropic' | 'auto'(=순서대로 시도)
+  /// 기본값: 'auto' (AI_PROVIDER_ORDER 순서로 시도)
+  static String get aiProviderDefault =>
+      dotenv.maybeGet(_kAiProviderDefault)?.trim() ?? 'auto';
+
+  /// fallback 순서. 'gemini,openai,anthropic' 형태의 comma-separated 문자열.
+  /// 앞쪽 프로바이더가 실패하면 다음 프로바이더로 자동 전환.
+  /// 기본값: gemini 우선, openai fallback (anthropic은 키 있을 때만 활성화됨)
+  static List<String> get aiProviderOrder {
+    final raw =
+        dotenv.maybeGet(_kAiProviderOrder)?.trim() ?? 'gemini,openai,anthropic';
+    return raw
+        .split(',')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+  }
+
+  /// 사용할 OpenAI 모델. 기본값: gpt-4o-mini (랜덤 질문용 비용/속도 최적).
+  static String get aiModelOpenAi =>
+      dotenv.maybeGet(_kAiModelOpenAiDefault)?.trim() ?? 'gpt-4o-mini';
+
+  /// 사용할 Anthropic 모델. 기본값: claude-3-5-haiku-latest (fallback용 경량 모델).
+  static String get aiModelAnthropic =>
+      dotenv.maybeGet(_kAiModelAnthropicDefault)?.trim() ?? 'claude-3-5-haiku-latest';
+
+  /// 사용할 Gemini 모델. 기본값: gemini-2.5-flash (최신 경량 모델, 무료 quota 있음).
+  /// 모델 목록: https://ai.google.dev/gemini-api/docs/models
+  static String get aiModelGemini =>
+      dotenv.maybeGet(_kAiModelGeminiDefault)?.trim() ?? 'gemini-2.5-flash';
 
   static List<ProkeralaCredential> get prokeralaCredentials {
     final credentials = <ProkeralaCredential>[];

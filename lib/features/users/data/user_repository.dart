@@ -53,26 +53,36 @@ class UserRepository {
         );
   }
 
-  /// 출생정보 + 닉네임 업데이트. T11 (Firestore 연동) / T27 (마이페이지 수정) 가 사용.
+  /// 출생정보 + 표시 이름 업데이트. 온보딩 / 마이페이지 수정 시 사용.
   ///
-  /// `activeChartVersion` 은 [BirthInfo.chartVersion] 으로 자동 갱신해 stale 차트를 가르마.
+  /// [displayName]: 온보딩 이름 step 에서 입력. null 이면 기존 값 유지.
+  /// [nickname]: 기존 호환 필드. displayName 이 있으면 그 값으로 동기화.
   Future<void> upsertBirthInfo({
     required String uid,
     required BirthInfo birthInfo,
     String? nickname,
+    String? displayName,
   }) async {
+    final trimmedDisplay = displayName?.trim();
+    final effectiveName = (trimmedDisplay?.isNotEmpty == true)
+        ? trimmedDisplay!
+        : (nickname ?? birthInfo.nickname);
+
     final updates = <String, dynamic>{
       'birthInfo': UserProfile(
         uid: uid,
         loginId: '',
         authProvider: 'email',
-        nickname: nickname ?? birthInfo.nickname,
+        displayName: trimmedDisplay?.isNotEmpty == true ? trimmedDisplay : null,
+        nickname: effectiveName,
         profileCompleted: true,
         birthInfo: birthInfo,
         createdAt: DateTime.now().toUtc(),
         updatedAt: DateTime.now().toUtc(),
       ).toFirestore()['birthInfo'],
-      'nickname': nickname ?? birthInfo.nickname,
+      'nickname': effectiveName,
+      if (trimmedDisplay != null && trimmedDisplay.isNotEmpty)
+        'displayName': trimmedDisplay,
       'profileCompleted': true,
       'activeChartVersion': birthInfo.chartVersion,
       'updatedAt': DateTime.now().toUtc().toIso8601String(),
