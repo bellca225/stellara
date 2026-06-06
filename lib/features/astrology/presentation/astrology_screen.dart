@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/env/env.dart';
@@ -26,9 +26,6 @@ class AstrologyScreen extends ConsumerWidget {
     final profileAsync = ref.watch(currentUserProfileProvider);
     final asyncChart = ref.watch(myNatalChartProvider);
 
-    // 출생 정보가 없는 사용자 가드
-    // profileCompleted=false 이거나 birthInfo=null이면 차트 화면 대신 안내 표시.
-    // profile 이 아직 로딩 중이면(null) 스켈레톤을 보여주며 기다린다.
     final profile = profileAsync.valueOrNull;
     if (profileAsync.hasValue &&
         profile != null &&
@@ -46,8 +43,6 @@ class AstrologyScreen extends ConsumerWidget {
       );
     }
 
-    // birth 변경 후 차트가 아직 갱신되지 않았는지 확인.
-    // activeChartVersion != birth.chartVersion → 재분석 진행 중 또는 필요.
     final isStale =
         birth != null &&
         profile != null &&
@@ -108,7 +103,7 @@ class _ScreenHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+      padding: const EdgeInsets.fromLTRB(20, 30, 20, 0),
       child: Row(
         children: [
           Material(
@@ -116,23 +111,10 @@ class _ScreenHeader extends StatelessWidget {
             child: InkWell(
               onTap: () => Navigator.of(context).maybePop(),
               borderRadius: BorderRadius.circular(999),
-              child: Container(
+              child: const SizedBox(
                 width: 48,
                 height: 48,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0x1AFFFFFF), Color(0x0DFFFFFF)],
-                  ),
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.12),
-                    width: 0.636,
-                  ),
-                  boxShadow: _astrologyGlassBoxShadow,
-                ),
-                child: const Icon(
+                child: Icon(
                   Icons.arrow_back_rounded,
                   color: Color(0xFF8EC5FF),
                   size: 22,
@@ -197,13 +179,15 @@ class _ChartContent extends StatelessWidget {
       physics: const ClampingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
       children: [
-        _BirthChartHeader(birth: birth),
-        const SizedBox(height: 16),
-        _ChartPanel(chart: chart),
+        _ChartPanel(birth: birth, chart: chart),
         const SizedBox(height: 28),
-        Text(
+        const Text(
           '상세 분석',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 20),
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+          ),
         ),
         const SizedBox(height: 16),
         for (final planet in detailPlanets) ...[
@@ -228,135 +212,111 @@ class _ChartContent extends StatelessWidget {
   }
 }
 
-class _BirthChartHeader extends StatelessWidget {
-  const _BirthChartHeader({required this.birth});
+class _ChartPanel extends StatelessWidget {
+  const _ChartPanel({required this.birth, required this.chart});
 
   final BirthInfo birth;
-
-  /// fixture 모드일 때 true. 실제 사용자 데이터가 아닌 데모 데이터임을 나타냄.
-  bool get _isDemo => Env.shouldUseFixtureForProkerala;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Container(
-        width: 178,
-        height: 178,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0x14FFFFFF), Color(0x08FFFFFF)],
-          ),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.1),
-            width: 1.0,
-          ),
-          boxShadow: _astrologyGlassBoxShadow,
-        ),
-        child: Center(
-          child: Container(
-            width: 124,
-            height: 124,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: const Color(0x3351A2FF), width: 1.0),
-            ),
-            alignment: Alignment.center,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.star_outline_rounded,
-                  color: AppColors.primaryLight,
-                  size: 28,
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  '출생 차트',
-                  style: TextStyle(
-                    color: AppColors.ink,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${birth.dateTime.year}-${_pad(birth.dateTime.month)}-${_pad(birth.dateTime.day)}',
-                  style: const TextStyle(
-                    color: AppColors.inkMuted,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                // fixture 모드 표시기 — 실제 API 데이터가 아님을 명시
-                if (_isDemo) ...[
-                  const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: const Text(
-                      '데모',
-                      style: TextStyle(
-                        color: Colors.orange,
-                        fontSize: 9,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  static String _pad(int value) => value.toString().padLeft(2, '0');
-}
-
-class _ChartPanel extends StatelessWidget {
-  const _ChartPanel({required this.chart});
-
   final NatalChart chart;
+
+  bool get _isDemo => Env.shouldUseFixtureForProkerala;
+  static String _pad(int v) => v.toString().padLeft(2, '0');
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0x14FFFFFF), Color(0x08FFFFFF)],
-        ),
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.1),
-          width: 0.636,
-        ),
-        boxShadow: _astrologyGlassBoxShadow,
+        border: Border.all(color: const Color(0x33FFFFFF), width: 0.636),
       ),
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('출생 차트 보기', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: AppSpacing.md),
             Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 320),
                 child: AspectRatio(
                   aspectRatio: 1,
-                  child: CustomPaint(painter: NatalChartPainter(chart)),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      CustomPaint(
+                        painter: NatalChartPainter(chart),
+                        child: const SizedBox.expand(),
+                      ),
+                      Container(
+                        width: 96,
+                        height: 96,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [Color(0x10FFFFFF), Color(0x08FFFFFF)],
+                          ),
+                          border: Border.all(
+                            color: const Color(0x3351A2FF),
+                            width: 1.0,
+                          ),
+                          boxShadow: const [
+                            BoxShadow(color: Color(0x401E3A8A), blurRadius: 12),
+                          ],
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.star_outline_rounded,
+                              color: AppColors.primaryLight,
+                              size: 22,
+                            ),
+                            const SizedBox(height: 3),
+                            const Text(
+                              '출생 차트',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${birth.dateTime.year}-${_pad(birth.dateTime.month)}-${_pad(birth.dateTime.day)}',
+                              style: const TextStyle(
+                                color: Color(0xFFBEDBFF),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            if (_isDemo) ...[
+                              const SizedBox(height: 3),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 5,
+                                  vertical: 1,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Text(
+                                  '데모',
+                                  style: TextStyle(
+                                    color: Colors.orange,
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -377,17 +337,9 @@ class _GlassSection extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0x14FFFFFF), Color(0x08FFFFFF)],
-        ),
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.1),
-          width: 0.636,
-        ),
-        boxShadow: _astrologyGlassBoxShadow,
+        border: Border.all(color: const Color(0x33FFFFFF), width: 0.636),
       ),
       child: child,
     );
@@ -402,8 +354,6 @@ class _InsightCard extends StatelessWidget {
   });
 
   final String title;
-
-  /// 예: '핵심 성향', '감정과 내면' — planetSubtitleKo() 결과.
   final String? subtitle;
   final String description;
 
@@ -415,9 +365,10 @@ class _InsightCard extends StatelessWidget {
         children: [
           Text(
             title,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            style: const TextStyle(
+              color: Color(0xFF8EC5FF),
               fontSize: 16,
-              color: AppColors.primaryLight,
+              fontWeight: FontWeight.w700,
             ),
           ),
           if (subtitle != null) ...[
@@ -425,7 +376,7 @@ class _InsightCard extends StatelessWidget {
             Text(
               subtitle!,
               style: const TextStyle(
-                color: AppColors.inkSubtle,
+                color: Color(0x998EC5FF),
                 fontSize: 11,
                 fontWeight: FontWeight.w500,
               ),
@@ -434,8 +385,9 @@ class _InsightCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           Text(
             description,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: AppColors.inkMuted,
+            style: const TextStyle(
+              color: Color(0xF0FFFFFF),
+              fontSize: 15,
               height: 1.55,
             ),
           ),
@@ -463,21 +415,6 @@ class _ChartSkeleton extends StatelessWidget {
       physics: const ClampingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
       children: [
-        _GlassSection(
-          child: Column(
-            children: [
-              Container(
-                width: 178,
-                height: 178,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.06),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
         const SkeletonBox(height: 340, radius: 28),
         const SizedBox(height: 28),
         const SkeletonBox(width: 120, height: 16),
@@ -506,14 +443,14 @@ class _ErrorView extends StatelessWidget {
               children: [
                 const Icon(
                   Icons.error_outline_rounded,
-                  color: AppColors.inkMuted,
+                  color: Color(0xFF8EC5FF),
                   size: 36,
                 ),
                 const SizedBox(height: 12),
                 Text(
                   '점성술 분석 화면을 불러오지 못했어요.\n$message',
                   textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyLarge,
+                  style: const TextStyle(color: Colors.white, fontSize: 14),
                 ),
               ],
             ),
@@ -524,7 +461,6 @@ class _ErrorView extends StatelessWidget {
   }
 }
 
-/// 출생 정보 미입력 사용자에게 보여주는 가드 화면.
 class _NoBirthInfoView extends StatelessWidget {
   const _NoBirthInfoView();
 
@@ -541,18 +477,22 @@ class _NoBirthInfoView extends StatelessWidget {
                 const Icon(
                   Icons.star_outline_rounded,
                   size: 56,
-                  color: AppColors.inkSubtle,
+                  color: Color(0xFF8EC5FF),
                 ),
                 const SizedBox(height: AppSpacing.lg),
-                Text(
+                const Text(
                   '출생 정보가 필요해요',
-                  style: Theme.of(context).textTheme.titleLarge,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 const Text(
                   '점성술 분석을 보려면\n마이페이지에서 생년월일·출생시간·출생지를\n먼저 입력해주세요.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: AppColors.inkMuted, height: 1.5),
+                  style: TextStyle(color: Color(0xCCFFFFFF), height: 1.5),
                 ),
               ],
             ),
