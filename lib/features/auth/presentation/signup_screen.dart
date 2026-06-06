@@ -1,8 +1,4 @@
-// lib/features/auth/presentation/signup_screen.dart
-//
-// 계정 만들기 화면 — Figma 회원가입(Screens 2/3/4) 기준
-// 아이디 중복 확인 버튼 추가, 글래스모피즘 디자인 적용
-
+﻿// lib/features/auth/presentation/signup_screen.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -27,12 +23,75 @@ const _svgPersonAdd = '''
 </svg>
 ''';
 
+// 비밀번호 확인 - 색깔 있는 버전
+const _svgCheckColor = '''
+<svg width="57" height="50" viewBox="0 0 57 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g filter="url(#filter0_d_204_248)">
+<circle cx="29" cy="25.0238" r="9" fill="url(#paint0_linear_204_248)"/>
+</g>
+<path d="M24.5001 25.315L27.6154 28.1738L33.5001 22.7738" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<defs>
+<filter id="filter0_d_204_248" x="0" y="-3.9762" width="58" height="58" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feOffset/><feGaussianBlur stdDeviation="10"/>
+<feComposite in2="hardAlpha" operator="out"/>
+<feColorMatrix type="matrix" values="0 0 0 0 0.231373 0 0 0 0 0.509804 0 0 0 0 0.964706 0 0 0 0.3 0"/>
+<feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_204_248"/>
+<feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_204_248" result="shape"/>
+</filter>
+<linearGradient id="paint0_linear_204_248" x1="20" y1="16.0238" x2="38" y2="34.0238" gradientUnits="userSpaceOnUse">
+<stop stop-color="#51A2FF"/><stop offset="1" stop-color="#155DFC"/>
+</linearGradient>
+</defs>
+</svg>
+''';
+
+const _svgCrossColor = '''
+<svg width="58" height="58" viewBox="0 0 58 58" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g filter="url(#filter0_d_204_255)">
+<circle cx="29" cy="29" r="9" fill="url(#paint0_linear_204_255)"/>
+</g>
+<path d="M32.5 32.5001L25.5002 25.5002" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M25.4999 32.5L32.4998 25.5001" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<defs>
+<filter id="filter0_d_204_255" x="0" y="0" width="58" height="58" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feOffset/><feGaussianBlur stdDeviation="10"/>
+<feComposite in2="hardAlpha" operator="out"/>
+<feColorMatrix type="matrix" values="0 0 0 0 0.231373 0 0 0 0 0.509804 0 0 0 0 0.964706 0 0 0 0.3 0"/>
+<feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_204_255"/>
+<feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_204_255" result="shape"/>
+</filter>
+<linearGradient id="paint0_linear_204_255" x1="20" y1="20" x2="38" y2="38" gradientUnits="userSpaceOnUse">
+<stop stop-color="#FF5151"/><stop offset="1" stop-color="#FC1515"/>
+</linearGradient>
+</defs>
+</svg>
+''';
+
+// 토스트 - 색깔 없는 흰색 버전
+const _svgCheckWhite = '''
+<svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+<circle cx="9" cy="9" r="9" fill="white"/>
+<path d="M4.50006 9.29118L7.61545 12.15L13.5001 6.75" stroke="#010512" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+''';
+
+const _svgCrossWhite = '''
+<svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+<circle cx="9" cy="9" r="9" fill="white"/>
+<path d="M12.5 12.5001L5.50011 5.50016" stroke="#010512" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M5.49992 12.5L12.4998 5.50011" stroke="#010512" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+''';
+
 const _glassBoxShadow = [
   BoxShadow(color: Color(0x26000000), blurRadius: 4, offset: Offset(0, 4)),
   BoxShadow(color: Color(0x801E3A8A), blurRadius: 20, offset: Offset(0, 5)),
 ];
 
-// 중복 확인 결과
 enum _IdCheckState { unchecked, checking, available, taken, formatError }
 
 class SignUpScreen extends ConsumerStatefulWidget {
@@ -68,11 +127,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     super.dispose();
   }
 
-  // ── 아이디 실시간 검증 ───────────────────────────────────────────
   void _onIdChanged(String value) {
     final error = LoginIdRepository.validate(value);
     if (_idError != error) setState(() => _idError = error);
-    // ID 변경 시 확인 결과 초기화
     if (_idCheckState != _IdCheckState.unchecked) {
       setState(() => _idCheckState = _IdCheckState.unchecked);
     }
@@ -84,10 +141,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     if (_pwMatch != match) setState(() => _pwMatch = match);
   }
 
-  // ── 아이디 중복 확인 ─────────────────────────────────────────────
   Future<void> _checkId() async {
     final id = _idCtrl.text.trim();
-
     final formatError = LoginIdRepository.validate(id);
     if (formatError != null) {
       setState(() {
@@ -96,20 +151,18 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       });
       return;
     }
-
     setState(() {
       _idError = null;
       _idCheckState = _IdCheckState.checking;
     });
-
     try {
       final available = await _loginIdRepo.isAvailable(id);
       if (!mounted) return;
       setState(() {
-        _idCheckState =
-            available ? _IdCheckState.available : _IdCheckState.taken;
-        _idCheckMessage =
-            available ? '사용 가능한 아이디입니다.' : '사용 불가한 아이디입니다.';
+        _idCheckState = available
+            ? _IdCheckState.available
+            : _IdCheckState.taken;
+        _idCheckMessage = available ? '사용 가능한 아이디입니다.' : '사용 불가한 아이디입니다.';
       });
     } catch (_) {
       if (mounted) {
@@ -121,14 +174,11 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     }
   }
 
-  // ── 회원가입 처리 ────────────────────────────────────────────────
   Future<void> _submit() async {
     setState(() => _generalError = null);
-
     final id = _idCtrl.text.trim();
     final pw = _pwCtrl.text;
     final pwConfirm = _pwConfirmCtrl.text;
-
     final idValidation = LoginIdRepository.validate(id);
     if (idValidation != null) {
       setState(() => _idError = idValidation);
@@ -146,7 +196,6 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       _idError = null;
       _pwError = null;
     });
-
     setState(() => _isLoading = true);
     try {
       final user = await AuthRepository().signUp(loginId: id, password: pw);
@@ -168,8 +217,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
         }
       });
     } catch (e) {
-      final msg = _friendlySignUpError(e);
-      setState(() => _generalError = msg);
+      setState(() => _generalError = _friendlySignUpError(e));
       debugPrint('[SignUp] 회원가입 실패: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -178,21 +226,15 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
   String _friendlySignUpError(Object e) {
     final s = e.toString();
-    if (s.contains('friend-code-conflict')) {
-      return '일시적인 오류가 발생했어요. 다시 시도해주세요.';
-    }
-    if (s.contains('PERMISSION_DENIED') || s.contains('permission-denied')) {
+    if (s.contains('friend-code-conflict')) return '일시적인 오류가 발생했어요. 다시 시도해주세요.';
+    if (s.contains('PERMISSION_DENIED') || s.contains('permission-denied'))
       return '서버 권한 오류예요. 잠시 후 다시 시도해주세요.';
-    }
-    if (s.contains('email-already-in-use') || s.contains('already-exists')) {
+    if (s.contains('email-already-in-use') || s.contains('already-exists'))
       return '이미 사용 중인 아이디예요.';
-    }
-    if (s.contains('network') || s.contains('UNAVAILABLE')) {
+    if (s.contains('network') || s.contains('UNAVAILABLE'))
       return '네트워크 연결을 확인해주세요.';
-    }
-    if (s.contains('requires-recent-login')) {
+    if (s.contains('requires-recent-login'))
       return '로그인 세션이 만료됐어요. 앱을 재시작해주세요.';
-    }
     if (kDebugMode) return '오류: $s';
     return '오류가 발생했어요. 잠시 후 다시 시도해주세요.';
   }
@@ -202,7 +244,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     final guarded = buildAuthEntryGuard(context, ref);
     if (guarded != null) return guarded;
 
-    final showCheckResult = _idCheckState == _IdCheckState.available ||
+    final showCheckResult =
+        _idCheckState == _IdCheckState.available ||
         _idCheckState == _IdCheckState.taken;
 
     return StarBackground(
@@ -217,7 +260,6 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                   children: [
                     const SizedBox(height: 113),
 
-                    // ── 아이콘 ──────────────────────────────────────
                     Container(
                       width: 64,
                       height: 64,
@@ -229,10 +271,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                           colors: [Color(0xFF51A2FF), Color(0xFF155DFC)],
                         ),
                         boxShadow: const [
-                          BoxShadow(
-                            color: Color(0x4D3B82F6),
-                            blurRadius: 10,
-                          ),
+                          BoxShadow(color: Color(0x4D3B82F6), blurRadius: 10),
                         ],
                       ),
                       child: Center(
@@ -246,7 +285,6 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
                     const SizedBox(height: 16),
 
-                    // ── 타이틀 ──────────────────────────────────────
                     const Text(
                       '계정 만들기',
                       style: TextStyle(
@@ -258,7 +296,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     ),
                     const SizedBox(height: 4),
                     const Text(
-                      'Stellara에 오신 것을 환영합니다',
+                      'Stellarara에 오신 것을 환영합니다',
                       style: TextStyle(
                         color: Color(0xFF8EC5FF),
                         fontSize: 12,
@@ -268,7 +306,6 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
                     const SizedBox(height: 32),
 
-                    // ── 입력 카드 ────────────────────────────────────
                     Container(
                       padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
@@ -287,11 +324,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // 아이디 레이블
                           _GlassFieldLabel('아이디'),
                           const SizedBox(height: 8),
-
-                          // 아이디 입력 + 중복 확인 버튼
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -308,7 +342,6 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              // 중복 확인 버튼
                               GestureDetector(
                                 onTap: _idCheckState == _IdCheckState.checking
                                     ? null
@@ -373,42 +406,39 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
                           const SizedBox(height: 20),
 
-                          // 비밀번호
                           _GlassFieldLabel('비밀번호'),
                           const SizedBox(height: 8),
                           _GlassInput(
                             controller: _pwCtrl,
                             hintText: '',
                             obscureText: _obscurePw,
-                            suffixIcon: IconButton(
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                              icon: Icon(
-                                _obscurePw
-                                    ? Icons.visibility_off_outlined
-                                    : Icons.visibility_outlined,
-                                color: const Color(0x668EC5FF),
-                                size: 20,
-                              ),
-                              onPressed: () {
-                                if (_pwError != null) {
+                            suffixIcon: GestureDetector(
+                              onTap: () {
+                                if (_pwError != null)
                                   setState(() => _pwError = null);
-                                }
                                 setState(() => _obscurePw = !_obscurePw);
                                 _updatePasswordMatch();
                               },
+                              child: Padding(
+                                padding: const EdgeInsets.only(right: 12),
+                                child: Icon(
+                                  _obscurePw
+                                      ? Icons.visibility_off_outlined
+                                      : Icons.visibility_outlined,
+                                  color: const Color(0x668EC5FF),
+                                  size: 20,
+                                ),
+                              ),
                             ),
                             onChanged: (_) {
-                              if (_pwError != null) {
+                              if (_pwError != null)
                                 setState(() => _pwError = null);
-                              }
                               _updatePasswordMatch();
                             },
                           ),
 
                           const SizedBox(height: 20),
 
-                          // 비밀번호 확인
                           _GlassFieldLabel('비밀번호 확인'),
                           const SizedBox(height: 8),
                           _GlassInput(
@@ -420,38 +450,36 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                               children: [
                                 if (_pwMatch != null)
                                   Padding(
-                                    padding: const EdgeInsets.only(right: 4),
-                                    child: Icon(
+                                    padding: const EdgeInsets.only(right: 3),
+                                    child: SvgPicture.string(
                                       _pwMatch!
-                                          ? Icons.check_circle_rounded
-                                          : Icons.cancel_rounded,
-                                      color: _pwMatch!
-                                          ? const Color(0xFF51A2FF)
-                                          : const Color(0xFFFF5151),
-                                      size: 20,
+                                          ? _svgCheckColor
+                                          : _svgCrossColor,
+                                      width: 45,
+                                      height: 45,
                                     ),
                                   ),
-                                IconButton(
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(),
-                                  icon: Icon(
-                                    _obscurePwConfirm
-                                        ? Icons.visibility_off_outlined
-                                        : Icons.visibility_outlined,
-                                    color: const Color(0x668EC5FF),
-                                    size: 20,
+                                GestureDetector(
+                                  onTap: () => setState(
+                                    () =>
+                                        _obscurePwConfirm = !_obscurePwConfirm,
                                   ),
-                                  onPressed: () => setState(
-                                    () => _obscurePwConfirm =
-                                        !_obscurePwConfirm,
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(right: 12),
+                                    child: Icon(
+                                      _obscurePwConfirm
+                                          ? Icons.visibility_off_outlined
+                                          : Icons.visibility_outlined,
+                                      color: const Color(0x668EC5FF),
+                                      size: 20,
+                                    ),
                                   ),
                                 ),
                               ],
                             ),
                             onChanged: (value) {
-                              if (_pwError != null) {
+                              if (_pwError != null)
                                 setState(() => _pwError = null);
-                              }
                               _updatePasswordMatch(value);
                             },
                             onSubmitted: (_) => _submit(),
@@ -482,7 +510,6 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
                           const SizedBox(height: 24),
 
-                          // 계정 만들기 버튼
                           _GlassPrimaryButton(
                             label: '계정 만들기',
                             isLoading: _isLoading,
@@ -494,7 +521,6 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
                     const SizedBox(height: 32),
 
-                    // 이미 계정이 있으신가요?
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -523,14 +549,12 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                       ],
                     ),
 
-                    // 바텀 토스트 공간 확보
                     const SizedBox(height: 80),
                   ],
                 ),
               ),
             ),
 
-            // ── 중복 확인 결과 바텀 토스트 ───────────────────────────
             if (showCheckResult)
               Positioned(
                 bottom: 32,
@@ -560,30 +584,12 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     ),
                     child: Row(
                       children: [
-                        Container(
-                          width: 18,
-                          height: 18,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: LinearGradient(
-                              colors: _idCheckState == _IdCheckState.available
-                                  ? const [
-                                      Color(0xFF51A2FF),
-                                      Color(0xFF155DFC),
-                                    ]
-                                  : const [
-                                      Color(0xFFFF5151),
-                                      Color(0xFFFC1515),
-                                    ],
-                            ),
-                          ),
-                          child: Icon(
-                            _idCheckState == _IdCheckState.available
-                                ? Icons.check
-                                : Icons.close,
-                            color: Colors.white,
-                            size: 11,
-                          ),
+                        SvgPicture.string(
+                          _idCheckState == _IdCheckState.available
+                              ? _svgCheckWhite
+                              : _svgCrossWhite,
+                          width: 20,
+                          height: 20,
                         ),
                         const SizedBox(width: 10),
                         Text(
@@ -606,8 +612,6 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     );
   }
 }
-
-// ── 공통 위젯 ──────────────────────────────────────────────────────────
 
 class _GlassFieldLabel extends StatelessWidget {
   const _GlassFieldLabel(this.text);
@@ -664,47 +668,56 @@ class _GlassInput extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0x14FFFFFF), Color(0x08FFFFFF)],
+          colors: [Color(0x1AFFFFFF), Color(0x0DFFFFFF)],
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0x1FFFFFFF), width: 0.612),
+        border: Border.all(color: const Color(0x26FFFFFF), width: 0.612),
         boxShadow: _glassBoxShadow,
       ),
-      child: TextField(
-        controller: controller,
-        obscureText: obscureText,
-        keyboardType: keyboardType,
-        textCapitalization: textCapitalization,
-        autocorrect: autocorrect,
-        enableSuggestions: enableSuggestions,
-        inputFormatters: inputFormatters,
-        onSubmitted: onSubmitted,
-        autofocus: autofocus,
-        onChanged: onChanged,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 16,
-          letterSpacing: -0.2,
-          height: 1.0,
-        ),
-        cursorColor: const Color(0xFF8EC5FF),
-        decoration: InputDecoration(
-          hintText: hintText,
-          hintStyle: const TextStyle(
-            color: Color(0x808EC5FF),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: TextField(
+          controller: controller,
+          obscureText: obscureText,
+          keyboardType: keyboardType,
+          textCapitalization: textCapitalization,
+          autocorrect: autocorrect,
+          enableSuggestions: enableSuggestions,
+          inputFormatters: inputFormatters,
+          onSubmitted: onSubmitted,
+          autofocus: autofocus,
+          onChanged: onChanged,
+          textAlignVertical: TextAlignVertical.center,
+          style: const TextStyle(
+            color: Colors.white,
             fontSize: 16,
-            fontWeight: FontWeight.w300,
             letterSpacing: -0.2,
           ),
-          suffixIcon: suffixIcon,
-          border: InputBorder.none,
-          enabledBorder: InputBorder.none,
-          focusedBorder: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 14,
+          cursorColor: const Color(0xFF8EC5FF),
+          decoration: InputDecoration(
+            hintText: hintText,
+            hintStyle: const TextStyle(
+              color: Color(0x808EC5FF),
+              fontSize: 16,
+              fontWeight: FontWeight.w300,
+              letterSpacing: -0.2,
+            ),
+            suffixIcon: suffixIcon,
+            suffixIconConstraints: const BoxConstraints(
+              minWidth: 0,
+              minHeight: 0,
+            ),
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            filled: true,
+            fillColor: Colors.transparent,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
+            isDense: true,
           ),
-          isDense: true,
         ),
       ),
     );

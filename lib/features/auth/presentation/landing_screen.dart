@@ -53,10 +53,7 @@ class _LandingScreenState extends ConsumerState<LandingScreen>
     return Scaffold(
       body: Stack(
         children: [
-          // 별빛 배경
           const Positioned.fill(child: _StarField()),
-
-          // 다중 글로우
           Positioned.fill(
             child: AnimatedBuilder(
               animation: _glowAnim,
@@ -64,82 +61,77 @@ class _LandingScreenState extends ConsumerState<LandingScreen>
                   CustomPaint(painter: _GlowPainter(_glowAnim.value)),
             ),
           ),
-
-          // 콘텐츠
           FadeTransition(
             opacity: _fadeAnim,
             child: SafeArea(
               child: Column(
                 children: [
-                  // 로고 영역 — 화면 상단 40% 지점에 배치
-                  Expanded(
-                    flex: 5,
-                    child: Align(
-                      alignment: const Alignment(0, -0.2),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'Stellerara',
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.sulphurPoint(
-                              fontSize: 48,
-                              fontWeight: FontWeight.w300,
-                              color: Colors.white,
-                              letterSpacing: 5.15,
-                              height: 1.0,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            'Discover What the Stars Reveal',
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.sulphurPoint(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w400,
-                              color: const Color(0xFF8EC5FF),
-                              height: 1.0,
-                            ),
-                          ),
-                        ],
+                  // 상단 여백 (화면의 약 25%)
+                  const Spacer(flex: 25),
+
+                  // 로고
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Stellerara',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.sulphurPoint(
+                          fontSize: 48,
+                          fontWeight: FontWeight.w300,
+                          color: Colors.white,
+                          letterSpacing: 5.15,
+                          height: 1.0,
+                        ),
                       ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Discover What the Stars Reveal',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.sulphurPoint(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w400,
+                          color: const Color(0xFF8EC5FF),
+                          height: 1.0,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // 로고~버튼 사이 여백
+                  const Spacer(flex: 8),
+
+                  // 버튼
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _GlassButton(
+                          label: '계정 만들기',
+                          isPrimary: true,
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const SignUpScreen(),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        _GlassButton(
+                          label: '로그인',
+                          isPrimary: false,
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const LoginScreen(),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
 
-                  // 버튼 영역
-                  Expanded(
-                    flex: 3,
-                    child: Align(
-                      alignment: Alignment.bottomCenter,
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(24, 0, 24, 48),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _GlassButton(
-                              label: '계정 만들기',
-                              isPrimary: true,
-                              onTap: () => Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => const SignUpScreen(),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            _GlassButton(
-                              label: '로그인',
-                              isPrimary: false,
-                              onTap: () => Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => const LoginScreen(),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
+                  // 하단 여백
+                  const Spacer(flex: 20),
                 ],
               ),
             ),
@@ -150,9 +142,6 @@ class _LandingScreenState extends ConsumerState<LandingScreen>
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────
-// 별빛 배경 — 밀도 높임, 크기 다양화
-// ─────────────────────────────────────────────────────────────────────
 class _StarField extends StatefulWidget {
   const _StarField();
 
@@ -193,29 +182,21 @@ class _StarPainter extends CustomPainter {
   final double t;
   _StarPainter(this.t);
 
-  // 350개 별 — 대부분 매우 작음
   static final List<List<double>> _stars = () {
     final rng = math.Random(42);
     return List.generate(350, (i) {
-      // 앞 300개: 매우 작은 별 (0.3~1.0)
-      // 나머지 50개: 밝은 별 (1.0~2.2)
       final isBright = i >= 300;
       return [
         rng.nextDouble(),
         rng.nextDouble(),
-        isBright
-            ? rng.nextDouble() * 1.2 + 1.0
-            : rng.nextDouble() * 0.7 + 0.3,
-        isBright
-            ? rng.nextDouble() * 0.4 + 0.6
-            : rng.nextDouble() * 0.5 + 0.2,
+        isBright ? rng.nextDouble() * 1.2 + 1.0 : rng.nextDouble() * 0.7 + 0.3,
+        isBright ? rng.nextDouble() * 0.4 + 0.6 : rng.nextDouble() * 0.5 + 0.2,
       ];
     });
   }();
 
   @override
   void paint(Canvas canvas, Size size) {
-    // 딥 네이비 배경
     final bg = Paint()
       ..shader = const LinearGradient(
         begin: Alignment.topCenter,
@@ -231,8 +212,8 @@ class _StarPainter extends CustomPainter {
       final r = s[2];
       final base = s[3];
       final phase = (x * 0.7 + y * 0.3) / (size.width + size.height);
-      final alpha =
-          (base * (0.5 + 0.5 * math.sin((t + phase) * math.pi))).clamp(0.0, 1.0);
+      final alpha = (base * (0.5 + 0.5 * math.sin((t + phase) * math.pi)))
+          .clamp(0.0, 1.0);
       final paint = Paint()
         ..color = Colors.white.withOpacity(alpha)
         ..maskFilter = r > 1.2
@@ -246,16 +227,12 @@ class _StarPainter extends CustomPainter {
   bool shouldRepaint(_StarPainter o) => o.t != t;
 }
 
-// ─────────────────────────────────────────────────────────────────────
-// 다중 블루 글로우
-// ─────────────────────────────────────────────────────────────────────
 class _GlowPainter extends CustomPainter {
   final double a;
   _GlowPainter(this.a);
 
   @override
   void paint(Canvas canvas, Size size) {
-    // 1차 글로우 — 로고 뒤 (상단 38%)
     _drawGlow(
       canvas,
       center: Offset(size.width / 2, size.height * 0.38),
@@ -264,8 +241,6 @@ class _GlowPainter extends CustomPainter {
       innerColor: const Color(0xFF1A5FD4),
       outerColor: const Color(0xFF0C2E7A),
     );
-
-    // 2차 글로우 — 하단 버튼 영역 (하단 78%)
     _drawGlow(
       canvas,
       center: Offset(size.width / 2, size.height * 0.78),
@@ -300,9 +275,6 @@ class _GlowPainter extends CustomPainter {
   bool shouldRepaint(_GlowPainter o) => o.a != a;
 }
 
-// ─────────────────────────────────────────────────────────────────────
-// 글래스모피즘 버튼 — BackdropFilter 포함
-// ─────────────────────────────────────────────────────────────────────
 class _GlassButton extends StatelessWidget {
   final String label;
   final bool isPrimary;
@@ -340,10 +312,7 @@ class _GlassButton extends StatelessWidget {
             decoration: BoxDecoration(
               gradient: _gradient,
               borderRadius: BorderRadius.circular(9999),
-              border: Border.all(
-                color: const Color(0x26FFFFFF),
-                width: 0.612,
-              ),
+              border: Border.all(color: const Color(0x26FFFFFF), width: 0.612),
               boxShadow: const [
                 BoxShadow(
                   color: Color(0x26000000),

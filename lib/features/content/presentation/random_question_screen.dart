@@ -82,7 +82,6 @@ class _RefreshIconPainter extends CustomPainter {
       ..strokeWidth = 1.66663 * r
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
-
     final top = Path();
     top.moveTo(2.5 * r, 10 * r);
     top.cubicTo(2.5 * r, 8.011 * r, 3.29 * r, 6.103 * r, 4.697 * r, 4.697 * r);
@@ -97,14 +96,12 @@ class _RefreshIconPainter extends CustomPainter {
     );
     top.lineTo(17.5 * r, 6.667 * r);
     canvas.drawPath(top, p);
-
     canvas.drawLine(Offset(17.5 * r, 2.5 * r), Offset(17.5 * r, 6.667 * r), p);
     canvas.drawLine(
       Offset(17.5 * r, 6.667 * r),
       Offset(13.333 * r, 6.667 * r),
       p,
     );
-
     final bottom = Path();
     bottom.moveTo(17.5 * r, 10 * r);
     bottom.cubicTo(
@@ -133,7 +130,6 @@ class _RefreshIconPainter extends CustomPainter {
     );
     bottom.lineTo(2.5 * r, 13.333 * r);
     canvas.drawPath(bottom, p);
-
     canvas.drawLine(
       Offset(6.667 * r, 13.333 * r),
       Offset(2.5 * r, 13.333 * r),
@@ -206,7 +202,6 @@ class _SparkleIconPainter extends CustomPainter {
       ..strokeWidth = 1.66663 * r
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
-
     final star = Path()
       ..moveTo(8.281 * r, 12.916 * r)
       ..cubicTo(
@@ -403,7 +398,6 @@ class _SparkleIconPainter extends CustomPainter {
       )
       ..close();
     canvas.drawPath(star, p);
-
     canvas.drawLine(
       Offset(16.666 * r, 2.5 * r),
       Offset(16.666 * r, 5.833 * r),
@@ -436,7 +430,6 @@ class _AnswerSparkleIconPainter extends CustomPainter {
       ..strokeWidth = 1.33264 * r
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
-
     final star = Path()
       ..moveTo(6.621 * r, 10.328 * r)
       ..cubicTo(
@@ -640,7 +633,6 @@ class _AnswerSparkleIconPainter extends CustomPainter {
       )
       ..close();
     canvas.drawPath(star, p);
-
     canvas.drawLine(
       Offset(13.326 * r, 1.999 * r),
       Offset(13.326 * r, 4.664 * r),
@@ -692,9 +684,7 @@ class _AnimatedQuestionCardState extends State<_AnimatedQuestionCard>
     );
     _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeIn);
     _displayText = widget.text;
-    if (_displayText != null) {
-      _ctrl.forward();
-    }
+    if (_displayText != null) _ctrl.forward();
   }
 
   @override
@@ -702,9 +692,7 @@ class _AnimatedQuestionCardState extends State<_AnimatedQuestionCard>
     super.didUpdateWidget(oldWidget);
     if (oldWidget.text != widget.text && widget.text != null) {
       _ctrl.reverse().then((_) {
-        if (mounted) {
-          setState(() => _displayText = widget.text);
-        }
+        if (mounted) setState(() => _displayText = widget.text);
         _ctrl.forward();
       });
     }
@@ -829,9 +817,7 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
     required NatalChart? friendChart,
     required SynastryResult? synastry,
   }) async {
-    if (_isGeneratingQuestion) {
-      return;
-    }
+    if (_isGeneratingQuestion) return;
     if (_selectedFriendUid == null) {
       ScaffoldMessenger.of(
         context,
@@ -844,12 +830,10 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
       ).showSnackBar(const SnackBar(content: Text('로그인 정보를 다시 확인해주세요.')));
       return;
     }
-
     setState(() {
       _isGeneratingQuestion = true;
       _showAnswer = false;
     });
-
     try {
       final myChartVersion =
           ref.read(currentBirthInfoProvider)?.chartVersion ??
@@ -871,18 +855,12 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
             friendChart: friendChart,
             synastry: synastry,
           );
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       setState(() {
         _session = session;
         _hasRequestedQuestion = true;
         _shouldBypassSessionReuse = false;
       });
-
-      // ── [DEV] 로컬 fallback 토스트 ──────────────────────────────────────
-      // AI 생성 실패 시(키 오류·quota 초과 등) 로컬 질문으로 대체됐음을 알림.
-      // 운영 배포 전 아래 블록 전체를 주석 처리하거나 삭제하세요.
       if (Env.aiRemoteEnabled && !session.isRemoteAi) {
         ScaffoldMessenger.of(this.context).showSnackBar(
           const SnackBar(
@@ -891,12 +869,8 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
           ),
         );
       }
-      // ── [DEV] 토스트 끝 ─────────────────────────────────────────────────
-
     } catch (e) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       final message = e is AiQuotaExceededException
           ? 'AI 사용량이 초과되어 기본 결과를 보여드릴게요.'
           : '질문을 생성하지 못했어요.';
@@ -904,9 +878,7 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
         this.context,
       ).showSnackBar(SnackBar(content: Text(message)));
     } finally {
-      if (mounted) {
-        setState(() => _isGeneratingQuestion = false);
-      }
+      if (mounted) setState(() => _isGeneratingQuestion = false);
     }
   }
 
@@ -920,17 +892,12 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
     required SynastryResult? synastry,
   }) async {
     final session = _session;
-    if (session == null || _isGeneratingAnswer) {
-      return;
-    }
-
+    if (session == null || _isGeneratingAnswer) return;
     if (session.hasAnswer) {
       setState(() => _showAnswer = true);
       return;
     }
-
     setState(() => _isGeneratingAnswer = true);
-
     try {
       final updated = await ref
           .read(randomQuestionSessionRepositoryProvider)
@@ -943,17 +910,13 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
             friendChart: friendChart,
             synastry: synastry,
           );
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       setState(() {
         _session = updated;
         _showAnswer = true;
       });
     } catch (e) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       final message = e is AiQuotaExceededException
           ? 'AI 사용량이 초과되어 기본 결과를 보여드릴게요.'
           : '답변을 생성하지 못했어요.';
@@ -961,9 +924,7 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
         this.context,
       ).showSnackBar(SnackBar(content: Text(message)));
     } finally {
-      if (mounted) {
-        setState(() => _isGeneratingAnswer = false);
-      }
+      if (mounted) setState(() => _isGeneratingAnswer = false);
     }
   }
 
@@ -980,9 +941,7 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
     try {
       await Share.share(text, subject: item.prompt);
     } catch (_) {
-      if (!context.mounted) {
-        return;
-      }
+      if (!context.mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('공유를 지원하지 않는 환경이에요.')));
@@ -995,9 +954,7 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
       final changed =
           previous?.chartVersion != next?.chartVersion ||
           previous?.nickname != next?.nickname;
-      if (!changed || !mounted) {
-        return;
-      }
+      if (!changed || !mounted) return;
       setState(() {
         _session = null;
         _showAnswer = false;
@@ -1006,9 +963,7 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
       });
     });
     ref.listen<String?>(myNicknameProvider, (previous, next) {
-      if (previous == next || !mounted) {
-        return;
-      }
+      if (previous == next || !mounted) return;
       setState(() {
         _session = null;
         _showAnswer = false;
@@ -1152,7 +1107,6 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
         ? ref.watch(userProfileByIdProvider(selectedFriend.uid))
         : const AsyncValue<UserProfile?>.data(null);
     final friendBirth = friendProfileAsync.valueOrNull?.birthInfo;
-
     final friendChartAsync =
         (aiEnabled && hasSelectedFriend && friendBirth != null)
         ? ref.watch(
@@ -1254,15 +1208,13 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
                             ),
                           ),
                       ],
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedFriendUid = value;
-                          _hasRequestedQuestion = false;
-                          _shouldBypassSessionReuse = false;
-                          _showAnswer = false;
-                          _session = null;
-                        });
-                      },
+                      onChanged: (value) => setState(() {
+                        _selectedFriendUid = value;
+                        _hasRequestedQuestion = false;
+                        _shouldBypassSessionReuse = false;
+                        _showAnswer = false;
+                        _session = null;
+                      }),
                     ),
                   ),
                 ),
@@ -1599,13 +1551,9 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
 
   Friend? _resolveSelectedFriend(List<Friend> friends) {
     final uid = _selectedFriendUid;
-    if (uid == null) {
-      return null;
-    }
+    if (uid == null) return null;
     for (final friend in friends) {
-      if (friend.uid == uid) {
-        return friend;
-      }
+      if (friend.uid == uid) return friend;
     }
     return null;
   }
@@ -1613,8 +1561,6 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
 
 String _signLabel(String sign) {
   final normalized = sign.trim().toLowerCase();
-  if (normalized.isEmpty || normalized == '-') {
-    return '별자리 미확인';
-  }
+  if (normalized.isEmpty || normalized == '-') return '별자리 미확인';
   return zodiacNameKo(sign);
 }

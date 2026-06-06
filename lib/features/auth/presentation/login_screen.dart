@@ -1,4 +1,4 @@
-// lib/features/auth/presentation/login_screen.dart
+﻿// lib/features/auth/presentation/login_screen.dart
 //
 // 로그인 화면 — Figma 로그인(Screen 5) 기준
 // 비밀번호 찾기/재설정 기능 제거됨 (서비스 범위 외)
@@ -118,10 +118,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       colors: [Color(0xFF51A2FF), Color(0xFF155DFC)],
                     ),
                     boxShadow: [
-                      BoxShadow(
-                        color: const Color(0x4D3B82F6),
-                        blurRadius: 10,
-                      ),
+                      BoxShadow(color: const Color(0x4D3B82F6), blurRadius: 10),
                     ],
                   ),
                   child: Center(
@@ -143,7 +140,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 const SizedBox(height: 4),
                 const Text(
-                  'Stellara에 다시 오신 것을 환영합니다',
+                  'Stellarara에 다시 오신 것을 환영합니다',
                   style: TextStyle(
                     color: Color(0xFF8EC5FF),
                     fontSize: 12,
@@ -391,6 +388,7 @@ class _GlassInput extends StatelessWidget {
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
           focusedBorder: InputBorder.none,
+          filled: false,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 16,
             vertical: 14,
@@ -427,10 +425,7 @@ class _GlassPrimaryButton extends StatelessWidget {
             colors: [Color(0x662B7FFF), Color(0x40155DFC)],
           ),
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: const Color(0x26FFFFFF),
-            width: 0.612,
-          ),
+          border: Border.all(color: const Color(0x26FFFFFF), width: 0.612),
           boxShadow: _glassBoxShadow,
         ),
         child: Center(

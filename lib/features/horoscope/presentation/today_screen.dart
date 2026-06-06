@@ -1,4 +1,4 @@
-// lib/features/horoscope/presentation/today_screen.dart
+﻿// lib/features/horoscope/presentation/today_screen.dart
 
 import 'dart:math' as math;
 
@@ -25,10 +25,7 @@ class _C {
 }
 
 class _GlassCard extends StatelessWidget {
-  const _GlassCard({
-    required this.child,
-    this.padding,
-  });
+  const _GlassCard({required this.child, this.padding});
 
   final Widget child;
   final EdgeInsetsGeometry? padding;
@@ -41,75 +38,11 @@ class _GlassCard extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: _C.cardBorder, width: 1),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [_C.glassStart, _C.glassEnd],
-        ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x26000000),
-            blurRadius: 20,
-            offset: Offset(0, 8),
-          ),
-          BoxShadow(
-            color: Color(0x801E3A8A),
-            blurRadius: 40,
-            offset: Offset(0, 16),
-          ),
-        ],
+        color: Colors.transparent,
       ),
       child: child,
     );
   }
-}
-
-class _ShareAccentPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final r = size.width / 20;
-    final p = Paint()
-      ..color = _C.accent
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.66663 * r
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    canvas.drawCircle(Offset(15.0 * r, 4.166 * r), 2.5 * r, p);
-    canvas.drawCircle(Offset(5.0 * r, 10.0 * r), 2.5 * r, p);
-    canvas.drawCircle(Offset(15.0 * r, 15.833 * r), 2.5 * r, p);
-    canvas.drawLine(
-      Offset(7.158 * r, 11.258 * r),
-      Offset(12.850 * r, 14.574 * r),
-      p,
-    );
-    canvas.drawLine(
-      Offset(12.841 * r, 5.425 * r),
-      Offset(7.158 * r, 8.741 * r),
-      p,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_) => false;
-}
-
-class _ClockPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final r = size.width / 16;
-    final p = Paint()
-      ..color = _C.accent
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.33264 * r
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    canvas.drawCircle(Offset(8 * r, 8 * r), 6.663 * r, p);
-    canvas.drawLine(Offset(8 * r, 4 * r), Offset(8 * r, 8 * r), p);
-    canvas.drawLine(Offset(8 * r, 8 * r), Offset(10.661 * r, 9.329 * r), p);
-  }
-
-  @override
-  bool shouldRepaint(_) => false;
 }
 
 class _StarPainter extends CustomPainter {
@@ -169,6 +102,25 @@ class _ShareWhitePainter extends CustomPainter {
       Offset(7.158 * r, 8.741 * r),
       p,
     );
+  }
+
+  @override
+  bool shouldRepaint(_) => false;
+}
+
+class _ClockPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final r = size.width / 16;
+    final p = Paint()
+      ..color = _C.accent
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.33264 * r
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    canvas.drawCircle(Offset(8 * r, 8 * r), 6.663 * r, p);
+    canvas.drawLine(Offset(8 * r, 4 * r), Offset(8 * r, 8 * r), p);
+    canvas.drawLine(Offset(8 * r, 8 * r), Offset(10.661 * r, 9.329 * r), p);
   }
 
   @override
@@ -240,80 +192,39 @@ class _HoroscopeBody extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 24),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+          // ── 헤더 (공유 버튼 제거) ──
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      '오늘의 운세',
-                      style: TextStyle(
-                        color: _C.white,
-                        fontSize: 30,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: -0.2,
-                        fontFamily: 'Pretendard',
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CustomPaint(painter: _ClockPainter()),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          dateStr,
-                          style: const TextStyle(
-                            color: _C.accent,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            fontFamily: 'Pretendard',
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+              const Text(
+                '오늘의 운세',
+                style: TextStyle(
+                  color: _C.white,
+                  fontSize: 30,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.2,
+                  fontFamily: 'Pretendard',
                 ),
               ),
-              GestureDetector(
-                onTap: () => _share(context, horoscope),
-                child: Container(
-                  width: 37,
-                  height: 37,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(28),
-                    border: Border.all(color: _C.headerBorder, width: 1),
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0x1AFFFFFF), Color(0x0DFFFFFF)],
-                    ),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x26000000),
-                        blurRadius: 4,
-                        offset: Offset(0, 4),
-                      ),
-                      BoxShadow(
-                        color: Color(0x801E3A8A),
-                        blurRadius: 20,
-                        offset: Offset(0, 5),
-                      ),
-                    ],
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CustomPaint(painter: _ClockPainter()),
                   ),
-                  child: Center(
-                    child: SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CustomPaint(painter: _ShareAccentPainter()),
+                  const SizedBox(width: 6),
+                  Text(
+                    dateStr,
+                    style: const TextStyle(
+                      color: _C.accent,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      fontFamily: 'Pretendard',
                     ),
                   ),
-                ),
+                ],
               ),
             ],
           ),
@@ -405,6 +316,7 @@ class _HoroscopeBody extends StatelessWidget {
             _LuckyCard(label: '장소', value: horoscope.luckyPlace!.trim()),
           ],
           const SizedBox(height: 28),
+          // ── SNS 공유 버튼 ──
           GestureDetector(
             onTap: () => _share(context, horoscope),
             child: Container(
@@ -460,9 +372,7 @@ class _HoroscopeBody extends StatelessWidget {
   }
 
   String _luckyNumbers(List<int> numbers) {
-    if (numbers.isEmpty) {
-      return '-';
-    }
+    if (numbers.isEmpty) return '-';
     return numbers.join(', ');
   }
 

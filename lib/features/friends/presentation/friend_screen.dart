@@ -42,11 +42,8 @@ class FriendScreen extends ConsumerStatefulWidget {
 
 class _FriendScreenState extends ConsumerState<FriendScreen> {
   _FriendTab _tab = _FriendTab.friends;
-
-  // 친구 목록 로컬 필터용 검색어
   String _searchQuery = '';
 
-  // ── 친구 요청 수락 ──────────────────────────────────────────────
   Future<void> _acceptRequest(FriendRequest request) async {
     final uid =
         ref.read(currentUserProfileProvider).valueOrNull?.uid ??
@@ -77,7 +74,6 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
     }
   }
 
-  // ── 친구 요청 거절 ──────────────────────────────────────────────
   Future<void> _rejectRequest(FriendRequest request) async {
     try {
       await ref.read(friendRepositoryProvider).rejectRequest(request.requestId);
@@ -96,7 +92,6 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
     }
   }
 
-  // ── 즐겨찾기 토글 ──────────────────────────────────────────────
   Future<void> _toggleFavorite(Friend friend) async {
     try {
       await ref.read(toggleFavoriteProvider(friend).future);
@@ -119,7 +114,6 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
     final requestCount = requestsAsync.valueOrNull?.length ?? 0;
     final allRequests = requestsAsync.valueOrNull ?? <FriendRequest>[];
 
-    // 검색 필터 적용
     final filteredFriends = _searchQuery.isEmpty
         ? allFriends
         : allFriends.where((f) => f.nickname.contains(_searchQuery)).toList();
@@ -137,7 +131,7 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
         body: SafeArea(
           child: Column(
             children: [
-              // ── 헤더 ───────────────────────────────────────────
+              // ── 헤더만 고정 ────────────────────────────────────
               Padding(
                 padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
                 child: Row(
@@ -158,58 +152,55 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
                   ],
                 ),
               ),
-              // ── 검색창 ─────────────────────────────────────────
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-                child: _SearchField(
-                  onChanged: (v) => setState(() => _searchQuery = v.trim()),
-                ),
-              ),
-              // ── 탭 ─────────────────────────────────────────────
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
-                child: Container(
-                  padding: const EdgeInsets.all(4.634),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0x14FFFFFF), Color(0x08FFFFFF)],
-                    ),
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(
-                      color: const Color(0x1FFFFFFF),
-                      width: 0.636,
-                    ),
-                    boxShadow: _glassBoxShadow,
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _TabButton(
-                          label: '내 친구 (${allFriends.length})',
-                          isSelected: _tab == _FriendTab.friends,
-                          onTap: () =>
-                              setState(() => _tab = _FriendTab.friends),
-                        ),
-                      ),
-                      Expanded(
-                        child: _TabButton(
-                          label: '받은 요청 ($requestCount)',
-                          isSelected: _tab == _FriendTab.received,
-                          onTap: () =>
-                              setState(() => _tab = _FriendTab.received),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              // ── 리스트 ─────────────────────────────────────────
+              // ── 검색창 + 탭 + 리스트 모두 스크롤 ──────────────
               Expanded(
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
                   children: [
+                    // 검색창
+                    _SearchField(
+                      onChanged: (v) => setState(() => _searchQuery = v.trim()),
+                    ),
+                    const SizedBox(height: 16),
+                    // 탭
+                    Container(
+                      padding: const EdgeInsets.all(4.634),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Color(0x14FFFFFF), Color(0x08FFFFFF)],
+                        ),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: const Color(0x1FFFFFFF),
+                          width: 0.636,
+                        ),
+                        boxShadow: _glassBoxShadow,
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: _TabButton(
+                              label: '내 친구 (${allFriends.length})',
+                              isSelected: _tab == _FriendTab.friends,
+                              onTap: () =>
+                                  setState(() => _tab = _FriendTab.friends),
+                            ),
+                          ),
+                          Expanded(
+                            child: _TabButton(
+                              label: '받은 요청 ($requestCount)',
+                              isSelected: _tab == _FriendTab.received,
+                              onTap: () =>
+                                  setState(() => _tab = _FriendTab.received),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    // ── 친구 탭 ──────────────────────────────────
                     if (_tab == _FriendTab.friends) ...[
                       if (allFriends.isNotEmpty)
                         Padding(
@@ -263,6 +254,7 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
                               ),
                       ),
                     ] else ...[
+                      // ── 받은 요청 탭 ──────────────────────────
                       requestsAsync.when(
                         loading: () => const SizedBox(
                           height: 120,
@@ -417,10 +409,7 @@ class _FriendRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          _GlassPillButton(
-            label: '궁합 보기',
-            onTap: onMatch,
-          ),
+          _GlassPillButton(label: '궁합 보기', onTap: onMatch),
         ],
       ),
     );
@@ -475,7 +464,6 @@ class _RequestCard extends StatelessWidget {
                   ],
                 ),
               ),
-              // 시간 표시 (X시간 전 / X일 전)
               if (request.createdAt != null)
                 Text(
                   _timeAgo(request.createdAt!),
@@ -577,12 +565,7 @@ class _InitialAvatar extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [Color(0xFF51A2FF), Color(0xFF155DFC)],
         ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x4D3B82F6),
-            blurRadius: 7.5,
-          ),
-        ],
+        boxShadow: const [BoxShadow(color: Color(0x4D3B82F6), blurRadius: 7.5)],
       ),
       child: Text(
         initial,
@@ -608,27 +591,19 @@ class _RoundBackButton extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(999),
         child: Container(
-          width: 37,
-          height: 37,
+          width: 48,
+          height: 48,
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0x1AFFFFFF), Color(0x0DFFFFFF)],
-            ),
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(
-              color: const Color(0x26FFFFFF),
-              width: 0.636,
-            ),
-            boxShadow: _glassBoxShadow,
+            shape: BoxShape.circle,
+            color: Colors.transparent,
+            border: Border.all(color: const Color(0x33FFFFFF), width: 0.636),
           ),
           child: const Icon(
-            Icons.arrow_back_ios_new_rounded,
-            color: Colors.white,
-            size: 16,
+            Icons.arrow_back_rounded,
+            color: Color(0xFF8EC5FF),
+            size: 22,
           ),
         ),
       ),
@@ -652,10 +627,7 @@ class _SearchField extends StatelessWidget {
           colors: [Color(0x14FFFFFF), Color(0x08FFFFFF)],
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0x1FFFFFFF),
-          width: 0.636,
-        ),
+        border: Border.all(color: const Color(0x1FFFFFFF), width: 0.636),
         boxShadow: _glassBoxShadow,
       ),
       child: Row(
@@ -741,10 +713,7 @@ class _CircleActionButton extends StatelessWidget {
               colors: [Color(0x14FFFFFF), Color(0x08FFFFFF)],
             ),
             shape: BoxShape.circle,
-            border: Border.all(
-              color: const Color(0x1AFFFFFF),
-              width: 0.636,
-            ),
+            border: Border.all(color: const Color(0x1AFFFFFF), width: 0.636),
           ),
           child: Center(child: child),
         ),
@@ -754,10 +723,7 @@ class _CircleActionButton extends StatelessWidget {
 }
 
 class _GlassPillButton extends StatelessWidget {
-  const _GlassPillButton({
-    required this.label,
-    required this.onTap,
-  });
+  const _GlassPillButton({required this.label, required this.onTap});
 
   final String label;
   final VoidCallback onTap;
@@ -778,10 +744,7 @@ class _GlassPillButton extends StatelessWidget {
               colors: [Color(0x4D2B7FFF), Color(0x4D155DFC)],
             ),
             borderRadius: BorderRadius.circular(999),
-            border: Border.all(
-              color: const Color(0x26FFFFFF),
-              width: 0.636,
-            ),
+            border: Border.all(color: const Color(0x26FFFFFF), width: 0.636),
             boxShadow: _glassBoxShadow,
           ),
           child: Text(
@@ -834,10 +797,7 @@ class _GlassActionButton extends StatelessWidget {
                     colors: [Color(0x1AFFFFFF), Color(0x0DFFFFFF)],
                   ),
             borderRadius: BorderRadius.circular(999),
-            border: Border.all(
-              color: const Color(0x26FFFFFF),
-              width: 0.636,
-            ),
+            border: Border.all(color: const Color(0x26FFFFFF), width: 0.636),
             boxShadow: _glassBoxShadow,
           ),
           child: Row(
@@ -862,7 +822,6 @@ class _GlassActionButton extends StatelessWidget {
   }
 }
 
-/// 상대 시간 표시 (예: "2시간 전", "1일 전")
 String _timeAgo(DateTime dt) {
   final diff = DateTime.now().difference(dt);
   if (diff.inMinutes < 1) return '방금 전';

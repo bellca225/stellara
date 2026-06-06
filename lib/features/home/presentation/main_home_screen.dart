@@ -75,13 +75,13 @@ class _MainHomeContent extends ConsumerWidget {
         140,
       ),
       children: [
-        const SizedBox(height: AppSpacing.sm),
+        const SizedBox(height: 35),
         Text(
           '나의 우주',
           textAlign: TextAlign.center,
           style: Theme.of(
             context,
-          ).textTheme.headlineMedium?.copyWith(fontSize: 26),
+          ).textTheme.headlineMedium?.copyWith(fontSize: 35),
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(
@@ -103,6 +103,9 @@ class _MainHomeContent extends ConsumerWidget {
           ).push(MaterialPageRoute(builder: (_) => const FriendScreen())),
         ),
         const SizedBox(height: AppSpacing.xl),
+        const SizedBox(height: 15),
+
+        // ── 친구 목록 버튼 ──
         InkWell(
           borderRadius: BorderRadius.circular(999),
           onTap: () => Navigator.of(
@@ -114,10 +117,10 @@ class _MainHomeContent extends ConsumerWidget {
               gradient: const LinearGradient(
                 begin: Alignment.centerLeft,
                 end: Alignment.centerRight,
-                colors: [Color(0x662B7FFF), Color(0x40155DFC)],
+                colors: [Color(0x332B7FFF), Color(0x20155DFC)],
               ),
               borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: Color(0x26FFFFFF), width: 0.636),
+              border: Border.all(color: const Color(0x26FFFFFF), width: 0.636),
               boxShadow: _glassBoxShadow,
             ),
             child: const Row(
@@ -138,23 +141,32 @@ class _MainHomeContent extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.lg),
+
+        // ── Big 3 카드 ──
         Container(
           padding: const EdgeInsets.all(AppSpacing.lg),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0x14FFFFFF), Color(0x08FFFFFF)],
-            ),
+            color: Colors.transparent,
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Color(0x1EFFFFFF), width: 0.636),
-            boxShadow: _glassBoxShadow,
+            border: Border.all(color: const Color(0x26FFFFFF), width: 0.636),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x26000000),
+                blurRadius: 4,
+                offset: Offset(0, 4),
+              ),
+              BoxShadow(
+                color: Color(0x401E3A8A),
+                blurRadius: 20,
+                offset: Offset(0, 5),
+              ),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                '나의 Big 3',
+                'Big 3',
                 style: TextStyle(
                   color: Color(0xFF8EC5FF),
                   fontSize: 14,
@@ -179,14 +191,12 @@ class _MainHomeContent extends ConsumerWidget {
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 9),
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0x1AFFFFFF), Color(0x0DFFFFFF)],
-                    ),
+                    color: Colors.transparent,
                     borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: Color(0x26FFFFFF), width: 0.636),
-                    boxShadow: _glassBoxShadow,
+                    border: Border.all(
+                      color: const Color(0x33FFFFFF),
+                      width: 0.636,
+                    ),
                   ),
                   child: const Center(
                     child: Text(
@@ -254,9 +264,8 @@ class _OrbitPreviewState extends State<_OrbitPreview>
     return minRadius + (maxRadius - minRadius) / (total - 1) * index;
   }
 
-  static double _speedFor(int index) {
-    return _speedMultipliers[index % _speedMultipliers.length];
-  }
+  static double _speedFor(int index) =>
+      _speedMultipliers[index % _speedMultipliers.length];
 
   @override
   void initState() {
@@ -280,7 +289,6 @@ class _OrbitPreviewState extends State<_OrbitPreview>
         final size = math.min(constraints.maxWidth, 360.0);
         final cx = size / 2;
         final cy = size / 2;
-
         final visible = widget.favorites.take(_maxVisible).toList();
 
         return AnimatedBuilder(
@@ -433,10 +441,10 @@ class _SunBubble extends StatelessWidget {
       child: Container(
         width: diameter,
         height: diameter,
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           shape: BoxShape.circle,
-          color: const Color(0xFFFFCC44),
-          boxShadow: const [
+          color: Color(0xFFFFCC44),
+          boxShadow: [
             BoxShadow(
               color: Color(0x88FFCC44),
               blurRadius: 16,
@@ -502,10 +510,10 @@ class _SignChip extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0x14FFFFFF), Color(0x08FFFFFF)],
+          colors: [Color(0x06FFFFFF), Color(0x03FFFFFF)],
         ),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Color(0x1EFFFFFF), width: 0.636),
+        border: Border.all(color: const Color(0x1EFFFFFF), width: 0.636),
         boxShadow: const [
           BoxShadow(
             color: Color(0x26000000),

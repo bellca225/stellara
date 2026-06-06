@@ -233,8 +233,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             longitude = place.longitude;
             placeName = place.placeName;
             if (kDebugMode) {
-              print('[Onboarding] 장소 변환 성공: "$placeQuery" → '
-                  'lat=${place.latitude}, lng=${place.longitude}');
+              print(
+                '[Onboarding] 장소 변환 성공: "$placeQuery" → '
+                'lat=${place.latitude}, lng=${place.longitude}',
+              );
             }
           case PlaceResolutionFailure(:final kind):
             setState(() => _error = _placeErrorMessage(kind));
@@ -245,16 +247,21 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         longitude = 126.9780;
         placeName = placeQuery;
         if (kDebugMode) {
-          print('[Onboarding] geocoding 미지원 → 서울 fallback, placeName="$placeQuery"');
+          print(
+            '[Onboarding] geocoding 미지원 → 서울 fallback, placeName="$placeQuery"',
+          );
         }
       }
 
       final enteredName = _nameCtrl.text.trim();
       final displayName = enteredName.isNotEmpty
           ? enteredName
-          : (ref.read(currentUserProfileProvider).valueOrNull?.effectiveDisplayName ??
-              ref.read(currentUserProvider)?.effectiveDisplayName ??
-              '별자리');
+          : (ref
+                    .read(currentUserProfileProvider)
+                    .valueOrNull
+                    ?.effectiveDisplayName ??
+                ref.read(currentUserProvider)?.effectiveDisplayName ??
+                '별자리');
 
       final birth = BirthInfo(
         nickname: displayName,
@@ -269,19 +276,22 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         print('[Onboarding] 저장할 BirthInfo: ${birth.chartVersion}');
       }
 
-      final uid = ref.read(currentUserProvider)?.uid ??
+      final uid =
+          ref.read(currentUserProvider)?.uid ??
           ref.read(currentUserIdProvider).valueOrNull;
       if (uid == null) {
         setState(() => _error = '로그인 정보를 찾을 수 없어요. 앱을 재시작해주세요.');
         return;
       }
 
-      await ref.read(userRepositoryProvider).upsertBirthInfo(
-        uid: uid,
-        birthInfo: birth,
-        nickname: displayName,
-        displayName: displayName,
-      );
+      await ref
+          .read(userRepositoryProvider)
+          .upsertBirthInfo(
+            uid: uid,
+            birthInfo: birth,
+            nickname: displayName,
+            displayName: displayName,
+          );
 
       try {
         // ignore: deprecated_member_use
@@ -303,9 +313,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       if (widget.isEditing) {
         Navigator.of(context).pop(true);
       } else {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const AppShell()),
-        );
+        Navigator.of(
+          context,
+        ).pushReplacement(MaterialPageRoute(builder: (_) => const AppShell()));
       }
     } on FormatException {
       setState(() => _error = '입력값을 다시 확인해주세요.');
@@ -371,32 +381,31 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     Navigator.of(context).pop(false);
   }
 
-  // ── 진행바 (Step X / 4) ─────────────────────────────────────────
+  // ── 진행바 (4개 세그먼트) ────────────────────────────────────────
   Widget _buildProgressBar() {
     final totalSteps = widget.isEditing ? 3 : 4;
-    final currentFill = widget.isEditing ? _step : _step + 1;
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return Container(
-          height: 2,
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(999),
-          ),
-          child: FractionallySizedBox(
-            alignment: Alignment.centerLeft,
-            widthFactor: (currentFill / totalSteps).clamp(0.0, 1.0),
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF51A2FF), Color(0xFF155DFC)],
-                ),
-                borderRadius: BorderRadius.circular(999),
-              ),
+    final filledSteps = widget.isEditing ? _step : _step + 1;
+
+    return Row(
+      children: List.generate(totalSteps, (index) {
+        final isFilled = index < filledSteps;
+        final isLast = index == totalSteps - 1;
+        return Expanded(
+          child: Container(
+            margin: EdgeInsets.only(right: isLast ? 0 : 4),
+            height: 2,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(999),
+              gradient: isFilled
+                  ? const LinearGradient(
+                      colors: [Color(0xFF51A2FF), Color(0xFF155DFC)],
+                    )
+                  : null,
+              color: isFilled ? null : Colors.white.withValues(alpha: 0.12),
             ),
           ),
         );
-      },
+      }),
     );
   }
 
@@ -404,16 +413,23 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   IconData get _stepIcon {
     if (widget.isEditing) {
       switch (_step) {
-        case 1: return Icons.calendar_today_outlined;
-        case 2: return Icons.access_time_outlined;
-        default: return Icons.location_on_outlined;
+        case 1:
+          return Icons.calendar_today_outlined;
+        case 2:
+          return Icons.access_time_outlined;
+        default:
+          return Icons.location_on_outlined;
       }
     }
     switch (_step) {
-      case 0: return Icons.person_outline_rounded;
-      case 1: return Icons.calendar_today_outlined;
-      case 2: return Icons.access_time_outlined;
-      default: return Icons.location_on_outlined;
+      case 0:
+        return Icons.person_outline_rounded;
+      case 1:
+        return Icons.calendar_today_outlined;
+      case 2:
+        return Icons.access_time_outlined;
+      default:
+        return Icons.location_on_outlined;
     }
   }
 
@@ -512,9 +528,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 16),
 
-                  // ── 진행 바 ──────────────────────────────────────
+                  // ── 진행 바 (4 세그먼트) ─────────────────────────
                   _buildProgressBar(),
 
                   const SizedBox(height: 32),
@@ -593,10 +609,10 @@ class _StepCard extends StatelessWidget {
         boxShadow: _glassBoxShadow,
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // 질문 제목
+          // 질문 제목 — center 정렬
           Text(
             _title,
             textAlign: TextAlign.center,
@@ -604,22 +620,21 @@ class _StepCard extends StatelessWidget {
               color: Colors.white,
               fontSize: 20,
               fontWeight: FontWeight.w600,
+              height: 28 / 20,
               letterSpacing: -0.2,
             ),
           ),
           const SizedBox(height: 8),
 
-          // 부제목
-          SizedBox(
-            width: double.infinity,
-            child: Text(
-              _subtitle,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Color(0xFF8EC5FF),
-                fontSize: 12,
-                letterSpacing: -0.2,
-              ),
+          // 부제목 — center 정렬
+          Text(
+            _subtitle,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Color(0xFF8EC5FF),
+              fontSize: 12,
+              height: 16 / 12,
+              letterSpacing: -0.2,
             ),
           ),
 
@@ -631,7 +646,7 @@ class _StepCard extends StatelessWidget {
             const SizedBox(height: 8),
             _GlassTextInput(
               controller: nameCtrl,
-              hintText: '예: 별이, 나영, 김별',
+              hintText: '',
               autofocus: true,
               maxLength: 20,
               errorText: nameError,
@@ -683,10 +698,6 @@ class _StepCard extends StatelessWidget {
             ),
             if (kIsWeb) ...[
               const SizedBox(height: 8),
-              const Text(
-                '웹에서는 자동 좌표 변환이 제한돼요.',
-                style: TextStyle(color: Color(0x668EC5FF), fontSize: 12),
-              ),
             ] else ...[
               const SizedBox(height: 8),
               const Text(
@@ -714,19 +725,27 @@ class _StepCard extends StatelessWidget {
 
   String get _title {
     switch (step) {
-      case 0: return '어떻게 불러드리면 될까요?';
-      case 1: return '언제 태어나셨나요?';
-      case 2: return '몇 시에 태어나셨나요?';
-      default: return '어디서 태어나셨나요?';
+      case 0:
+        return '어떻게 불러드리면 될까요?';
+      case 1:
+        return '언제 태어나셨나요?';
+      case 2:
+        return '몇 시에 태어나셨나요?';
+      default:
+        return '어디서 태어나셨나요?';
     }
   }
 
   String get _subtitle {
     switch (step) {
-      case 0: return '당신만의 별자리 차트를 만들기 위해 필요해요.';
-      case 1: return '정확한 별자리 차트를 위해 필요합니다';
-      case 2: return '정확한 시간은 상승 별자리에 영향을 줍니다';
-      default: return '지역에 따라 천체의 위치가 달라집니다';
+      case 0:
+        return '당신만의 별자리 차트를 만들기 위해 필요해요.';
+      case 1:
+        return '정확한 별자리 차트를 위해 필요합니다';
+      case 2:
+        return '정확한 시간은 상승 별자리에 영향을 줍니다';
+      default:
+        return '지역에 따라 천체의 위치가 달라집니다';
     }
   }
 }
@@ -790,7 +809,7 @@ class _GlassTextInput extends StatelessWidget {
         ),
         cursorColor: const Color(0xFF8EC5FF),
         decoration: InputDecoration(
-          hintText: hintText,
+          hintText: hintText.isEmpty ? null : hintText,
           hintStyle: const TextStyle(
             color: Color(0x808EC5FF),
             fontSize: 16,
@@ -807,6 +826,7 @@ class _GlassTextInput extends StatelessWidget {
             vertical: 14,
           ),
           isDense: true,
+          filled: false,
         ),
       ),
     );
@@ -842,9 +862,7 @@ class _GlassPickerButton extends StatelessWidget {
           ),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: selected
-                ? const Color(0xFF51A2FF)
-                : const Color(0x1FFFFFFF),
+            color: selected ? const Color(0xFF51A2FF) : const Color(0x1FFFFFFF),
             width: selected ? 1.5 : 0.612,
           ),
           boxShadow: _glassBoxShadow,

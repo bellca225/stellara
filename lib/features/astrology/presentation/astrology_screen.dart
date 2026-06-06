@@ -111,10 +111,18 @@ class _ScreenHeader extends StatelessWidget {
             child: InkWell(
               onTap: () => Navigator.of(context).maybePop(),
               borderRadius: BorderRadius.circular(999),
-              child: const SizedBox(
+              child: Container(
                 width: 48,
                 height: 48,
-                child: Icon(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.transparent,
+                  border: Border.all(
+                    color: const Color(0x33FFFFFF),
+                    width: 0.636,
+                  ),
+                ),
+                child: const Icon(
                   Icons.arrow_back_rounded,
                   color: Color(0xFF8EC5FF),
                   size: 22,
