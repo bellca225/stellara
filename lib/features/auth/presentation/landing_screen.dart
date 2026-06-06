@@ -308,7 +308,7 @@ class _GlassButton extends StatelessWidget {
           filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
           child: Container(
             width: double.infinity,
-            height: isPrimary ? 61 : 49,
+            height: 60, //isPrimary ? 61 : 49,
             decoration: BoxDecoration(
               gradient: _gradient,
               borderRadius: BorderRadius.circular(9999),
