@@ -318,12 +318,13 @@ class _GlassButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(9999),
           // 스트로크: 상단 밝고 하단 옅어지는 그라데이션 보더 (이미지 기준)
           border: const GradientBoxBorder(
-            width: 0.6,
+            width: 0.7,
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [Color(0x73FFFFFF), Color(0x0FFFFFFF)],
-              stops: [0.0, 1.0],
+              // transform: GradientRotation(math.pi / 3), // 정확히 45도
+              colors: [Color(0x73FFFFFF), Color(0x0fFFFFFF), Color(0x33FFFFFF)],
+              stops: [0.0, 0.5, 1.0],
             ),
           ),
           // Figma drop shadows (두 버튼 동일):
