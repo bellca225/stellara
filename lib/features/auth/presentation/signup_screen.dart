@@ -8,6 +8,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../core/input/app_input_formatters.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/glass.dart';
 import '../application/auth_providers.dart';
 import '../data/auth_repository.dart';
 import '../data/login_id_repository.dart';
@@ -86,11 +87,6 @@ const _svgCrossWhite = '''
 <path d="M5.49992 12.5L12.4998 5.50011" stroke="#010512" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
 ''';
-
-const _glassBoxShadow = [
-  BoxShadow(color: Color(0x26000000), blurRadius: 4, offset: Offset(0, 4)),
-  BoxShadow(color: Color(0x801E3A8A), blurRadius: 20, offset: Offset(0, 5)),
-];
 
 enum _IdCheckState { unchecked, checking, available, taken, formatError }
 
@@ -306,21 +302,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
                     const SizedBox(height: 32),
 
-                    Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [Color(0x14FFFFFF), Color(0x08FFFFFF)],
-                        ),
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(
-                          color: const Color(0x1FFFFFFF),
-                          width: 0.612,
-                        ),
-                        boxShadow: _glassBoxShadow,
-                      ),
+                    GlassPanel(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -346,47 +328,33 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                                 onTap: _idCheckState == _IdCheckState.checking
                                     ? null
                                     : _checkId,
-                                child: Container(
-                                  height: 49,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 14,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    gradient: const LinearGradient(
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                      colors: [
-                                        Color(0x1AFFFFFF),
-                                        Color(0x0DFFFFFF),
-                                      ],
+                                child: GlassField(
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
                                     ),
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(
-                                      color: const Color(0x26FFFFFF),
-                                      width: 0.612,
+                                    child: Center(
+                                      child:
+                                          _idCheckState ==
+                                              _IdCheckState.checking
+                                          ? const SizedBox(
+                                              width: 16,
+                                              height: 16,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: Colors.white,
+                                              ),
+                                            )
+                                          : const Text(
+                                              '중복 확인',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w600,
+                                                letterSpacing: -0.2,
+                                              ),
+                                            ),
                                     ),
-                                    boxShadow: _glassBoxShadow,
-                                  ),
-                                  child: Center(
-                                    child:
-                                        _idCheckState == _IdCheckState.checking
-                                        ? const SizedBox(
-                                            width: 16,
-                                            height: 16,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              color: Colors.white,
-                                            ),
-                                          )
-                                        : const Text(
-                                            '중복 확인',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w600,
-                                              letterSpacing: -0.2,
-                                            ),
-                                          ),
                                   ),
                                 ),
                               ),
@@ -662,18 +630,7 @@ class _GlassInput extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 49,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0x1AFFFFFF), Color(0x0DFFFFFF)],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0x26FFFFFF), width: 0.612),
-        boxShadow: _glassBoxShadow,
-      ),
+    return GlassField(
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
         child: TextField(
@@ -737,42 +694,12 @@ class _GlassPrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: isLoading ? null : onTap,
-      child: Container(
-        width: double.infinity,
-        height: 61,
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-            colors: [Color(0x662B7FFF), Color(0x40155DFC)],
-          ),
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: const Color(0x26FFFFFF), width: 0.612),
-          boxShadow: _glassBoxShadow,
-        ),
-        child: Center(
-          child: isLoading
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
-              : Text(
-                  label,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.2,
-                  ),
-                ),
-        ),
-      ),
+    return GlassButton(
+      label: label,
+      isPrimary: true,
+      isLoading: isLoading,
+      onTap: onTap,
+      height: 61,
     );
   }
 }

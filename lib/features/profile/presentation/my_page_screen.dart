@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/glass.dart';
 import '../../../core/utils/astro_text.dart';
 import '../../astrology/application/astrology_providers.dart';
 import '../../astrology/domain/birth_info.dart';
@@ -825,63 +826,14 @@ class _GlassPillButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textColor = _C.white;
-    return GestureDetector(
-      onTap: isLoading ? null : onTap,
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedOpacity(
-        duration: const Duration(milliseconds: 150),
-        opacity: isLoading ? 0.75 : 1,
-        child: Container(
-          height: 62,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(9999),
-            border: Border.all(color: _C.pillBorder, width: 0.636),
-            gradient: filled
-                ? const LinearGradient(
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                    colors: [_C.saveStart, _C.saveEnd],
-                  )
-                : const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0x1AFFFFFF), Color(0x0DFFFFFF)],
-                  ),
-            boxShadow: _glassBoxShadow,
-          ),
-          alignment: Alignment.center,
-          child: isLoading
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: _C.white,
-                  ),
-                )
-              : Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (leading != null) ...[
-                      leading!,
-                      const SizedBox(width: 8),
-                    ],
-                    Text(
-                      label,
-                      style: TextStyle(
-                        color: textColor,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        height: 1.56,
-                        letterSpacing: -0.2,
-                        fontFamily: 'Pretendard',
-                      ),
-                    ),
-                  ],
-                ),
-        ),
-      ),
+    return GlassButton(
+      label: label,
+      isPrimary: filled,
+      isLoading: isLoading,
+      leading: leading,
+      onTap: onTap,
+      height: 62,
+      fontWeight: FontWeight.w600,
     );
   }
 }
@@ -1182,6 +1134,7 @@ class _EditNicknameDialogState extends State<_EditNicknameDialog> {
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _submit(),
               enabled: !_isSaving,
+              textAlignVertical: TextAlignVertical.center,
               style: const TextStyle(
                 color: _C.white,
                 fontSize: 16,
@@ -1193,6 +1146,12 @@ class _EditNicknameDialogState extends State<_EditNicknameDialog> {
               cursorColor: _C.accent,
               decoration: const InputDecoration(
                 border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                disabledBorder: InputBorder.none,
+                errorBorder: InputBorder.none,
+                focusedErrorBorder: InputBorder.none,
+                filled: false,
                 isDense: true,
                 contentPadding: EdgeInsets.symmetric(
                   horizontal: 17,
@@ -1520,6 +1479,7 @@ class _EditBirthInfoDialogState extends State<_EditBirthInfoDialog> {
             child: TextField(
               controller: _placeController,
               enabled: !_isSaving,
+              textAlignVertical: TextAlignVertical.center,
               style: const TextStyle(
                 color: _C.white,
                 fontSize: 16,
@@ -1540,6 +1500,12 @@ class _EditBirthInfoDialogState extends State<_EditBirthInfoDialog> {
                   fontFamily: 'Pretendard',
                 ),
                 border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                disabledBorder: InputBorder.none,
+                errorBorder: InputBorder.none,
+                focusedErrorBorder: InputBorder.none,
+                filled: false,
                 isDense: true,
                 contentPadding: EdgeInsets.symmetric(
                   horizontal: 17,

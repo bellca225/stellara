@@ -159,9 +159,48 @@ class TodayScreen extends ConsumerWidget {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      TextButton(
-                        onPressed: () => ref.invalidate(todayHoroscopeProvider),
-                        child: const Text('다시 시도'),
+                      GestureDetector(
+                        onTap: () => ref.invalidate(todayHoroscopeProvider),
+                        behavior: HitTestBehavior.opaque,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(9999),
+                            border: Border.all(
+                              color: const Color(0x26FFFFFF),
+                              width: 0.612,
+                            ),
+                            gradient: const LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [Color(0x1AFFFFFF), Color(0x0DFFFFFF)],
+                            ),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x26000000),
+                                blurRadius: 4,
+                                offset: Offset(0, 4),
+                              ),
+                              BoxShadow(
+                                color: Color(0x801E3A8A),
+                                blurRadius: 20,
+                                offset: Offset(0, 5),
+                              ),
+                            ],
+                          ),
+                          child: const Text(
+                            '다시 시도',
+                            style: TextStyle(
+                              color: _C.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                   ),

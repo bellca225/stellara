@@ -10,6 +10,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../core/input/app_input_formatters.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/glass.dart';
 import '../application/auth_providers.dart';
 import '../data/auth_repository.dart';
 import 'auth_entry_guard.dart';
@@ -413,42 +414,12 @@ class _GlassPrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: isLoading ? null : onTap,
-      child: Container(
-        width: double.infinity,
-        height: 61,
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-            colors: [Color(0x662B7FFF), Color(0x40155DFC)],
-          ),
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: const Color(0x26FFFFFF), width: 0.612),
-          boxShadow: _glassBoxShadow,
-        ),
-        child: Center(
-          child: isLoading
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
-              : Text(
-                  label,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.2,
-                  ),
-                ),
-        ),
-      ),
+    return GlassButton(
+      label: label,
+      isPrimary: true,
+      isLoading: isLoading,
+      onTap: onTap,
+      height: 61,
     );
   }
 }

@@ -17,6 +17,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/glass.dart';
 import '../../astrology/domain/birth_info.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../users/application/user_providers.dart';
@@ -814,6 +815,7 @@ class _GlassTextInput extends StatelessWidget {
         textCapitalization: textCapitalization,
         autocorrect: false,
         onSubmitted: onSubmitted,
+        textAlignVertical: TextAlignVertical.center,
         style: const TextStyle(
           color: Colors.white,
           fontSize: 16,
@@ -990,41 +992,12 @@ class _GlassPrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: isLoading ? null : onTap,
-      child: Container(
-        height: 61,
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-            colors: [Color(0x662B7FFF), Color(0x40155DFC)],
-          ),
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: const Color(0x26FFFFFF), width: 0.612),
-          boxShadow: _glassBoxShadow,
-        ),
-        child: Center(
-          child: isLoading
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
-              : Text(
-                  label,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: -0.2,
-                  ),
-                ),
-        ),
-      ),
+    return GlassButton(
+      label: label,
+      isPrimary: true,
+      isLoading: isLoading,
+      onTap: onTap,
+      height: 61,
     );
   }
 }
@@ -1043,32 +1016,12 @@ class _GlassSecondaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: isLoading ? null : onTap,
-      child: Container(
-        height: 61,
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0x1AFFFFFF), Color(0x0DFFFFFF)],
-          ),
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: const Color(0x26FFFFFF), width: 0.612),
-          boxShadow: _glassBoxShadow,
-        ),
-        child: Center(
-          child: Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              letterSpacing: -0.2,
-            ),
-          ),
-        ),
-      ),
+    return GlassButton(
+      label: label,
+      isPrimary: false,
+      isLoading: isLoading,
+      onTap: onTap,
+      height: 61,
     );
   }
 }
