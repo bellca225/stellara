@@ -15,12 +15,13 @@ class LoginIdTextFormatter extends TextInputFormatter {
   ) {
     // 한글 등 IME 조합(composing) 중에는 formatter를 개입시키지 않는다.
     //
-    // 이유: formatter가 조합 중인 한글 문자를 제거해 text=""를 반환하면,
-    // Chrome 웹엔진이 아직 composingExtent=1 상태인 이벤트를 한 번 더 보내고,
-    // Flutter가 "Range end 1 is out of text of length 0" assertion을 발생시킨다.
-    // composing이 완료된 뒤(TextRange.empty) 필터링하면 이 경쟁 조건을 피할 수 있다.
+    // 중요: 여기서 oldValue를 반환하면(=조합값을 되돌리면) 프레임워크 값과
+    // 엔진(IME) 상태가 어긋나, 엔진이 text:"" + composing:[0,1] 같은
+    // 불일치 editing state를 보내 "composing.end > text.length" assertion이
+    // 발생한다. 따라서 조합 중에는 newValue를 '그대로 통과'시키고,
+    // 조합이 끝난 뒤(TextRange.empty)에만 필터링한다.
     if (newValue.composing != TextRange.empty) {
-      return oldValue;
+      return newValue;
     }
     final buffer = StringBuffer();
     for (final rune in newValue.text.runes) {
@@ -51,9 +52,10 @@ class FriendCodeTextFormatter extends TextInputFormatter {
     TextEditingValue oldValue,
     TextEditingValue newValue,
   ) {
-    // LoginIdTextFormatter와 동일한 이유로 IME 조합 중에는 개입하지 않는다.
+    // LoginIdTextFormatter와 동일한 이유로 IME 조합 중에는 개입하지 않고
+    // newValue를 그대로 통과시킨다(조합 완료 후 필터링).
     if (newValue.composing != TextRange.empty) {
-      return oldValue;
+      return newValue;
     }
     final buffer = StringBuffer();
     for (final rune in newValue.text.runes) {

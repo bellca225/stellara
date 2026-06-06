@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/glass.dart';
 import '../../compatibility/presentation/match_screen.dart';
 import '../../users/application/user_providers.dart';
 import '../application/friend_providers.dart';
@@ -17,10 +18,8 @@ import '../domain/friend.dart';
 import 'add_friend_screen.dart';
 
 // ── 공통 글래스 스타일 ─────────────────────────────────────────────
-const _glassBoxShadow = [
-  BoxShadow(color: Color(0x26000000), blurRadius: 4, offset: Offset(0, 4)),
-  BoxShadow(color: Color(0x801E3A8A), blurRadius: 20, offset: Offset(0, 5)),
-];
+// 표준 글라스 그림자(검정 2단)로 통일. 파란 글로우 제거.
+const _glassBoxShadow = kGlassShadow;
 
 BoxDecoration _glassCardDecoration({double radius = 24}) => BoxDecoration(
   gradient: const LinearGradient(
@@ -302,48 +301,17 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
           minimum: const EdgeInsets.fromLTRB(24, 0, 24, 16),
           child: SizedBox(
             height: 61,
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(999),
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const AddFriendScreen()),
-                ),
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                      colors: [Color(0x662B7FFF), Color(0x40155DFC)],
-                    ),
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(
-                      color: const Color(0x26FFFFFF),
-                      width: 0.636,
-                    ),
-                    boxShadow: _glassBoxShadow,
-                  ),
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.person_add_outlined,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                      SizedBox(width: 8),
-                      Text(
-                        '친구 추가 요청',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: -0.2,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+            child: GlassButton(
+              label: '친구 추가 요청',
+              isPrimary: true,
+              height: 61,
+              leading: const Icon(
+                Icons.person_add_outlined,
+                color: Colors.white,
+                size: 20,
+              ),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const AddFriendScreen()),
               ),
             ),
           ),
@@ -600,8 +568,13 @@ class _RoundBackButton extends StatelessWidget {
           height: 48,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: Colors.transparent,
-            border: Border.all(color: const Color(0x33FFFFFF), width: 0.636),
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0x1AFFFFFF), Color(0x0DFFFFFF)],
+            ),
+            border: Border.all(color: const Color(0x26FFFFFF), width: 0.636),
+            boxShadow: kGlassShadow,
           ),
           child: const Icon(
             Icons.arrow_back_rounded,

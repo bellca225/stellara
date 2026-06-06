@@ -4,18 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/env/env.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/astro_text.dart';
+import '../../../core/widgets/glass.dart';
 import '../../../core/widgets/panel.dart';
 import '../../users/application/user_providers.dart';
 import '../application/astrology_providers.dart';
 import '../domain/birth_info.dart';
 import '../domain/natal_chart.dart';
 import 'natal_chart_painter.dart';
-
-const _astrologyGlassBoxShadow = [
-  BoxShadow(color: Color(0x26000000), blurRadius: 4, offset: Offset(0, 4)),
-  BoxShadow(color: Color(0x801E3A8A), blurRadius: 20, offset: Offset(0, 5)),
-  BoxShadow(color: Color(0x26FFFFFF), blurRadius: 1, offset: Offset(0, 1)),
-];
 
 class AstrologyScreen extends ConsumerWidget {
   const AstrologyScreen({super.key});
@@ -116,11 +111,16 @@ class _ScreenHeader extends StatelessWidget {
                 height: 48,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.transparent,
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0x1AFFFFFF), Color(0x0DFFFFFF)],
+                  ),
                   border: Border.all(
-                    color: const Color(0x33FFFFFF),
+                    color: const Color(0x26FFFFFF),
                     width: 0.636,
                   ),
+                  boxShadow: kGlassShadow,
                 ),
                 child: const Icon(
                   Icons.arrow_back_rounded,
@@ -239,21 +239,9 @@ class _BirthChartHeader extends StatelessWidget {
         ? birth.placeName!.trim()
         : '출생지 미입력';
 
-    return Container(
+    return GlassPanel(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0x14FFFFFF), Color(0x08FFFFFF)],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.1),
-          width: 0.636,
-        ),
-        boxShadow: _astrologyGlassBoxShadow,
-      ),
+      borderRadius: 20,
       child: Row(
         children: [
           Expanded(
@@ -315,38 +303,23 @@ class _ChartPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0x14FFFFFF), Color(0x08FFFFFF)],
-        ),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.1),
-          width: 0.636,
-        ),
-        boxShadow: _astrologyGlassBoxShadow,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('출생 차트', style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: AppSpacing.md),
-            Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 320),
-                child: AspectRatio(
-                  aspectRatio: 1,
-                  child: CustomPaint(painter: NatalChartPainter(chart)),
-                ),
+    return GlassPanel(
+      borderRadius: 28,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('출생 차트', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: AppSpacing.md),
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 320),
+              child: AspectRatio(
+                aspectRatio: 1,
+                child: CustomPaint(painter: NatalChartPainter(chart)),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -359,15 +332,7 @@ class _GlassSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: const Color(0x33FFFFFF), width: 0.636),
-      ),
-      child: child,
-    );
+    return GlassPanel(borderRadius: 28, child: child);
   }
 }
 

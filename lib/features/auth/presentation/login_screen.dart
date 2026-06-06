@@ -26,11 +26,6 @@ const _svgLogin = '''
 </svg>
 ''';
 
-const _glassBoxShadow = [
-  BoxShadow(color: Color(0x26000000), blurRadius: 4, offset: Offset(0, 4)),
-  BoxShadow(color: Color(0x801E3A8A), blurRadius: 20, offset: Offset(0, 5)),
-];
-
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
@@ -152,21 +147,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 const SizedBox(height: 32),
 
                 // ── 입력 카드 ────────────────────────────────────────
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0x14FFFFFF), Color(0x08FFFFFF)],
-                    ),
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(
-                      color: const Color(0x1FFFFFFF),
-                      width: 0.612,
-                    ),
-                    boxShadow: _glassBoxShadow,
-                  ),
+                GlassPanel(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -346,18 +327,7 @@ class _GlassInput extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 49,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0x14FFFFFF), Color(0x08FFFFFF)],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0x1FFFFFFF), width: 0.612),
-        boxShadow: _glassBoxShadow,
-      ),
+    return GlassField(
       child: TextField(
         controller: controller,
         obscureText: obscureText,
@@ -370,11 +340,11 @@ class _GlassInput extends StatelessWidget {
         autofocus: autofocus,
         onChanged: onChanged,
         enabled: enabled,
+        textAlignVertical: TextAlignVertical.center,
         style: const TextStyle(
           color: Colors.white,
           fontSize: 16,
           letterSpacing: -0.2,
-          height: 1.0,
         ),
         cursorColor: const Color(0xFF8EC5FF),
         decoration: InputDecoration(

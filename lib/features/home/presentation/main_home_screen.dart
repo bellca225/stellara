@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/astro_text.dart';
+import '../../../core/widgets/glass.dart';
 import '../../../core/widgets/panel.dart';
 import '../../astrology/application/astrology_providers.dart';
 import '../../astrology/domain/birth_info.dart';
@@ -44,12 +45,6 @@ class _MainHomeContent extends ConsumerWidget {
 
   final BirthInfo birth;
   final NatalChart chart;
-
-  static const _glassBoxShadow = [
-    BoxShadow(color: Color(0x26000000), blurRadius: 4, offset: Offset(0, 4)),
-    BoxShadow(color: Color(0x801E3A8A), blurRadius: 20, offset: Offset(0, 5)),
-    BoxShadow(color: Color(0x26FFFFFF), blurRadius: 1, offset: Offset(0, 1)),
-  ];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -106,62 +101,24 @@ class _MainHomeContent extends ConsumerWidget {
         const SizedBox(height: 15),
 
         // ── 친구 목록 버튼 ──
-        InkWell(
-          borderRadius: BorderRadius.circular(999),
+        GlassButton(
+          label: '친구 목록',
+          isPrimary: true,
+          height: 56,
+          leading: const Icon(
+            Icons.people_alt_outlined,
+            color: AppColors.ink,
+            size: 20,
+          ),
           onTap: () => Navigator.of(
             context,
           ).push(MaterialPageRoute(builder: (_) => const FriendScreen())),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 17),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-                colors: [Color(0x332B7FFF), Color(0x20155DFC)],
-              ),
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: const Color(0x26FFFFFF), width: 0.636),
-              boxShadow: _glassBoxShadow,
-            ),
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.people_alt_outlined, color: AppColors.ink, size: 20),
-                SizedBox(width: 8),
-                Text(
-                  '친구 목록',
-                  style: TextStyle(
-                    color: AppColors.ink,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ),
         ),
         const SizedBox(height: AppSpacing.lg),
 
         // ── Big 3 카드 ──
-        Container(
+        GlassPanel(
           padding: const EdgeInsets.all(AppSpacing.lg),
-          decoration: BoxDecoration(
-            color: Colors.transparent,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: const Color(0x26FFFFFF), width: 0.636),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x26000000),
-                blurRadius: 4,
-                offset: Offset(0, 4),
-              ),
-              BoxShadow(
-                color: Color(0x401E3A8A),
-                blurRadius: 20,
-                offset: Offset(0, 5),
-              ),
-            ],
-          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -191,12 +148,17 @@ class _MainHomeContent extends ConsumerWidget {
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 9),
                   decoration: BoxDecoration(
-                    color: Colors.transparent,
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0x1AFFFFFF), Color(0x0DFFFFFF)],
+                    ),
                     borderRadius: BorderRadius.circular(999),
                     border: Border.all(
-                      color: const Color(0x33FFFFFF),
+                      color: const Color(0x26FFFFFF),
                       width: 0.636,
                     ),
+                    boxShadow: kGlassShadow,
                   ),
                   child: const Center(
                     child: Text(
@@ -514,23 +476,7 @@ class _SignChip extends StatelessWidget {
         ),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: const Color(0x1EFFFFFF), width: 0.636),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x26000000),
-            blurRadius: 4,
-            offset: Offset(0, 4),
-          ),
-          BoxShadow(
-            color: Color(0x801E3A8A),
-            blurRadius: 20,
-            offset: Offset(0, 5),
-          ),
-          BoxShadow(
-            color: Color(0x26FFFFFF),
-            blurRadius: 1,
-            offset: Offset(0, 1),
-          ),
-        ],
+        boxShadow: kGlassShadow,
       ),
       child: Text(
         label,

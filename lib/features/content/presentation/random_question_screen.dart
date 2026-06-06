@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../../core/env/env.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/astro_text.dart';
+import '../../../core/widgets/glass.dart';
 import '../../astrology/application/astrology_providers.dart';
 import '../../astrology/domain/birth_info.dart';
 import '../../astrology/domain/natal_chart.dart';
@@ -54,18 +55,7 @@ class _GlassCard extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [_C.glassStart, _C.glassEnd],
         ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x26000000),
-            blurRadius: 20,
-            offset: Offset(0, 8),
-          ),
-          BoxShadow(
-            color: Color(0x801E3A8A),
-            blurRadius: 40,
-            offset: Offset(0, 16),
-          ),
-        ],
+        boxShadow: kGlassShadow,
       ),
       child: child,
     );
@@ -1331,18 +1321,7 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
                             end: Alignment.centerRight,
                             colors: [Color(0x662B7FFF), Color(0x40155DFC)],
                           ),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x7F1E3A8A),
-                              blurRadius: 20,
-                              offset: Offset(0, 5),
-                            ),
-                            BoxShadow(
-                              color: Color(0x26000000),
-                              blurRadius: 4,
-                              offset: Offset(0, 4),
-                            ),
-                          ],
+                          boxShadow: kGlassShadow,
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -1422,18 +1401,7 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
                         end: Alignment.bottomRight,
                         colors: [_C.glassStart, _C.glassEnd],
                       ),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x26000000),
-                          blurRadius: 20,
-                          offset: Offset(0, 8),
-                        ),
-                        BoxShadow(
-                          color: Color(0x801E3A8A),
-                          blurRadius: 40,
-                          offset: Offset(0, 16),
-                        ),
-                      ],
+                      boxShadow: kGlassShadow,
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -1478,18 +1446,7 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
                         end: Alignment.centerRight,
                         colors: [_C.shareBtnStart, _C.shareBtnEnd],
                       ),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x26000000),
-                          blurRadius: 20,
-                          offset: Offset(0, 8),
-                        ),
-                        BoxShadow(
-                          color: Color(0x661E3A8A),
-                          blurRadius: 40,
-                          offset: Offset(0, 16),
-                        ),
-                      ],
+                      boxShadow: kGlassShadow,
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,

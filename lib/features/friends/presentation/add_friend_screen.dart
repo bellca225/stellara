@@ -12,15 +12,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/input/app_input_formatters.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/glass.dart';
 import '../../users/application/user_providers.dart';
 import '../application/friend_providers.dart';
 import '../data/friend_repository.dart';
 
 // ── 공통 글래스 스타일 ─────────────────────────────────────────────
-const _glassBoxShadow = [
-  BoxShadow(color: Color(0x26000000), blurRadius: 4, offset: Offset(0, 4)),
-  BoxShadow(color: Color(0x801E3A8A), blurRadius: 20, offset: Offset(0, 5)),
-];
+// 표준 글라스 그림자(검정 2단)로 통일. 파란 글로우 제거.
+const _glassBoxShadow = kGlassShadow;
 
 BoxDecoration _glassCardDecoration({double radius = 24}) => BoxDecoration(
   gradient: const LinearGradient(
@@ -345,11 +344,11 @@ class _CodeInputField extends StatelessWidget {
             maxLength: 6,
             inputFormatters: [FriendCodeTextFormatter()],
             onSubmitted: onSubmitted,
+            textAlignVertical: TextAlignVertical.center,
             style: const TextStyle(
               color: Colors.white,
               fontSize: 16,
               letterSpacing: -0.2,
-              height: 1.0,
             ),
             cursorColor: const Color(0xFF8EC5FF),
             decoration: const InputDecoration(

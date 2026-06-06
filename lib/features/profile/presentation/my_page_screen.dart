@@ -35,10 +35,8 @@ class _C {
   static const avatarEnd = Color(0xFF155DFC);
 }
 
-const _glassBoxShadow = [
-  BoxShadow(color: Color(0x26000000), blurRadius: 4, offset: Offset(0, 4)),
-  BoxShadow(color: Color(0x801E3A8A), blurRadius: 20, offset: Offset(0, 5)),
-];
+// 표준 글라스 그림자(검정 2단)로 통일. 파란 글로우 제거.
+const _glassBoxShadow = kGlassShadow;
 
 class _UiMessageException implements Exception {
   const _UiMessageException(this.message);
@@ -1139,7 +1137,6 @@ class _EditNicknameDialogState extends State<_EditNicknameDialog> {
                 color: _C.white,
                 fontSize: 16,
                 fontWeight: FontWeight.w400,
-                height: 1.0,
                 letterSpacing: -0.2,
                 fontFamily: 'Pretendard',
               ),
@@ -1484,7 +1481,6 @@ class _EditBirthInfoDialogState extends State<_EditBirthInfoDialog> {
                 color: _C.white,
                 fontSize: 16,
                 fontWeight: FontWeight.w400,
-                height: 1.0,
                 letterSpacing: -0.2,
                 fontFamily: 'Pretendard',
               ),

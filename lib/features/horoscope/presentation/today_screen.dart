@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/glass.dart';
 import '../../../core/widgets/panel.dart';
 import '../application/horoscope_providers.dart';
 import '../domain/horoscope.dart';
@@ -16,12 +17,6 @@ class _C {
   static const white = Color(0xFFFFFFFF);
   static const accent = Color(0xFF8EC5FF);
   static const blue1 = Color(0xFF51A2FF);
-  static const cardBorder = Color(0x1FFFFFFF);
-  static const headerBorder = Color(0x26FFFFFF);
-  static const glassStart = Color(0x14FFFFFF);
-  static const glassEnd = Color(0x08FFFFFF);
-  static const shareBtnStart = Color(0x662B7FFF);
-  static const shareBtnEnd = Color(0x40155DFC);
 }
 
 class _GlassCard extends StatelessWidget {
@@ -32,14 +27,9 @@ class _GlassCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GlassPanel(
       width: double.infinity,
       padding: padding ?? const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: _C.cardBorder, width: 1),
-        color: Colors.transparent,
-      ),
       child: child,
     );
   }
@@ -178,18 +168,7 @@ class TodayScreen extends ConsumerWidget {
                               end: Alignment.bottomRight,
                               colors: [Color(0x1AFFFFFF), Color(0x0DFFFFFF)],
                             ),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Color(0x26000000),
-                                blurRadius: 4,
-                                offset: Offset(0, 4),
-                              ),
-                              BoxShadow(
-                                color: Color(0x801E3A8A),
-                                blurRadius: 20,
-                                offset: Offset(0, 5),
-                              ),
-                            ],
+                            boxShadow: kGlassShadow,
                           ),
                           child: const Text(
                             '다시 시도',
@@ -356,54 +335,16 @@ class _HoroscopeBody extends StatelessWidget {
           ],
           const SizedBox(height: 28),
           // ── SNS 공유 버튼 ──
-          GestureDetector(
-            onTap: () => _share(context, horoscope),
-            child: Container(
-              width: double.infinity,
-              height: 61,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(9999),
-                border: Border.all(color: _C.headerBorder, width: 1),
-                gradient: const LinearGradient(
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                  colors: [_C.shareBtnStart, _C.shareBtnEnd],
-                ),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x26000000),
-                    blurRadius: 20,
-                    offset: Offset(0, 8),
-                  ),
-                  BoxShadow(
-                    color: Color(0x661E3A8A),
-                    blurRadius: 40,
-                    offset: Offset(0, 16),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CustomPaint(painter: _ShareWhitePainter()),
-                  ),
-                  const SizedBox(width: 10),
-                  const Text(
-                    'SNS에 공유하기',
-                    style: TextStyle(
-                      color: _C.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: -0.2,
-                      fontFamily: 'Pretendard',
-                    ),
-                  ),
-                ],
-              ),
+          GlassButton(
+            label: 'SNS에 공유하기',
+            isPrimary: true,
+            height: 61,
+            leading: SizedBox(
+              width: 20,
+              height: 20,
+              child: CustomPaint(painter: _ShareWhitePainter()),
             ),
+            onTap: () => _share(context, horoscope),
           ),
         ],
       ),

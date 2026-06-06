@@ -16,15 +16,18 @@ class GlassPanel extends StatelessWidget {
     required this.child,
     this.padding = const EdgeInsets.all(24),
     this.borderRadius = 24,
+    this.width,
   });
 
   final Widget child;
   final EdgeInsetsGeometry padding;
   final double borderRadius;
+  final double? width;
 
   @override
   Widget build(BuildContext context) {
     return Container(
+      width: width,
       padding: padding,
       decoration: BoxDecoration(
         gradient: const LinearGradient(

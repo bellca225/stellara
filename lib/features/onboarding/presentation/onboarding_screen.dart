@@ -24,11 +24,6 @@ import '../../users/application/user_providers.dart';
 import '../data/place_resolver.dart';
 import '../app_shell.dart';
 
-const _glassBoxShadow = [
-  BoxShadow(color: Color(0x26000000), blurRadius: 4, offset: Offset(0, 4)),
-  BoxShadow(color: Color(0x801E3A8A), blurRadius: 20, offset: Offset(0, 5)),
-];
-
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({
     super.key,
@@ -487,7 +482,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                               color: const Color(0x26FFFFFF),
                               width: 0.636,
                             ),
-                            boxShadow: _glassBoxShadow,
+                            boxShadow: kGlassShadow,
                           ),
                           child: const Icon(
                             Icons.arrow_back_ios_new_rounded,
@@ -609,19 +604,8 @@ class _StepCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GlassPanel(
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0x14FFFFFF), Color(0x08FFFFFF)],
-        ),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0x1FFFFFFF), width: 0.612),
-        boxShadow: _glassBoxShadow,
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
@@ -790,23 +774,8 @@ class _GlassTextInput extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 49,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0x14FFFFFF), Color(0x08FFFFFF)],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: errorText != null
-              ? const Color(0xFFFF6B6B)
-              : const Color(0x1FFFFFFF),
-          width: 0.612,
-        ),
-        boxShadow: _glassBoxShadow,
-      ),
+    return GlassField(
+      hasError: errorText != null,
       child: TextField(
         controller: controller,
         autofocus: autofocus,
@@ -820,7 +789,6 @@ class _GlassTextInput extends StatelessWidget {
           color: Colors.white,
           fontSize: 16,
           letterSpacing: -0.2,
-          height: 1.0,
         ),
         cursorColor: const Color(0xFF8EC5FF),
         decoration: InputDecoration(
@@ -880,7 +848,7 @@ class _GlassPickerButton extends StatelessWidget {
             color: selected ? const Color(0xFF51A2FF) : const Color(0x1FFFFFFF),
             width: selected ? 1.5 : 0.612,
           ),
-          boxShadow: _glassBoxShadow,
+          boxShadow: kGlassShadow,
         ),
         child: Row(
           children: [
