@@ -163,6 +163,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           setState(() => _nameError = nameErr);
           return;
         }
+        // step 0(이름 입력)에서 step 1로 넘어갈 때 TextField가 dispose되기 전에
+        // IME 연결을 먼저 해제해 text_input assertion을 방지한다.
+        FocusScope.of(context).unfocus();
         setState(() {
           _nameError = null;
           _step = 1;
@@ -178,14 +181,22 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           setState(() => _error = '출생 시간을 선택해주세요.');
           return;
         }
+        // step 3에 출생지 TextField가 있으므로 이전 포커스 정리
+        FocusScope.of(context).unfocus();
         setState(() => _step = 3);
       case 3:
+        // 출생지 TextField가 포커스된 채 _submit()이 호출될 수 있으므로 먼저 해제
+        FocusScope.of(context).unfocus();
         _submit();
     }
   }
 
   void _prev() {
-    if (_step > 0) setState(() => _step--);
+    if (_step > 0) {
+      // step 3(출생지 TextField)에서 이전으로 돌아갈 때 IME 연결 먼저 해제
+      FocusScope.of(context).unfocus();
+      setState(() => _step--);
+    }
   }
 
   // ── 최종 저장 ────────────────────────────────────────────────────
@@ -368,6 +379,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   Future<void> _handleBackToMyPage() async {
     final canLeave = await _confirmDiscardIfNeeded();
     if (!mounted || !canLeave) return;
+    FocusScope.of(context).unfocus();
     Navigator.of(context).pop(false);
   }
 
@@ -426,6 +438,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         if (didPop) return;
         final canLeave = await _confirmDiscardIfNeeded();
         if (!mounted || !canLeave) return;
+        FocusScope.of(context).unfocus();
         Navigator.of(context).pop(false);
       },
       child: StarBackground(

@@ -143,7 +143,10 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
                 child: Row(
                   children: [
                     _RoundBackButton(
-                      onTap: () => Navigator.of(context).maybePop(),
+                      onTap: () {
+                        FocusScope.of(context).unfocus();
+                        Navigator.of(context).maybePop();
+                      },
                     ),
                     const SizedBox(width: 12),
                     const Text(

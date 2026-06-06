@@ -197,7 +197,6 @@ class _ChartContent extends StatelessWidget {
       physics: const ClampingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
       children: [
-        _BirthChartHeader(birth: birth),
         const SizedBox(height: 16),
         _ChartPanel(chart: chart),
         const SizedBox(height: 28),
@@ -228,101 +227,6 @@ class _ChartContent extends StatelessWidget {
   }
 }
 
-class _BirthChartHeader extends StatelessWidget {
-  const _BirthChartHeader({required this.birth});
-
-  final BirthInfo birth;
-
-  /// fixture 모드일 때 true. 실제 사용자 데이터가 아닌 데모 데이터임을 나타냄.
-  bool get _isDemo => Env.shouldUseFixtureForProkerala;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Container(
-        width: 178,
-        height: 178,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0x14FFFFFF), Color(0x08FFFFFF)],
-          ),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.1),
-            width: 1.0,
-          ),
-          boxShadow: _astrologyGlassBoxShadow,
-        ),
-        child: Center(
-          child: Container(
-            width: 124,
-            height: 124,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: const Color(0x3351A2FF), width: 1.0),
-            ),
-            alignment: Alignment.center,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.star_outline_rounded,
-                  color: AppColors.primaryLight,
-                  size: 28,
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  '출생 차트',
-                  style: TextStyle(
-                    color: AppColors.ink,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${birth.dateTime.year}-${_pad(birth.dateTime.month)}-${_pad(birth.dateTime.day)}',
-                  style: const TextStyle(
-                    color: AppColors.inkMuted,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                // fixture 모드 표시기 — 실제 API 데이터가 아님을 명시
-                if (_isDemo) ...[
-                  const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: const Text(
-                      '데모',
-                      style: TextStyle(
-                        color: Colors.orange,
-                        fontSize: 9,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  static String _pad(int value) => value.toString().padLeft(2, '0');
-}
-
 class _ChartPanel extends StatelessWidget {
   const _ChartPanel({required this.chart});
 
@@ -349,7 +253,7 @@ class _ChartPanel extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('출생 차트 보기', style: Theme.of(context).textTheme.titleLarge),
+            Text('출생 차트', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: AppSpacing.md),
             Center(
               child: ConstrainedBox(
