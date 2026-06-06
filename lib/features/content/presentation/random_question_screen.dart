@@ -2,7 +2,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../../../core/env/env.dart';
 import '../../../core/theme/app_theme.dart';
@@ -22,6 +21,7 @@ import '../application/question_providers.dart';
 import '../data/ai_question_repository.dart';
 import '../domain/question_item.dart';
 import '../domain/random_question_session.dart';
+import 'question_share_screen.dart';
 
 class _C {
   static const white = Color(0xFFFFFFFF);
@@ -918,24 +918,21 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
     }
   }
 
-  Future<void> _shareQuestion(BuildContext context, QuestionItem? item) async {
+  void _openShareScreen(BuildContext context, QuestionItem? item) {
     if (item == null) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('먼저 질문을 생성해주세요.')));
       return;
     }
-    final text = _showAnswer
-        ? '✨ 랜덤 질문\n\n${item.prompt}\n\n점성술 답변\n${item.answer}\n\n#Stellara #랜덤질문'
-        : '✨ 랜덤 질문\n\n${item.prompt}\n\n답변은 Stellara에서 확인해보세요!\n#Stellara #랜덤질문';
-    try {
-      await Share.share(text, subject: item.prompt);
-    } catch (_) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('공유를 지원하지 않는 환경이에요.')));
-    }
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => QuestionShareScreen(
+          prompt: item.prompt,
+          answer: item.answer,
+        ),
+      ),
+    );
   }
 
   @override
@@ -1510,7 +1507,7 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
                 child: GestureDetector(
                   onTap: disableShare
                       ? null
-                      : () => _shareQuestion(context, generatedQuestion),
+                      : () => _openShareScreen(context, generatedQuestion),
                   child: Container(
                     height: 61,
                     decoration: BoxDecoration(

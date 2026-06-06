@@ -10,6 +10,7 @@
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/ui/app_alerts.dart';
@@ -49,6 +50,14 @@ class StellaraApp extends StatelessWidget {
       theme: buildAppTheme(),
       scrollBehavior: const AppScrollBehavior(),
       navigatorKey: appNavigatorKey,
+      // 한국어 우선 — 날짜/시간 피커가 "1월, 2월" 등 한글로 표기됨
+      locale: const Locale('ko'),
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [Locale('ko'), Locale('en')],
       home: const _AuthGate(),
     );
   }

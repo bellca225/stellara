@@ -5,13 +5,13 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/glass.dart';
 import '../../../core/widgets/panel.dart';
 import '../application/horoscope_providers.dart';
 import '../domain/horoscope.dart';
+import 'horoscope_share_screen.dart';
 
 class _C {
   static const white = Color(0xFFFFFFFF);
@@ -334,7 +334,7 @@ class _HoroscopeBody extends StatelessWidget {
             _LuckyCard(label: '장소', value: horoscope.luckyPlace!.trim()),
           ],
           const SizedBox(height: 28),
-          // ── SNS 공유 버튼 ──
+          // ── SNS 공유 버튼 → 공유 화면 ──
           GlassButton(
             label: 'SNS에 공유하기',
             isPrimary: true,
@@ -344,7 +344,11 @@ class _HoroscopeBody extends StatelessWidget {
               height: 20,
               child: CustomPaint(painter: _ShareWhitePainter()),
             ),
-            onTap: () => _share(context, horoscope),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => HoroscopeShareScreen(horoscope: horoscope),
+              ),
+            ),
           ),
         ],
       ),
@@ -361,27 +365,6 @@ class _HoroscopeBody extends StatelessWidget {
     return trimmed.isEmpty ? '-' : trimmed;
   }
 
-  Future<void> _share(BuildContext ctx, Horoscope horoscope) async {
-    final date = DateFormat('yyyy년 M월 d일').format(horoscope.date);
-    final fallback =
-        '✨ 오늘의 운세 ($date)\n\n'
-        '${horoscope.summary}\n\n'
-        '🎨 행운 색상: ${_luckyColor(horoscope.luckyColor)}\n'
-        '🔢 행운 숫자: ${_luckyNumbers(horoscope.luckyNumbers)}\n'
-        '#Stellara #오늘의운세';
-    final text = horoscope.shareText.trim().isNotEmpty
-        ? '${horoscope.shareText.trim()}\n\n$fallback'
-        : fallback;
-    try {
-      await Share.share(text);
-    } catch (_) {
-      if (ctx.mounted) {
-        ScaffoldMessenger.of(
-          ctx,
-        ).showSnackBar(const SnackBar(content: Text('공유를 지원하지 않는 환경이에요.')));
-      }
-    }
-  }
 }
 
 class _LuckyCard extends StatelessWidget {

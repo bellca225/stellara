@@ -11,6 +11,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  # 한국어 로컬라이제이션 (날짜/시간 피커 월 표기 등).
+  flutter_localizations:
+    sdk: flutter
 
   cupertino_icons: ^1.0.8
 
@@ -37,7 +40,8 @@ dependencies:
   geocoding: ^3.0.0
 
   # 날짜/시간 포맷 (UTC offset, ISO 변환 등).
-  intl: ^0.19.0
+  # flutter_localizations(SDK)가 intl 0.20.2를 고정하므로 그에 맞춰 상향.
+  intl: ^0.20.2
   firebase_core: ^4.9.0
   firebase_auth: ^6.5.1
   cloud_firestore: ^6.4.1

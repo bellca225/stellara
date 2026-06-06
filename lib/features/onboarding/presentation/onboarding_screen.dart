@@ -335,24 +335,96 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   Future<bool> _confirmDiscardIfNeeded() async {
     if (!widget.isEditing || !_hasUnsavedChanges) return true;
-    final shouldLeave = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('수정 내용을 나갈까요?'),
-        content: const Text('저장하지 않은 변경 내용은 사라져요.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('계속 수정'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('나가기'),
-          ),
-        ],
-      ),
+    final shouldLeave = await _showGlassConfirm(
+      title: '수정 내용을 나갈까요?',
+      message: '저장하지 않은 변경 내용은 사라져요.',
+      cancelLabel: '계속 수정',
+      confirmLabel: '나가기',
     );
     return shouldLeave ?? false;
+  }
+
+  // ── 글라스 스타일 확인 다이얼로그 ─────────────────────────────────
+  Future<bool?> _showGlassConfirm({
+    required String title,
+    required String message,
+    required String cancelLabel,
+    required String confirmLabel,
+  }) {
+    return showDialog<bool>(
+      context: context,
+      barrierColor: Colors.black54,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 40),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFF0F1E38), Color(0xFF0A1326)],
+            ),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: const Color(0x1FFFFFFF), width: 0.8),
+            boxShadow: kGlassShadow,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.2,
+                  fontFamily: 'Pretendard',
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Color(0xB3FFFFFF),
+                  fontSize: 14,
+                  height: 1.45,
+                  letterSpacing: -0.2,
+                  fontFamily: 'Pretendard',
+                ),
+              ),
+              const SizedBox(height: 22),
+              Row(
+                children: [
+                  Expanded(
+                    child: GlassButton(
+                      label: cancelLabel,
+                      isPrimary: false,
+                      height: 50,
+                      fontSize: 15,
+                      onTap: () => Navigator.of(ctx).pop(false),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: GlassButton(
+                      label: confirmLabel,
+                      isPrimary: true,
+                      height: 50,
+                      fontSize: 15,
+                      onTap: () => Navigator.of(ctx).pop(true),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _handleBackToMyPage() async {
@@ -365,22 +437,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   // ── 계정 만들기(온보딩) 취소 → 로그아웃 후 랜딩으로 ──────────────
   Future<void> _cancelSignup() async {
     FocusScope.of(context).unfocus();
-    final shouldCancel = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('계정 만들기를 취소할까요?'),
-        content: const Text('지금 나가면 입력한 정보가 저장되지 않아요.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('계속하기'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('취소하기'),
-          ),
-        ],
-      ),
+    final shouldCancel = await _showGlassConfirm(
+      title: '계정 만들기를 취소할까요?',
+      message: '지금 나가면 입력한 정보가 저장되지 않아요.',
+      cancelLabel: '계속하기',
+      confirmLabel: '취소하기',
     );
     if (shouldCancel != true || !mounted) return;
 
@@ -471,7 +532,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Column(
                 children: [
-                  // ── 헤더: 뒤로가기 버튼 (수정 모드 / 계정 만들기 취소 공통) ──
+                  // ── 헤더: 뒤로가기 버튼 (점성술 화면과 동일한 원형 글라스) ──
                   const SizedBox(height: 8),
                   Align(
                     alignment: Alignment.centerLeft,
@@ -482,15 +543,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                                 ? _handleBackToMyPage
                                 : _cancelSignup),
                       child: Container(
-                        width: 37,
-                        height: 37,
+                        width: 48,
+                        height: 48,
                         decoration: BoxDecoration(
+                          shape: BoxShape.circle,
                           gradient: const LinearGradient(
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                             colors: [Color(0x1AFFFFFF), Color(0x0DFFFFFF)],
                           ),
-                          borderRadius: BorderRadius.circular(28),
                           border: Border.all(
                             color: const Color(0x26FFFFFF),
                             width: 0.636,
@@ -498,15 +559,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                           boxShadow: kGlassShadow,
                         ),
                         child: const Icon(
-                          Icons.arrow_back_ios_new_rounded,
-                          color: Colors.white,
-                          size: 16,
+                          Icons.arrow_back_rounded,
+                          color: Color(0xFF8EC5FF),
+                          size: 22,
                         ),
                       ),
                     ),
                   ),
                   // 계정 만들기(신규) 모드는 헤더가 짧으므로 기존 여백감 유지
-                  if (!widget.isEditing) const SizedBox(height: 136),
+                  if (!widget.isEditing) const SizedBox(height: 125),
 
                   // ── 아이콘 ──────────────────────────────────────
                   Container(
