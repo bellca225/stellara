@@ -18,8 +18,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/glass.dart';
+import '../../../core/widgets/glass_pickers.dart';
 import '../../astrology/domain/birth_info.dart';
 import '../../auth/application/auth_providers.dart';
+import '../../auth/presentation/landing_screen.dart';
 import '../../users/application/user_providers.dart';
 import '../data/place_resolver.dart';
 import '../app_shell.dart';
@@ -100,51 +102,22 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     return null;
   }
 
-  // ── 날짜 선택 ─────────────────────────────────────────────────────
+  // ── 날짜 선택 (글라스 휠 바텀시트) ────────────────────────────────
   Future<void> _pickDate() async {
-    final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
+    final picked = await showGlassDatePicker(
+      context,
       initialDate: _selectedDate ?? DateTime(1995, 2, 15),
       firstDate: DateTime(1900),
-      lastDate: now,
-      helpText: '생년월일 선택',
-      cancelText: '취소',
-      confirmText: '확인',
-      builder: (context, child) => Theme(
-        data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.dark(
-            primary: Color(0xFF1A5FD4),
-            onPrimary: Colors.white,
-            surface: Color(0xFF0D1830),
-            onSurface: Colors.white,
-          ),
-        ),
-        child: child!,
-      ),
+      lastDate: DateTime.now(),
     );
     if (picked != null) setState(() => _selectedDate = picked);
   }
 
-  // ── 시간 선택 ─────────────────────────────────────────────────────
+  // ── 시간 선택 (글라스 휠 바텀시트) ────────────────────────────────
   Future<void> _pickTime() async {
-    final picked = await showTimePicker(
-      context: context,
+    final picked = await showGlassTimePicker(
+      context,
       initialTime: _selectedTime ?? const TimeOfDay(hour: 12, minute: 0),
-      helpText: '출생 시간 선택',
-      cancelText: '취소',
-      confirmText: '확인',
-      builder: (context, child) => Theme(
-        data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.dark(
-            primary: Color(0xFF1A5FD4),
-            onPrimary: Colors.white,
-            surface: Color(0xFF0D1830),
-            onSurface: Colors.white,
-          ),
-        ),
-        child: child!,
-      ),
     );
     if (picked != null) setState(() => _selectedTime = picked);
   }
@@ -389,6 +362,43 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     Navigator.of(context).pop(false);
   }
 
+  // ── 계정 만들기(온보딩) 취소 → 로그아웃 후 랜딩으로 ──────────────
+  Future<void> _cancelSignup() async {
+    FocusScope.of(context).unfocus();
+    final shouldCancel = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('계정 만들기를 취소할까요?'),
+        content: const Text('지금 나가면 입력한 정보가 저장되지 않아요.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('계속하기'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('취소하기'),
+          ),
+        ],
+      ),
+    );
+    if (shouldCancel != true || !mounted) return;
+
+    try {
+      await ref.read(authRepositoryProvider).signOut();
+    } catch (_) {
+      // 로그아웃 실패해도 화면 전환은 진행 (세션 정리는 다음 진입 시 처리)
+    }
+    ref.read(currentUserProvider.notifier).state = null;
+    ref.invalidate(currentUserProfileProvider);
+
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LandingScreen()),
+      (_) => false,
+    );
+  }
+
   // ── 진행바 (4개 세그먼트) ────────────────────────────────────────
   Widget _buildProgressBar() {
     final totalSteps = widget.isEditing ? 3 : 4;
@@ -461,39 +471,42 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Column(
                 children: [
-                  // ── 헤더 (수정 모드: 뒤로가기 버튼) ──────────────
-                  if (widget.isEditing) ...[
-                    const SizedBox(height: 8),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: GestureDetector(
-                        onTap: _isSubmitting ? null : _handleBackToMyPage,
-                        child: Container(
-                          width: 37,
-                          height: 37,
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [Color(0x1AFFFFFF), Color(0x0DFFFFFF)],
-                            ),
-                            borderRadius: BorderRadius.circular(28),
-                            border: Border.all(
-                              color: const Color(0x26FFFFFF),
-                              width: 0.636,
-                            ),
-                            boxShadow: kGlassShadow,
+                  // ── 헤더: 뒤로가기 버튼 (수정 모드 / 계정 만들기 취소 공통) ──
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: GestureDetector(
+                      onTap: _isSubmitting
+                          ? null
+                          : (widget.isEditing
+                                ? _handleBackToMyPage
+                                : _cancelSignup),
+                      child: Container(
+                        width: 37,
+                        height: 37,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [Color(0x1AFFFFFF), Color(0x0DFFFFFF)],
                           ),
-                          child: const Icon(
-                            Icons.arrow_back_ios_new_rounded,
-                            color: Colors.white,
-                            size: 16,
+                          borderRadius: BorderRadius.circular(28),
+                          border: Border.all(
+                            color: const Color(0x26FFFFFF),
+                            width: 0.636,
                           ),
+                          boxShadow: kGlassShadow,
+                        ),
+                        child: const Icon(
+                          Icons.arrow_back_ios_new_rounded,
+                          color: Colors.white,
+                          size: 16,
                         ),
                       ),
                     ),
-                  ] else
-                    const SizedBox(height: 181),
+                  ),
+                  // 계정 만들기(신규) 모드는 헤더가 짧으므로 기존 여백감 유지
+                  if (!widget.isEditing) const SizedBox(height: 136),
 
                   // ── 아이콘 ──────────────────────────────────────
                   Container(

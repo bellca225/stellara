@@ -8,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/glass.dart';
+import '../../../core/widgets/glass_pickers.dart';
 import '../../../core/utils/astro_text.dart';
 import '../../astrology/application/astrology_providers.dart';
 import '../../astrology/domain/birth_info.dart';
@@ -323,11 +324,13 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> {
           profileSunSign != null ? zodiacLabelKo(profileSunSign) : '',
     );
 
-    return StarBackground(
-      child: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 156),
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: StarBackground(
+        child: SafeArea(
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 156),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -485,6 +488,7 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> {
             ],
           ),
         ),
+      ),
       ),
     );
   }
@@ -1249,25 +1253,11 @@ class _EditBirthInfoDialogState extends State<_EditBirthInfoDialog> {
   }
 
   Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
+    final picked = await showGlassDatePicker(
+      context,
       initialDate: _selectedDate ?? DateTime(1995, 2, 15),
       firstDate: DateTime(1900),
       lastDate: DateTime.now(),
-      helpText: '생년월일 선택',
-      cancelText: '취소',
-      confirmText: '확인',
-      builder: (context, child) => Theme(
-        data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.dark(
-            primary: Color(0xFF1A5FD4),
-            onPrimary: Colors.white,
-            surface: Color(0xFF0D1830),
-            onSurface: Colors.white,
-          ),
-        ),
-        child: child!,
-      ),
     );
     if (picked != null) {
       setState(() {
@@ -1278,23 +1268,9 @@ class _EditBirthInfoDialogState extends State<_EditBirthInfoDialog> {
   }
 
   Future<void> _pickTime() async {
-    final picked = await showTimePicker(
-      context: context,
+    final picked = await showGlassTimePicker(
+      context,
       initialTime: _selectedTime ?? const TimeOfDay(hour: 12, minute: 0),
-      helpText: '출생 시간 선택',
-      cancelText: '취소',
-      confirmText: '확인',
-      builder: (context, child) => Theme(
-        data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.dark(
-            primary: Color(0xFF1A5FD4),
-            onPrimary: Colors.white,
-            surface: Color(0xFF0D1830),
-            onSurface: Colors.white,
-          ),
-        ),
-        child: child!,
-      ),
     );
     if (picked != null) {
       setState(() {

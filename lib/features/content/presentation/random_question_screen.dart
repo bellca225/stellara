@@ -1169,7 +1169,11 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<String>(
                       value: _selectedFriendUid,
-                      dropdownColor: const Color(0xFF0A1628),
+                      dropdownColor: const Color(0xFF0F1E38),
+                      borderRadius: BorderRadius.circular(16),
+                      elevation: 8,
+                      menuMaxHeight: 320,
+                      itemHeight: 56,
                       icon: SizedBox(
                         width: 20,
                         height: 20,
@@ -1185,16 +1189,87 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
                           fontFamily: 'Pretendard',
                         ),
                       ),
+                      // 닫힌 상태: 아바타 없이 깔끔한 텍스트만
+                      selectedItemBuilder: (context) => [
+                        for (final friend in friends)
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              '${friend.nickname} · ${_signLabel(friend.sunSign)}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: _C.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                                fontFamily: 'Pretendard',
+                              ),
+                            ),
+                          ),
+                      ],
                       items: [
                         for (final friend in friends)
                           DropdownMenuItem(
                             value: friend.uid,
-                            child: Text(
-                              '${friend.nickname} · ${_signLabel(friend.sunSign)}',
-                              style: const TextStyle(
-                                color: _C.white,
-                                fontFamily: 'Pretendard',
-                              ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 30,
+                                  height: 30,
+                                  alignment: Alignment.center,
+                                  decoration: const BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                      colors: [
+                                        Color(0xFF51A2FF),
+                                        Color(0xFF155DFC),
+                                      ],
+                                    ),
+                                  ),
+                                  child: Text(
+                                    friend.initial,
+                                    style: const TextStyle(
+                                      color: _C.white,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      fontFamily: 'Pretendard',
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        friend.nickname,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: _C.white,
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w500,
+                                          fontFamily: 'Pretendard',
+                                        ),
+                                      ),
+                                      Text(
+                                        _signLabel(friend.sunSign),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: _C.accentDim,
+                                          fontSize: 12,
+                                          fontFamily: 'Pretendard',
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                       ],

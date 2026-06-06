@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../../core/widgets/glass.dart';
 import '../../friends/application/friend_providers.dart';
 import '../../friends/domain/friend.dart';
 import '../../users/application/user_providers.dart';
@@ -23,8 +24,6 @@ class _C {
   static const glassStart = Color(0x14FFFFFF);
   static const glassEnd = Color(0x08FFFFFF);
   static const progressBg = Color(0x0DFFFFFF);
-  static const shareBtnStart = Color(0x402B7FFF);
-  static const shareBtnEnd = Color(0x40155DFC);
 }
 
 class _GlassCard extends StatelessWidget {
@@ -48,18 +47,7 @@ class _GlassCard extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [_C.glassStart, _C.glassEnd],
         ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x26000000),
-            blurRadius: 20,
-            offset: Offset(0, 8),
-          ),
-          BoxShadow(
-            color: Color(0x801E3A8A),
-            blurRadius: 40,
-            offset: Offset(0, 16),
-          ),
-        ],
+        boxShadow: kGlassShadow,
       ),
       child: child,
     );
@@ -244,35 +232,6 @@ class _BackIconPainter extends CustomPainter {
   bool shouldRepaint(_) => false;
 }
 
-class _ShareAccentIconPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final r = size.width / 20;
-    final p = Paint()
-      ..color = const Color(0xFF8EC5FF)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.66663 * r
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    canvas.drawCircle(Offset(13.7816 * r, 4.1666 * r), 2.5 * r, p);
-    canvas.drawCircle(Offset(3.7818 * r, 9.9997 * r), 2.5 * r, p);
-    canvas.drawCircle(Offset(13.7816 * r, 15.833 * r), 2.5 * r, p);
-    canvas.drawLine(
-      Offset(5.9402 * r, 11.258 * r),
-      Offset(11.6317 * r, 14.575 * r),
-      p,
-    );
-    canvas.drawLine(
-      Offset(11.6234 * r, 5.425 * r),
-      Offset(5.9402 * r, 8.742 * r),
-      p,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_) => false;
-}
-
 class _ShareWhiteIconPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
@@ -418,18 +377,6 @@ class _MatchScreenState extends ConsumerState<MatchScreen> {
                             height: 1.33,
                             letterSpacing: -0.2,
                             fontFamily: 'Pretendard',
-                          ),
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () => _share(selectedFriend?.nickname),
-                        child: _HeaderIcon(
-                          child: SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CustomPaint(
-                              painter: _ShareAccentIconPainter(),
-                            ),
                           ),
                         ),
                       ),
@@ -784,53 +731,16 @@ class _ResultContentState extends State<_ResultContent>
           ),
         ),
         const SizedBox(height: 20),
-        GestureDetector(
-          onTap: widget.onShare,
-          child: Container(
-            height: 61,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(9999),
-              border: Border.all(color: _C.headerBorder, width: 1),
-              gradient: const LinearGradient(
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-                colors: [_C.shareBtnStart, _C.shareBtnEnd],
-              ),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x26000000),
-                  blurRadius: 20,
-                  offset: Offset(0, 8),
-                ),
-                BoxShadow(
-                  color: Color(0x661E3A8A),
-                  blurRadius: 40,
-                  offset: Offset(0, 16),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CustomPaint(painter: _ShareWhiteIconPainter()),
-                ),
-                const SizedBox(width: 10),
-                const Text(
-                  'SNS에 공유하기',
-                  style: TextStyle(
-                    color: _C.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: -0.2,
-                    fontFamily: 'Pretendard',
-                  ),
-                ),
-              ],
-            ),
+        GlassButton(
+          label: 'SNS에 공유하기',
+          isPrimary: true,
+          height: 61,
+          leading: SizedBox(
+            width: 20,
+            height: 20,
+            child: CustomPaint(painter: _ShareWhiteIconPainter()),
           ),
+          onTap: widget.onShare,
         ),
       ],
     );
@@ -919,18 +829,7 @@ class _HeaderIcon extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [Color(0x1AFFFFFF), Color(0x0DFFFFFF)],
         ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x26000000),
-            blurRadius: 4,
-            offset: Offset(0, 4),
-          ),
-          BoxShadow(
-            color: Color(0x801E3A8A),
-            blurRadius: 20,
-            offset: Offset(0, 5),
-          ),
-        ],
+        boxShadow: kGlassShadow,
       ),
       child: Center(child: child),
     );
