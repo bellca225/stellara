@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../widgets/star_field.dart';
+
 class AppColors {
   // 다크 우주 테마
   static const Color background = Color(0xFF0A0A1F);
@@ -196,57 +198,25 @@ class StarBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width =
-            constraints.maxWidth.isFinite
-                ? constraints.maxWidth
-                : MediaQuery.sizeOf(context).width;
-        final height =
-            constraints.maxHeight.isFinite
-                ? constraints.maxHeight
-                : MediaQuery.sizeOf(context).height;
-
-        return SizedBox.expand(
-          child: DecoratedBox(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Color(0xFF0A0A1F), Color(0xFF0F1729), Color(0xFF1E3A8A)],
-                stops: [0.0, 0.3, 1.0],
-              ),
-            ),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                ...List.generate(40, (i) {
-                  final x = (i * 137.5) % 100;
-                  final y = (i * 97.3) % 100;
-                  final size = (i % 3 + 1).toDouble();
-                  final opacity = (i % 5 + 3) / 10;
-                  return Positioned(
-                    left: x / 100 * width,
-                    top: y / 100 * height,
-                    child: Opacity(
-                      opacity: opacity,
-                      child: Container(
-                        width: size,
-                        height: size,
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ),
-                  );
-                }),
-                child,
-              ],
-            ),
+    return SizedBox.expand(
+      child: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF0A0A1F), Color(0xFF0F1729), Color(0xFF1E3A8A)],
+            stops: [0.0, 0.3, 1.0],
           ),
-        );
-      },
+        ),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // 은은한 트윙클 별 애니메이션 (전 페이지 공통)
+            const Positioned.fill(child: StarField()),
+            child,
+          ],
+        ),
+      ),
     );
   }
 }

@@ -1,8 +1,8 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../core/widgets/star_field.dart';
 import 'auth_entry_guard.dart';
 import 'login_screen.dart';
 import 'signup_screen.dart';
@@ -51,7 +51,20 @@ class _LandingScreenState extends ConsumerState<LandingScreen>
     return Scaffold(
       body: Stack(
         children: [
-          const Positioned.fill(child: _StarField()),
+          // 배경 그라데이션 + 공용 트윙클 별필드
+          const Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xFF04091A), Color(0xFF071530), Color(0xFF0C1E4A)],
+                  stops: [0.0, 0.45, 1.0],
+                ),
+              ),
+            ),
+          ),
+          const Positioned.fill(child: StarField()),
           Positioned.fill(
             child: AnimatedBuilder(
               animation: _glowAnim,
@@ -138,154 +151,6 @@ class _LandingScreenState extends ConsumerState<LandingScreen>
       ),
     );
   }
-}
-
-class _StarField extends StatefulWidget {
-  const _StarField();
-
-  @override
-  State<_StarField> createState() => _StarFieldState();
-}
-
-class _StarFieldState extends State<_StarField>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _ctrl;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 14),
-    )..repeat(); // 이음매 없는 무한 트윙클 (정수 배속으로 루프 끊김 없음)
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _ctrl,
-      builder: (_, __) =>
-          CustomPaint(painter: _StarPainter(_ctrl.value), child: Container()),
-    );
-  }
-}
-
-class _Star {
-  final double x, y, r, base, speed, phase;
-  final int tint; // 0=흰색, 1=차가운 블루, 2=따뜻한 톤
-  final bool bright; // 글로우 부여
-  final bool hero; // 십자 반짝임 부여
-  const _Star(this.x, this.y, this.r, this.base, this.speed, this.phase,
-      this.tint, this.bright, this.hero);
-}
-
-class _StarPainter extends CustomPainter {
-  final double t;
-  _StarPainter(this.t);
-
-  // 틴트 색상 (은은하게)
-  static const List<Color> _tints = [
-    Color(0xFFFFFFFF), // 흰색
-    Color(0xFFCFE0FF), // 차가운 블루
-    Color(0xFFFFEFD2), // 따뜻한 톤
-  ];
-
-  static const int _count = 320;
-  static const int _brightFrom = 296; // 296~319: 밝은 별 (글로우)
-  static const int _heroFrom = 312; // 312~319: 가장 밝은 별 (십자 반짝임)
-
-  static final List<_Star> _stars = () {
-    final rng = math.Random(42);
-    return List.generate(_count, (i) {
-      final bright = i >= _brightFrom;
-      final hero = i >= _heroFrom;
-      final r = bright
-          ? rng.nextDouble() * 0.9 + 1.0
-          : rng.nextDouble() * 0.7 + 0.35;
-      final base = bright
-          ? rng.nextDouble() * 0.35 + 0.65
-          : rng.nextDouble() * 0.5 + 0.18;
-      final speed = (rng.nextInt(3) + 1).toDouble(); // 1~3 (정수 → 무한루프 연속)
-      final phase = rng.nextDouble();
-      final tr = rng.nextDouble();
-      final tint = tr < 0.72 ? 0 : (tr < 0.92 ? 1 : 2);
-      return _Star(rng.nextDouble(), rng.nextDouble(), r, base, speed, phase,
-          tint, bright, hero);
-    });
-  }();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
-    final bg = Paint()
-      ..shader = const LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [Color(0xFF04091A), Color(0xFF071530), Color(0xFF0C1E4A)],
-        stops: [0.0, 0.45, 1.0],
-      ).createShader(rect);
-    canvas.drawRect(rect, bg);
-
-    const tau = math.pi * 2;
-    // 재사용 Paint (별마다 색/blur만 갱신)
-    final core = Paint();
-    final glow = Paint();
-    final spark = Paint()
-      ..strokeCap = StrokeCap.round
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 0.6);
-
-    for (final s in _stars) {
-      final x = s.x * size.width;
-      final y = s.y * size.height;
-
-      // 부드러운 트윙클: smoothstep 이징으로 자연스러운 깜빡임
-      final tw = 0.5 + 0.5 * math.sin(tau * (s.speed * t + s.phase));
-      final eased = tw * tw * (3 - 2 * tw);
-      final alpha = (s.base * (0.25 + 0.75 * eased)).clamp(0.0, 1.0);
-      final color = _tints[s.tint];
-      final center = Offset(x, y);
-
-      if (s.bright) {
-        // 은은한 글로우 (밝은 별에만 → 성능 안전)
-        final pulse = 1.0 + 0.12 * eased; // 미세한 호흡
-        glow
-          ..color = color.withOpacity(alpha * 0.20)
-          ..maskFilter = MaskFilter.blur(BlurStyle.normal, s.r * 1.6);
-        canvas.drawCircle(center, s.r * 1.7 * pulse, glow);
-
-        if (s.hero) {
-          // 가장 밝은 별: 아주 은은한 십자 반짝임
-          final len = s.r * (2.0 + 1.2 * eased);
-          spark.color = color.withOpacity(alpha * 0.22);
-          spark.strokeWidth = 0.5;
-          canvas.drawLine(
-              Offset(x - len, y), Offset(x + len, y), spark);
-          canvas.drawLine(
-              Offset(x, y - len), Offset(x, y + len), spark);
-        }
-
-        core
-          ..color = color.withOpacity(alpha)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 0.4);
-        canvas.drawCircle(center, s.r * pulse, core);
-      } else {
-        // 작은 별: blur 없이 가벼운 원 (대부분의 별 → 성능 핵심)
-        core
-          ..color = color.withOpacity(alpha)
-          ..maskFilter = null;
-        canvas.drawCircle(center, s.r, core);
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(_StarPainter o) => o.t != t;
 }
 
 class _GlowPainter extends CustomPainter {
