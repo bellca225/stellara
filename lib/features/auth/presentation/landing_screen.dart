@@ -299,12 +299,12 @@ class _GlassButton extends StatelessWidget {
       : const LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0x1F0A1124), Color(0x1F0A1124)],
+          colors: [Color(0x1Affffff), Color(0x1Affffff)],
+          // 0A1124
         );
 
-  // 테두리: 너무 밝지 않게, primary는 옅은 블루, 로그인은 옅은 화이트
-  Color get _borderColor =>
-      isPrimary ? const Color(0x4D6FA8FF) : const Color(0x14FFFFFF);
+  // 테두리: CSS 기준 rgba(255,255,255,0.15) = 흰색 15% 투명도
+  Color get _borderColor => const Color(0x26FFFFFF);
 
   @override
   Widget build(BuildContext context) {
@@ -316,45 +316,40 @@ class _GlassButton extends StatelessWidget {
         decoration: BoxDecoration(
           gradient: _gradient,
           borderRadius: BorderRadius.circular(9999),
-          border: Border.all(color: _borderColor, width: 1),
-          boxShadow: isPrimary
-              // primary: 은은한 블루 글로우 + 부드러운 드롭 섀도우 (과한 발광 제거)
-              ? const [
-                  BoxShadow(
-                    color: Color(0x40000000),
-                    blurRadius: 8,
-                    offset: Offset(0, 4),
-                  ),
-                  BoxShadow(
-                    color: Color(0x331E4FB8),
-                    blurRadius: 16,
-                    offset: Offset(0, 4),
-                  ),
-                ]
-              // 로그인: 발광 없이 깊이감만 주는 어두운 드롭 섀도우
-              : const [
-                  BoxShadow(
-                    color: Color(0x1AFFFFFF),
-                    blurRadius: 0,
-                    
-                  ),
-                ],
+          // Figma: 0.612px solid rgba(255,255,255,0.15)
+          border: Border.all(color: _borderColor, width: 1.2),
+          // Figma drop shadows (두 버튼 동일):
+          //  0px 4px 4px  rgba(0,0,0,0.15)
+          //  0px 5px 20px rgba(30,58,138,0.5)
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x26000000),
+              blurRadius: 4,
+              offset: Offset(0, 4),
+            ),
+            BoxShadow(
+              color: Color(0x26000000),
+              blurRadius: 20,
+              offset: Offset(0, 5),
+            ),
+          ],
         ),
         child: Stack(
           children: [
-            // 상단 흰색 하이라이트 (얇은 글라스 광택, 과하지 않게)
+            // Figma inset inner shadow: inset 0px 1px 1px rgba(255,255,255,0.15)
+            // (Flutter BoxShadow는 inset 미지원 → 상단 얇은 흰색 하이라이트로 표현)
             Positioned.fill(
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(9999),
-                  gradient: LinearGradient(
+                  gradient: const LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      Color(isPrimary ? 0x2EFFFFFF : 0x1FFFFFFF),
+                      Color(0x26FFFFFF),
                       Colors.transparent,
                     ],
-                    stops: const [0.0, 0.0],
+                    stops: [0.0, 0.0],
                   ),
                 ),
               ),
