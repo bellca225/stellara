@@ -316,8 +316,16 @@ class _GlassButton extends StatelessWidget {
         decoration: BoxDecoration(
           gradient: _gradient,
           borderRadius: BorderRadius.circular(9999),
-          // Figma: 0.612px solid rgba(255,255,255,0.15)
-          border: Border.all(color: _borderColor, width: 1.2),
+          // 스트로크: 상단 밝고 하단 옅어지는 그라데이션 보더 (이미지 기준)
+          border: const GradientBoxBorder(
+            width: 0.6,
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0x73FFFFFF), Color(0x0FFFFFFF)],
+              stops: [0.0, 1.0],
+            ),
+          ),
           // Figma drop shadows (두 버튼 동일):
           //  0px 4px 4px  rgba(0,0,0,0.15)
           //  0px 5px 20px rgba(30,58,138,0.5)
@@ -371,4 +379,43 @@ class _GlassButton extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 그라데이션 외곽선(stroke)을 그리는 BoxBorder.
+/// Flutter 기본 Border는 단색만 지원하므로 shader로 직접 그린다.
+class GradientBoxBorder extends BoxBorder {
+  final Gradient gradient;
+  final double width;
+  const GradientBoxBorder({required this.gradient, this.width = 1.0});
+
+  @override
+  BorderSide get top => BorderSide.none;
+  @override
+  BorderSide get bottom => BorderSide.none;
+  @override
+  EdgeInsetsGeometry get dimensions => EdgeInsets.all(width);
+  @override
+  bool get isUniform => true;
+
+  @override
+  void paint(
+    Canvas canvas,
+    Rect rect, {
+    TextDirection? textDirection,
+    BoxShape shape = BoxShape.rectangle,
+    BorderRadius? borderRadius,
+  }) {
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = width
+      ..shader = gradient.createShader(rect);
+    final rrect = (borderRadius ?? BorderRadius.zero)
+        .toRRect(rect)
+        .deflate(width / 2); // 외곽선이 영역 안쪽으로 그려지도록
+    canvas.drawRRect(rrect, paint);
+  }
+
+  @override
+  ShapeBorder scale(double t) =>
+      GradientBoxBorder(gradient: gradient, width: width * t);
 }
