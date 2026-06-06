@@ -1,6 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -233,22 +231,24 @@ class _GlowPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    _drawGlow(
-      canvas,
-      center: Offset(size.width / 2, size.height * 0.38),
-      radius: size.width * (0.65 + 0.07 * a),
-      alpha: (0.22 + 0.06 * a).clamp(0.0, 1.0),
-      innerColor: const Color(0xFF1A5FD4),
-      outerColor: const Color(0xFF0C2E7A),
-    );
-    _drawGlow(
-      canvas,
-      center: Offset(size.width / 2, size.height * 0.78),
-      radius: size.width * (0.45 + 0.05 * a),
-      alpha: (0.12 + 0.04 * a).clamp(0.0, 1.0),
-      innerColor: const Color(0xFF1A4FBC),
-      outerColor: const Color(0xFF08206A),
-    );
+    // 배경 파란 글로우 제거
+    // _drawGlow(
+    //   canvas,
+    //   center: Offset(size.width / 2, size.height * 0.38),
+    //   radius: size.width * (0.65 + 0.07 * a),
+    //   alpha: (0.10 + 0.03 * a).clamp(0.0, 1.0),
+    //   innerColor: const Color(0xFF1A5FD4),
+    //   outerColor: const Color(0xFF0C2E7A),
+    // );
+
+    // _drawGlow(
+    //   canvas,
+    //   center: Offset(size.width / 2, size.height * 0.78),
+    //   radius: size.width * (0.45 + 0.05 * a),
+    //   alpha: (0.12 + 0.04 * a).clamp(0.0, 1.0),
+    //   innerColor: const Color(0xFF1A4FBC),
+    //   outerColor: const Color(0xFF08206A),
+    // );
   }
 
   void _drawGlow(
@@ -286,52 +286,80 @@ class _GlassButton extends StatelessWidget {
     required this.onTap,
   });
 
+  // 진한 블루(계정 만들기) / 어두운 반투명(로그인) 글라스 채움.
+  // 알파를 낮춰 뒤의 별빛이 버튼 안쪽에 살짝 비쳐 보이도록 함.
   Gradient get _gradient => isPrimary
+      // 진한 블루 글라스: 위쪽 약간 밝고 아래로 깊어지는 세로 그라데이션
       ? const LinearGradient(
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-          colors: [Color(0x662B7FFF), Color(0x40155DFC)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0x592B6FE6), Color(0x592B6FE6)],
         )
-      : LinearGradient(
-          begin: const Alignment(-0.707, -0.707),
-          end: const Alignment(0.707, 0.707),
-          colors: const [Color(0x1AFFFFFF), Color(0x0DFFFFFF)],
+      // 어두운 반투명 글라스: 별빛이 비치도록 어두운 네이비를 낮은 알파로
+      : const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0x1F0A1124), Color(0x1F0A1124)],
         );
+
+  // 테두리: 너무 밝지 않게, primary는 옅은 블루, 로그인은 옅은 화이트
+  Color get _borderColor =>
+      isPrimary ? const Color(0x4D6FA8FF) : const Color(0x14FFFFFF);
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(9999),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-          child: Container(
-            width: double.infinity,
-            height: 60, //isPrimary ? 61 : 49,
-            decoration: BoxDecoration(
-              gradient: _gradient,
-              borderRadius: BorderRadius.circular(9999),
-              border: Border.all(color: const Color(0x26FFFFFF), width: 0.612),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x26000000),
-                  blurRadius: 4,
-                  offset: Offset(0, 4),
+      child: Container(
+        width: double.infinity,
+        height: 60,
+        decoration: BoxDecoration(
+          gradient: _gradient,
+          borderRadius: BorderRadius.circular(9999),
+          border: Border.all(color: _borderColor, width: 1),
+          boxShadow: isPrimary
+              // primary: 은은한 블루 글로우 + 부드러운 드롭 섀도우 (과한 발광 제거)
+              ? const [
+                  BoxShadow(
+                    color: Color(0x40000000),
+                    blurRadius: 8,
+                    offset: Offset(0, 4),
+                  ),
+                  BoxShadow(
+                    color: Color(0x331E4FB8),
+                    blurRadius: 16,
+                    offset: Offset(0, 4),
+                  ),
+                ]
+              // 로그인: 발광 없이 깊이감만 주는 어두운 드롭 섀도우
+              : const [
+                  BoxShadow(
+                    color: Color(0x1AFFFFFF),
+                    blurRadius: 0,
+                    
+                  ),
+                ],
+        ),
+        child: Stack(
+          children: [
+            // 상단 흰색 하이라이트 (얇은 글라스 광택, 과하지 않게)
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(9999),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(isPrimary ? 0x2EFFFFFF : 0x1FFFFFFF),
+                      Colors.transparent,
+                    ],
+                    stops: const [0.0, 0.0],
+                  ),
                 ),
-                BoxShadow(
-                  color: Color(0x801E3A8A),
-                  blurRadius: 20,
-                  offset: Offset(0, 5),
-                ),
-                BoxShadow(
-                  color: Color(0x26FFFFFF),
-                  blurRadius: 1,
-                  offset: Offset(0, 1),
-                ),
-              ],
+              ),
             ),
-            child: Center(
+            Center(
               child: Text(
                 label,
                 style: const TextStyle(
@@ -343,7 +371,7 @@ class _GlassButton extends StatelessWidget {
                 ),
               ),
             ),
-          ),
+          ],
         ),
       ),
     );
