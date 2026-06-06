@@ -187,7 +187,9 @@ class _ChartContent extends StatelessWidget {
       physics: const ClampingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
       children: [
-        _ChartPanel(birth: birth, chart: chart),
+        _BirthChartHeader(birth: birth),
+        const SizedBox(height: 16),
+        _ChartPanel(chart: chart),
         const SizedBox(height: 28),
         const Text(
           '상세 분석',
@@ -221,110 +223,39 @@ class _ChartContent extends StatelessWidget {
 }
 
 class _ChartPanel extends StatelessWidget {
-  const _ChartPanel({required this.birth, required this.chart});
+  const _ChartPanel({required this.chart});
 
-  final BirthInfo birth;
   final NatalChart chart;
-
-  bool get _isDemo => Env.shouldUseFixtureForProkerala;
-  static String _pad(int v) => v.toString().padLeft(2, '0');
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.transparent,
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0x14FFFFFF), Color(0x08FFFFFF)],
+        ),
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: const Color(0x33FFFFFF), width: 0.636),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.1),
+          width: 0.636,
+        ),
+        boxShadow: _astrologyGlassBoxShadow,
       ),
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text('출생 차트', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: AppSpacing.md),
             Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 320),
                 child: AspectRatio(
                   aspectRatio: 1,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      CustomPaint(
-                        painter: NatalChartPainter(chart),
-                        child: const SizedBox.expand(),
-                      ),
-                      Container(
-                        width: 96,
-                        height: 96,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: const LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [Color(0x10FFFFFF), Color(0x08FFFFFF)],
-                          ),
-                          border: Border.all(
-                            color: const Color(0x3351A2FF),
-                            width: 1.0,
-                          ),
-                          boxShadow: const [
-                            BoxShadow(color: Color(0x401E3A8A), blurRadius: 12),
-                          ],
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.star_outline_rounded,
-                              color: AppColors.primaryLight,
-                              size: 22,
-                            ),
-                            const SizedBox(height: 3),
-                            const Text(
-                              '출생 차트',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              '${birth.dateTime.year}-${_pad(birth.dateTime.month)}-${_pad(birth.dateTime.day)}',
-                              style: const TextStyle(
-                                color: Color(0xFFBEDBFF),
-                                fontSize: 10,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            if (_isDemo) ...[
-                              const SizedBox(height: 3),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 5,
-                                  vertical: 1,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.orange.withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: const Text(
-                                  '데모',
-                                  style: TextStyle(
-                                    color: Colors.orange,
-                                    fontSize: 8,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                  child: CustomPaint(painter: NatalChartPainter(chart)),
                 ),
               ),
             ),

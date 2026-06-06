@@ -226,20 +226,32 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> {
   Future<T?> _showGlassDialog<T>(Widget child) {
     return showGeneralDialog<T>(
       context: context,
-      barrierDismissible: true,
+      // barrierDismissible을 false로 하고 backdrop GestureDetector에서
+      // unfocus → pop 순서를 보장한다.
+      // barrierDismissible: true이면 Flutter 내부에서 unfocus 없이
+      // Navigator.pop()을 호출해 IME assertion을 유발할 수 있다.
+      barrierDismissible: false,
       barrierLabel: 'close',
       barrierColor: Colors.transparent,
       transitionDuration: const Duration(milliseconds: 220),
-      pageBuilder: (context, animation, secondaryAnimation) {
-        final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+      pageBuilder: (dialogContext, animation, secondaryAnimation) {
+        final bottomInset = MediaQuery.of(dialogContext).viewInsets.bottom;
         return Material(
           color: Colors.transparent,
           child: Stack(
             children: [
+              // 배경 블러 + 탭 시 unfocus 후 닫기
               Positioned.fill(
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 7, sigmaY: 7),
-                  child: Container(color: _C.overlay),
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    FocusScope.of(dialogContext).unfocus();
+                    Navigator.of(dialogContext).pop();
+                  },
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 7, sigmaY: 7),
+                    child: Container(color: _C.overlay),
+                  ),
                 ),
               ),
               Positioned.fill(
@@ -248,7 +260,13 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> {
                     duration: const Duration(milliseconds: 180),
                     curve: Curves.easeOut,
                     padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + bottomInset),
-                    child: Center(child: SingleChildScrollView(child: child)),
+                    // 다이얼로그 카드 위의 탭은 배경 GestureDetector로 전파되지 않게 흡수
+                    child: Center(
+                      child: GestureDetector(
+                        onTap: () {},
+                        child: SingleChildScrollView(child: child),
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -1146,7 +1164,12 @@ class _EditNicknameDialogState extends State<_EditNicknameDialog> {
   Widget build(BuildContext context) {
     return _DialogCard(
       title: '닉네임 수정',
-      onClose: _isSaving ? null : () => Navigator.of(context).pop(false),
+      onClose: _isSaving
+          ? null
+          : () {
+              FocusScope.of(context).unfocus();
+              Navigator.of(context).pop(false);
+            },
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1198,7 +1221,10 @@ class _EditNicknameDialogState extends State<_EditNicknameDialog> {
               Expanded(
                 child: _GlassPillButton(
                   label: '취소',
-                  onTap: () => Navigator.of(context).pop(false),
+                  onTap: () {
+                    FocusScope.of(context).unfocus();
+                    Navigator.of(context).pop(false);
+                  },
                 ),
               ),
               const SizedBox(width: 12),
@@ -1461,7 +1487,12 @@ class _EditBirthInfoDialogState extends State<_EditBirthInfoDialog> {
   Widget build(BuildContext context) {
     return _DialogCard(
       title: '출생 정보 수정',
-      onClose: _isSaving ? null : () => Navigator.of(context).pop(false),
+      onClose: _isSaving
+          ? null
+          : () {
+              FocusScope.of(context).unfocus();
+              Navigator.of(context).pop(false);
+            },
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1537,7 +1568,10 @@ class _EditBirthInfoDialogState extends State<_EditBirthInfoDialog> {
               Expanded(
                 child: _GlassPillButton(
                   label: '취소',
-                  onTap: () => Navigator.of(context).pop(false),
+                  onTap: () {
+                    FocusScope.of(context).unfocus();
+                    Navigator.of(context).pop(false);
+                  },
                 ),
               ),
               const SizedBox(width: 12),
