@@ -222,6 +222,92 @@ class _ChartContent extends StatelessWidget {
   }
 }
 
+class _BirthChartHeader extends StatelessWidget {
+  const _BirthChartHeader({required this.birth});
+
+  final BirthInfo birth;
+
+  String _pad(int v) => v.toString().padLeft(2, '0');
+
+  @override
+  Widget build(BuildContext context) {
+    final dt = birth.dateTime;
+    final dateStr =
+        '${dt.year}년 ${dt.month}월 ${dt.day}일';
+    final timeStr = '${_pad(dt.hour)}:${_pad(dt.minute)}';
+    final placeStr = birth.placeName?.trim().isNotEmpty == true
+        ? birth.placeName!.trim()
+        : '출생지 미입력';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0x14FFFFFF), Color(0x08FFFFFF)],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.1),
+          width: 0.636,
+        ),
+        boxShadow: _astrologyGlassBoxShadow,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  birth.nickname,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                _InfoRow(icon: Icons.calendar_today_outlined, label: dateStr),
+                const SizedBox(height: 4),
+                _InfoRow(icon: Icons.access_time_outlined, label: timeStr),
+                const SizedBox(height: 4),
+                _InfoRow(icon: Icons.location_on_outlined, label: placeStr),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  const _InfoRow({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 13, color: const Color(0xFF8EC5FF)),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: const TextStyle(
+            color: Color(0xCCFFFFFF),
+            fontSize: 13,
+            height: 1.4,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _ChartPanel extends StatelessWidget {
   const _ChartPanel({required this.chart});
 

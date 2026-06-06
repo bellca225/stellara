@@ -614,10 +614,26 @@ class _RoundBackButton extends StatelessWidget {
   }
 }
 
-class _SearchField extends StatelessWidget {
+class _SearchField extends StatefulWidget {
   const _SearchField({required this.onChanged});
 
   final ValueChanged<String> onChanged;
+
+  @override
+  State<_SearchField> createState() => _SearchFieldState();
+}
+
+class _SearchFieldState extends State<_SearchField> {
+  // StatefulWidget으로 전환해 TextEditingController를 안정적으로 유지한다.
+  // 부모의 setState()로 _SearchField가 rebuild되더라도 controller 인스턴스가
+  // 바뀌지 않으므로 Chrome Web + 한글 IME 조합 중 텍스트 상태가 desync되지 않는다.
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -640,7 +656,8 @@ class _SearchField extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: TextField(
-              onChanged: onChanged,
+              controller: _controller,
+              onChanged: widget.onChanged,
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 16,
