@@ -342,10 +342,6 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> {
               ),
               const SizedBox(height: 24),
               _GlassSurface(
-                glowColor: const Color(0x262B7FFF),
-                glowLeft: -64,
-                glowTop: -64,
-                glowSize: 160,
                 padding: const EdgeInsets.fromLTRB(24, 22, 24, 22),
                 child: Row(
                   children: [
@@ -437,10 +433,6 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> {
               ),
               const SizedBox(height: 16),
               _GlassSurface(
-                glowColor: const Color(0x26AD46FF),
-                glowLeft: 250,
-                glowTop: 136,
-                glowSize: 128,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 24,
                   vertical: 24,
@@ -514,6 +506,9 @@ class _ProfileHeader extends StatelessWidget {
       child: Stack(
         alignment: Alignment.topCenter,
         children: [
+          // 아바타 뒤 부드러운 글로우.
+          // (BackdropFilter는 웹에서 클립이 안 먹어 배경 별빛을 뭉개므로
+          //  RadialGradient 글로우로 대체)
           Positioned(
             top: 24,
             child: Container(
@@ -521,11 +516,9 @@ class _ProfileHeader extends StatelessWidget {
               height: 160,
               decoration: const BoxDecoration(
                 shape: BoxShape.circle,
-                color: Color(0x262B7FFF),
-              ),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 64, sigmaY: 64),
-                child: const SizedBox.expand(),
+                gradient: RadialGradient(
+                  colors: [Color(0x402B7FFF), Color(0x00000000)],
+                ),
               ),
             ),
           ),
@@ -639,77 +632,28 @@ class _ProfileHeader extends StatelessWidget {
 }
 
 class _GlassSurface extends StatelessWidget {
-  const _GlassSurface({
-    required this.child,
-    this.padding,
-    this.glowColor,
-    this.glowLeft,
-    this.glowTop,
-    this.glowSize = 160,
-  });
+  const _GlassSurface({required this.child, this.padding});
 
   final Widget child;
   final EdgeInsetsGeometry? padding;
-  final Color? glowColor;
-  final double? glowLeft;
-  final double? glowTop;
-  final double glowSize;
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: _C.cardBorder, width: 0.636),
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0x14FFFFFF), Color(0x08FFFFFF)],
-            ),
-            boxShadow: _glassBoxShadow,
-          ),
-          child: Stack(
-            children: [
-              if (glowColor != null)
-                Positioned(
-                  left: glowLeft,
-                  top: glowTop,
-                  child: Container(
-                    width: glowSize,
-                    height: glowSize,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: glowColor,
-                    ),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 64, sigmaY: 64),
-                      child: const SizedBox.expand(),
-                    ),
-                  ),
-                ),
-              Positioned.fill(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.15),
-                      width: 0.5,
-                    ),
-                  ),
-                ),
-              ),
-              Padding(
-                padding: padding ?? const EdgeInsets.all(24),
-                child: child,
-              ),
-            ],
-          ),
+    // 표준 글라스 패턴(다른 화면의 GlassPanel과 동일): 블러/컬러 글로우 없이
+    // 어두운 글라스 채움 + 옅은 테두리 + 표준 그림자.
+    return Container(
+      padding: padding ?? const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: _C.cardBorder, width: 0.612),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0x14FFFFFF), Color(0x08FFFFFF)],
         ),
+        boxShadow: _glassBoxShadow,
       ),
+      child: child,
     );
   }
 }
@@ -910,10 +854,6 @@ class _DialogCard extends StatelessWidget {
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 345),
       child: _GlassSurface(
-        glowColor: const Color(0x262B7FFF),
-        glowLeft: 247,
-        glowTop: -64,
-        glowSize: 160,
         padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
