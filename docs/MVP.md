@@ -29,7 +29,7 @@ MVP(Minimum Viable Product)는 **"4명의 팀원이 실제로 앱을 통해 서�
 | M5 | 즐겨찾기 친구 3명 설정 | MAIN-001 | `favoriteIds` 업데이트 → 홈 화면에 즐겨찾기 친구 행성 표시 |
 | M6 | 궁합 분석 결과 조회 | MATCH-001 | Synastry API(또는 fixture) → 4축 점수(감정/대화/연애/총점) + 설명 표시 |
 | M7 | 랜덤 질문 3개 생성 | CONTENT-001 | local question set 3개 화면 표시 + 사용자 질문 1개 입력. 원격 AI는 기본 비활성화 |
-| M8 | 결과 공유 (이미지 캡처 + SNS) | SHARE-001 | `screenshot` → 이미지 생성 → `share_plus` → SNS 공유 성공 |
+| M8 | 결과 공유 (이미지 저장 + SNS) | SHARE-001 | 운세/랜덤 질문 공유 카드 저장 + SNS 공유, 궁합 결과 텍스트 공유 성공 |
 | M9 | 마이페이지 (출생 정보 수정) | MYPAGE-001 | 출생정보 수정 → Firestore 업데이트 → 차트 재계산 트리거 |
 
 ---
@@ -125,9 +125,9 @@ Step 4.  Android/iOS geocoding 연결
          → Android/iOS에서 온보딩 출생지 입력 → 실제 lat/lng 저장
          → BirthInfo 는 dateTimeLocal + utcOffset 형태 유지
 
-Step 5.  LoginScreen 현재 구조 유지
-         → "시작하기" + "데모 데이터로 둘러보기" 버튼 유지
-         → 최종 마감 전까지 데모 경로를 살려두고, 마지막 정리 단계에서 제거 여부 판단
+Step 5.  LandingScreen 인증 구조 유지
+         → "계정 만들기" + "로그인" 흐름 유지
+         → Firebase Email/Password 세션 복원과 온보딩 분기 확인
 
 Step 6.  OnboardingScreen → Firestore 저장 연결
          → 출생정보 입력 후 users/{uid} 문서 생성/업데이트
@@ -173,7 +173,7 @@ Step 10. MATCH-001 실 Synastry 데이터 연결
 Step 11. CONTENT-001 질문 엔진 추가
          - local question set 3개 + 사용자 입력 1개 화면 표시
          - `AI_REMOTE_ENABLED=false` 기본 유지
-         - GPT / Claude direct call 은 owner 승인 + 예산 확정 전까지 잠금
+         - Gemini / OpenAI / Anthropic direct call 은 owner 승인 + 예산 확정 전까지 잠금
 
 Step 12. TODAY-001 운세 캐시 (SharedPreferences)
          - 당일 동일 별자리 재호출 방지
@@ -198,8 +198,8 @@ Step 14. FCM 설정 (선택)
 
 ```
 Step 15. SHARE-001 구현
-         - share_plus, screenshot 패키지 추가
-         - 운세·궁합·나탈 차트 결과 이미지 캡처 → SNS 공유
+         - `RepaintBoundary` 캡처 + 플랫폼 저장 helper + `share_plus`
+         - 운세/랜덤 질문 공유 카드 저장, 궁합 텍스트 공유
 
 Step 16. 전체 디자인 폴리시 마감
          - 12주차에 준비한 컬러/모션 토큰 반영
@@ -238,7 +238,7 @@ Stellara는 **출생 정보(생년월일·시간·장소) → 차트/운세/궁�
 lib/main.dart     → 앱 시작, .env 로드, ProviderScope
 lib/app.dart      → MaterialApp, 흑백 테마, LoginScreen 첫 화면
 lib/core/         → 테마, HTTP, env, 공용 위젯 (도메인 무관)
-lib/features/     → 화면별 모듈 (auth/onboarding/home/astrology/horoscope/compatibility/friends/content/profile/share)
+lib/features/     → 화면별 모듈 (auth/onboarding/home/astrology/horoscope/compatibility/friends/content/profile/users)
 functions/        → [선택] Blaze 전환 시 추가할 서버 프록시 영역
 docs/SDD.md       → 전체 설계 문서
 docs/MVP.md       → 이 문서
@@ -254,7 +254,7 @@ docs/MVP.md       → 이 문서
 
 4. **Prokerala 제약 메모**: 현재 문서의 fallback은 실제 네트워크 실패나 응답 형태 차이를 흡수하기 위한 장치다. sandbox 응답에는 `1월 1일만 허용` 제약이 실제로 내려오므로, 실응답 검증은 owner 확인 후 짧게 수행하고 끝나면 다시 원격 호출을 잠근다.
 
-5. **DB 시딩**: 카카오 로그인이 없는 동안 `LoginScreen`의 현재 데모 진입 흐름을 유지하고, Firestore에는 테스트 사용자를 직접 시딩한다. `데모 데이터로 둘러보기` 버튼은 최종 정리 직전까지 살려둔다.
+5. **DB 시딩**: 현재 인증 구조는 `LandingScreen → 회원가입/로그인 → 온보딩` 이다. Firestore 샘플 데이터나 친구 테스트 데이터는 실제 Firebase Auth uid 기준으로 맞춰 넣어야 한다.
 
 6. **후반부 연출 작업 운영 방식**: 공유 화면, 애니메이션, 컬러 테마 같은 화려한 요소는 후반부 구현 대상으로 두되, 12주차 후반부터 레이아웃/디자인 토큰/자산 검토를 미리 시작해 13주차 과밀을 피한다.
 
@@ -266,7 +266,7 @@ docs/MVP.md       → 이 문서
 
 ### 10주차 완료 조건
 
-- [ ] Firebase 프로젝트 연결 (Android `google-services.json` 존재 + anonymous auth 로그 확인)
+- [ ] Firebase 프로젝트 연결 (Android `google-services.json` 존재 + Email/Password 로그인/세션 복원 확인)
 - [ ] `users` 컬렉션 + 팀원 4명 테스트 데이터 시딩 완료
 - [ ] Android/iOS에서 출생지 입력 → 좌표 변환 동작 확인
 - [ ] 온보딩 입력 → Firestore 저장 동작 확인
@@ -299,4 +299,4 @@ docs/MVP.md       → 이 문서
 
 ---
 
-*작성: 2026-05-08 / 기준 브랜치: feature/week09-prokerala-api*
+*작성: 2026-05-08 / 최신 검토 기준 브랜치: main*

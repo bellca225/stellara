@@ -46,9 +46,9 @@
 ## T05. Flutter Firebase bootstrap
 - 작업명: Flutter Firebase bootstrap
 - 목적: 앱에서 Firestore 기반 저장 흐름을 시작할 수 있는 최소 환경을 만든다.
-- 구현 범위: `firebase_core`, `firebase_auth`, `cloud_firestore` 의존성 추가, Android `google-services.json` 반영, Android package name `com.stellara.app` 정렬, Android 전용 Firebase 초기화 + anonymous auth 연결.
+- 구현 범위: `firebase_core`, `firebase_auth`, `cloud_firestore` 의존성 추가, Android `google-services.json` 반영, Android package name `com.stellara.app` 정렬, Firebase Email/Password Auth + Firestore 연동 구조 정착.
 - 수정 예상 파일: `pubspec.yaml`, `lib/main.dart`, `lib/core/firebase/firebase_bootstrap.dart`, `android/app/build.gradle.kts`, `android/settings.gradle.kts`, `android/app/google-services.json`
-- 완료 기준: Android 앱 실행 시 Firebase bootstrap 과 anonymous auth 가 성공하고, 런타임 에러 없이 실행된다.
+- 완료 기준: Android 앱 실행 시 Firebase bootstrap 과 회원가입/로그인, Firestore 사용자 로딩이 런타임 에러 없이 동작한다.
 - 선행 작업: 없음
 - 담당 가능 역할: 공통
 
@@ -56,7 +56,7 @@
 - 작업명: 무료 플랜 운영 규칙 문서화
 - 목적: Spark-only 전제를 팀이 같은 기준으로 이해하도록 한다.
 - 구현 범위: `PROKERALA_REMOTE_ENABLED=false` 기본 잠금, 실응답 검증 시의 임시 해제 절차, multi-key fallback, fixture 기본 전략, Spark 유지/Blaze 금지, 원격 AI 기본 비활성화, 공개 배포 금지 원칙을 README/SDD/MVP에 반영한다.
-- 수정 예상 파일: `README.md`, `docs/SDD.md`, `docs/MVP.md`, `docs/README.md`
+- 수정 예상 파일: `docs/SDD.md`, `docs/MVP.md`, `docs/README.md`
 - 완료 기준: 팀원이 무료 플랜 기준 현재 운영 방식과 제한 사항을 문서만 보고 이해할 수 있다.
 - 선행 작업: 없음
 - 담당 가능 역할: 공통
@@ -98,17 +98,17 @@
   변경 요약: `lib/features/users/` 신규 모듈 (domain/UserProfile, data/UserRepository, application/user_providers). UserProfile 은 SDD 8.3 schema 그대로 + toFirestore/fromFirestore (BirthInfo.dateTime ↔ dateTimeLocal 매핑). UserRepository: get/watch/create/upsertBirthInfo/updateFavorites. Providers: firestoreProvider/userRepositoryProvider/currentUserIdProvider/currentUserProfileProvider — 모두 `FirebaseBootstrap.isReady` 가드 통과 후 동작. `firebase_bootstrap.dart` 에 `isReady` getter 노출. `test/user_profile_test.dart` 신규 (4 케이스: 정상 round-trip, 신규 사용자, 손상 birthInfo, 누락 timestamp).
 
   **시딩 절차** (4명 데모 사용자, 11주차 진입 전 처리):
-  1. 안드로이드 에뮬레이터에서 앱 1회 실행 → anonymous sign-in → users/{uid} 문서 자동 생성 또는 (T11 적용 후) 온보딩 입력 → upsertBirthInfo
-  2. 실 사용자 4명 (나영/서연/선우/도연) 각자 자기 디바이스에서 동일 절차
-  3. 또는 Firebase Console → Firestore → users 컬렉션 → 4개 문서 수동 생성 (UserProfile.toFirestore() 결과를 참고해 동일 키 입력)
+  1. 앱에서 `계정 만들기`로 Firebase Auth 계정을 생성 → `users/{uid}` / `loginIds/{loginId}` / `friendCodes/{code}` 자동 생성
+  2. 각 사용자가 온보딩을 마치면 `birthInfo` / `activeChartVersion` / `profileCompleted` 가 채워진다
+  3. 또는 Firebase Console → Firestore → users 컬렉션에 테스트 문서를 수동 생성하되, 실제 Firebase Auth uid 와 맞춰 입력한다
   4. friendCode 는 T16 트랜잭션이 발급할 예정이라 현 단계에서는 비워둠 (`null`)
 
 ## T10. 개발 모드 로그인 진입
 - 작업명: 개발 모드 로그인 진입
 - 목적: 카카오 로그인 없이도 Firestore 사용자로 앱에 진입할 수 있게 한다.
-- 구현 범위: 현재 `시작하기` / `데모 데이터로 둘러보기` 흐름을 유지하면서, 필요 시 테스트 uid 연결 경로를 추가하고 Firestore 사용자 존재 여부를 확인한다.
+- 구현 범위: `LandingScreen → 계정 만들기 / 로그인` 흐름을 유지하면서, Firebase 세션 복원 후 Firestore 사용자 존재 여부를 확인한다.
 - 수정 예상 파일: `lib/features/auth/presentation/login_screen.dart`, `lib/app.dart`, `lib/features/astrology/application/astrology_providers.dart`
-- 완료 기준: 데모 버튼을 유지한 채 테스트 사용자로 `AppShell` 진입이 가능하다.
+- 완료 기준: 회원가입/로그인 후 `profileCompleted` 값에 따라 온보딩 또는 `AppShell` 로 진입한다.
 - 선행 작업: `T05`, `T09`
 - 담당 가능 역할: FE
 
@@ -248,7 +248,7 @@
 - 작업명: AI provider / env / fallback 정책 정리
 - 목적: 무과금 운영 기준에서 원격 AI를 잠근 상태로 팀이 같은 기준을 이해하도록 한다.
 - 구현 범위: `.env.example` 키 이름 확정, `AI_REMOTE_ENABLED=false` 기본값, local question set 우선 정책, 추후 원격 AI 승인 절차, `primary → seoyeon → seonwoo → doyeon` backup 규칙(미사용 상태 포함), `PROKERALA_REMOTE_ENABLED=false` 와 같은 무과금 잠금 패턴을 문서에 반영한다.
-- 수정 예상 파일: `.env.example`, `README.md`, `docs/SDD.md`, `docs/MVP.md`, `docs/TASKS.md`
+- 수정 예상 파일: `.env.example`, `docs/README.md`, `docs/SDD.md`, `docs/MVP.md`, `docs/TASKS.md`
 - 완료 기준: 팀원이 문서만 보고 AI 질문이 현재는 local only 임을 이해하고, 원격 AI를 언제 어떻게 열 수 있는지 알 수 있다.
 - 선행 작업: 없음
 - 담당 가능 역할: 공통
@@ -276,17 +276,19 @@
 ## T25. SHARE-001 구현
 - 작업명: SHARE-001 구현
 - 목적: 운세/궁합/나탈 차트 결과를 실제 이미지 공유 가능한 화면으로 만든다.
-- 구현 범위: 공유 화면 생성, 결과 카드 렌더링, `screenshot` 기반 캡처, `share_plus` 호출 연결.
-- 수정 예상 파일: `pubspec.yaml`, `lib/features/share/presentation/share_screen.dart`, `lib/features/compatibility/presentation/match_screen.dart`, `lib/features/horoscope/presentation/today_screen.dart`, `lib/features/astrology/presentation/astrology_screen.dart`
-- 완료 기준: 결과 카드가 이미지로 캡처되고 SNS 공유 시트가 열린다.
+- 구현 범위: 공유 화면 생성, 결과 카드 렌더링, `RepaintBoundary` 기반 캡처/저장, `share_plus` 호출 연결.
+- 수정 예상 파일: `pubspec.yaml`, `lib/features/content/presentation/question_share_screen.dart`, `lib/features/horoscope/presentation/horoscope_share_screen.dart`, `lib/features/compatibility/presentation/match_screen.dart`, `lib/features/astrology/presentation/astrology_screen.dart`
+- 완료 기준: 운세/랜덤 질문 카드가 저장되고 SNS 공유 시트가 열리며, 궁합은 텍스트 공유가 가능하다.
 - 선행 작업: `T24`
 - 담당 가능 역할: FE
+
+- 현재 구현 상태 (2026-06-07): `question_share_screen.dart`, `horoscope_share_screen.dart` 구현 완료. `match_screen.dart`는 텍스트 공유만 지원하며, 나탈 차트 전용 공유 화면은 아직 없다.
 
 ## T26. 후반부 디자인 폴리시 반영
 - 작업명: 후반부 디자인 폴리시 반영
 - 목적: 흑백 프로토타입을 발표 가능한 시각 완성도로 끌어올린다.
 - 구현 범위: 컬러 토큰 반영, 주요 화면 타이포/간격 정리, Lottie 적용 가능 지점 반영, 과한 범위 확장 없이 핵심 화면 위주로 마감.
-- 수정 예상 파일: `lib/core/theme/app_theme.dart`, `lib/features/home/presentation/main_home_screen.dart`, `lib/features/astrology/presentation/astrology_screen.dart`, `lib/features/compatibility/presentation/match_screen.dart`, `lib/features/share/presentation/share_screen.dart`
+- 수정 예상 파일: `lib/core/theme/app_theme.dart`, `lib/features/home/presentation/main_home_screen.dart`, `lib/features/astrology/presentation/astrology_screen.dart`, `lib/features/compatibility/presentation/match_screen.dart`, `lib/features/horoscope/presentation/horoscope_share_screen.dart`, `lib/features/content/presentation/question_share_screen.dart`
 - 완료 기준: 홈/차트/궁합/공유 핵심 화면의 디자인 톤이 일관되고, 후반부 연출 요소가 과밀 일정 없이 반영된다.
 - 선행 작업: `T24`
 - 담당 가능 역할: FE
@@ -315,7 +317,7 @@
 - 작업명: 데모 체크리스트 및 발표 시나리오 정리
 - 목적: 발표 직전 확인해야 할 흐름과 계정을 한 번에 점검할 수 있게 한다.
 - 구현 범위: 데모 사용자 목록, 시연 순서, 실패 시 fallback 시나리오, 환경 준비 순서 문서화.
-- 수정 예상 파일: `README.md`, `docs/MVP.md`, `docs/TASKS.md`
+- 수정 예상 파일: `docs/README.md`, `docs/MVP.md`, `docs/TASKS.md`
 - 완료 기준: 출생정보 입력 → 운세 확인 → 친구 궁합 → 공유 흐름의 발표 체크리스트가 문서로 정리되어 있다.
 - 선행 작업: `T25`, `T26`, `T27`, `T28`
 - 담당 가능 역할: 공통

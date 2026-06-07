@@ -17,7 +17,7 @@ void main() {
     await tester.pumpWidget(const ProviderScope(child: StellaraApp()));
     await tester.pump(const Duration(milliseconds: 1200));
 
-    expect(find.textContaining('Stelle'), findsOneWidget);
+    expect(find.text('Stellara'), findsOneWidget);
     expect(find.text('계정 만들기'), findsOneWidget);
     expect(find.text('로그인'), findsOneWidget);
   });

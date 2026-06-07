@@ -3,6 +3,8 @@
 > 분석 시점: 2026-05-08 / 분석 범위: `/Users/nywoo/proj/stellara` 전체 트리.
 > 본 문서는 SDD 초안에 그대로 옮길 수 있도록 정리한 1차 자료이며,
 > 코드는 아직 수정하지 않았습니다.
+>
+> **2026-06-07 업데이트 메모**: 이 문서는 9주차 초안 분석본이라 일부 서술이 현재 `main`과 다릅니다. 현재 소스의 기준 문서는 `docs/SDD.md`, `docs/AI_PROVIDER_GUIDE.md`, `docs/TASKS.md` 입니다. 현재 구현에는 Firebase Email/Password Auth, Firestore 친구 흐름, SharedPreferences L2 캐시, `share_plus` 기반 공유 화면, Gemini/OpenAI/Anthropic fallback 코드가 포함됩니다.
 
 ## 0. 한 줄 요약
 
@@ -24,7 +26,7 @@ Stellara는 **현재 “프론트엔드 중심 + Android Firebase bootstrap 완�
 | 날짜/포맷 | `intl ^0.19.0` |
 | 빌드 타깃 | `android/`, `ios/`, `macos/`, `web/` 모두 Flutter 기본 템플릿 그대로. 9주차 주 타깃은 Android 에뮬레이터(`Medium_Phone_API_36.1`)와 Chrome. |
 
-**아직 들어와 있지 않은 것 (README의 “예정 패키지” 항목)**: `kakao_flutter_sdk_user`, `firebase_messaging`, `flutter_secure_storage`, `lottie`, `share_plus`, `screenshot`, `go_router`, `shared_preferences`, `cached_network_image`, `flutter_local_notifications`. 즉 **푸시·공유·고급 라우팅 패키지는 아직 미도입 상태**입니다.
+초기 분석 시점 대비 현재는 `shared_preferences`, `share_plus`, `http`, `google_fonts`, `flutter_svg` 가 추가되었다. 아직 미도입인 대표 항목은 `kakao_flutter_sdk_user`, `firebase_messaging`, `lottie`, `go_router`, `cached_network_image`, `flutter_local_notifications` 이다.
 
 ## 2. 폴더 구조와 역할
 
@@ -43,7 +45,7 @@ stellara/
 ├── pubspec.yaml / pubspec.lock
 ├── analysis_options.yaml
 ├── .env / .env.example           # Prokerala 키 (.env는 .gitignore)
-├── README.md / WEEK9.md          # 실행 가이드 / 9주차 작업 노트
+├── docs/README.md                # 문서 시작 가이드
 └── build/                        # 빌드 산출물 (분석 무관)
 ```
 
@@ -111,7 +113,7 @@ prokeralaApiProvider                 // Provider<ProkeralaApi> (저수준 wrappe
 currentBirthInfoProvider            // StateProvider<BirthInfo>  (앱 전역 사용자 출생정보)
 ```
 
-확실하지 않음: `currentBirthInfoProvider`는 메모리 전용으로, 앱 종료 시 초기화됩니다. README/WEEK9.md에 따르면 **10주차에 Firestore와 연결**할 예정입니다.
+초기 분석 시점에는 `currentBirthInfoProvider`가 메모리 전용이었지만, 현재 소스 기준으로는 Firestore 사용자 프로필과 연동되어 앱 재실행 후에도 복원됩니다.
 
 ### 3.3 외부 API 계약 (Prokerala)
 
@@ -167,17 +169,17 @@ currentBirthInfoProvider            // StateProvider<BirthInfo>  (앱 전역 사
 | Synastry fetch + 4축 점수 휴리스틱 | **구현됨(휴리스틱)** | `synastry_repository.dart`. 원격 경로는 잠겨 있고 기본 동작은 fixture. 어스펙트 가중치는 임의값이라 추후 정교화 예정 |
 | 화면 프로토타입 9종 (LOGIN/ONBOARDING/MAIN/ASTROLOGY/TODAY/MATCH/FRIEND/CONTENT/MYPAGE) | **구현됨(목업 위주)** | `features/*/presentation/*.dart` |
 | 하단 4탭 네비게이션 | **구현됨** | `onboarding/app_shell.dart` |
-| 카카오 OAuth 로그인 | **미구현** | `kakao_flutter_sdk_user` 미설치, `LoginScreen`은 “데모 데이터로 시작” 버튼 1개. |
+| 카카오 OAuth 로그인 | **미구현** | `kakao_flutter_sdk_user` 미설치. 현재 인증은 Firebase Email/Password 회원가입/로그인 구조 |
 | 회원/세션/JWT 저장 | **미구현** | `flutter_secure_storage` 미설치. |
-| Firebase / Firestore 연동 | **부분 구현** | Android `google-services.json`, Firebase bootstrap, anonymous auth 연결 완료. Firestore 실데이터 경로는 후속 |
-| 친구 검색·요청·즐겨찾기·랜덤 코드 | **미구현** | `friends/presentation/friend_screen.dart`만 정적 UI. data/domain 폴더 자체 없음. |
+| Firebase / Firestore 연동 | **구현됨** | Firebase Auth 세션 복원, `users/loginIds/friendCodes/friendRequests/friendships` 실데이터 경로 존재 |
+| 친구 검색·요청·즐겨찾기·랜덤 코드 | **구현됨** | `friend_repository.dart`, `friend_code_repository.dart`, Firestore transaction 경로 포함 |
 | 출생지 주소 → 좌표 변환 | **부분 구현** | Android/iOS에서 helper 연결 완료. Web은 보조 타깃 |
-| AI 랜덤 질문 / 성격 리포트 | **미구현(원격 AI 비활성화)** | `random_question_screen.dart`는 정적/local 질문 카드, 원격 AI는 기본 잠금 |
-| 결과 공유(스크린샷/SNS) | **미구현** | `SHARE-001` 화면 자체 없음. `screenshot`/`share_plus` 미설치. |
+| AI 랜덤 질문 / 성격 리포트 | **부분 구현** | 랜덤 질문은 local flow + optional remote fallback 구현. 성격 리포트는 미구현 |
+| 결과 공유(스크린샷/SNS) | **부분 구현** | 운세/랜덤 질문 공유 화면 구현, 궁합은 텍스트 공유만 지원 |
 | 푸시 알림(FCM/Local) | **미구현** | 패키지 없음. |
 | 선언적 라우팅 / 딥링크 | **미구현** | `go_router` 미설치, 현재는 `Navigator.push` 직접 호출. |
-| 결과 캐싱 / 차트 버전 관리 | **미구현** | Riverpod의 in-memory 캐시만 존재. |
-| 다크 모드 / 컬러 테마 | **미구현(의도적 보류)** | WEEK9.md “13주차 복구 예정”. |
+| 결과 캐싱 / 차트 버전 관리 | **부분 구현** | SharedPreferences L2 + Firestore L3 캐시, `chartVersion` / `chartPairVersion` 흐름 존재 |
+| 다크 모드 / 컬러 테마 | **미구현(의도적 보류)** | 현재는 우주 톤 단일 테마 유지, 후반부 고도화 예정 |
 | 통합 테스트 / Repository 매핑 단위 테스트 | **미구현** | private 매핑 로직 미노출. |
 
 ## 8. 코드 안의 “위험/주의” 메모 (SDD의 ‘제약/리스크’ 절에 활용 가능)

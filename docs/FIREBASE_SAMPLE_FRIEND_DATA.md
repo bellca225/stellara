@@ -19,12 +19,12 @@
 - 검색/요청/수락/친구목록: [lib/features/friends/data/friend_repository.dart](/Users/nywoo/proj/stellara/lib/features/friends/data/friend_repository.dart:1)
 - 친구 화면: [lib/features/friends/presentation/friend_screen.dart](/Users/nywoo/proj/stellara/lib/features/friends/presentation/friend_screen.dart:1)
 - 사용자 스키마 모델: [lib/features/users/domain/user_profile.dart](/Users/nywoo/proj/stellara/lib/features/users/domain/user_profile.dart:1)
-- 데모 로그인 uid: [lib/features/auth/presentation/login_screen.dart](/Users/nywoo/proj/stellara/lib/features/auth/presentation/login_screen.dart:53)
+- 현재 로그인 진입점: [lib/features/auth/presentation/login_screen.dart](/Users/nywoo/proj/stellara/lib/features/auth/presentation/login_screen.dart:1)
 
 중요 포인트:
 
-- `데모 데이터로 둘러보기` 버튼은 현재 `demo-una` uid로 읽는다
-- 따라서 샘플 데이터의 대표 사용자 uid는 `demo-una` 로 잡는 것이 가장 편하다
+- 현재 앱에는 `데모 데이터로 둘러보기` 버튼이 없다
+- 아래 `demo-*` uid 값은 **예시 placeholder** 이며, 실제 테스트에서는 회원가입으로 생성된 Firebase Auth uid에 맞춰 바꿔 넣어야 한다
 - Web(`localhost`)에서 테스트 중이면 `.env` 의 `FIREBASE_WEB_*` 값이 먼저 설정되어 있어야 Firestore가 실제로 붙는다
 
 ## 2. 최소 입력 세트
@@ -36,7 +36,7 @@
 
 이 두 컬렉션만 있으면:
 
-- `demo-una` 로 로그인한 뒤
+- 테스트용 계정으로 로그인한 뒤
 - `DOY001`, `SEO001`, `SUN001` 검색
 - 검색 결과 확인
 - 친구 요청 전송
@@ -218,8 +218,8 @@ Firestore 콘솔에서 컬렉션 `friendCodes` 를 만들고 아래 문서 4개�
 가장 쉬운 테스트 순서:
 
 1. Web 또는 Android에서 앱 실행
-2. `데모 데이터로 둘러보기` 선택
-3. 현재 사용자 uid는 `demo-una` 로 본다
+2. 테스트용 계정으로 로그인
+3. 로그인한 계정의 실제 Firebase Auth uid 와 Firestore `users/{uid}` 가 맞는지 확인한다
 4. 친구 화면에서 아래 코드를 검색한다
    - `DOY001`
    - `SEO001`
@@ -314,4 +314,3 @@ Firestore 콘솔에서 컬렉션 `friendCodes` 를 만들고 아래 문서 4개�
 - `Onboarding` 의 Firestore 저장 연결은 아직 화면 코드에 완전히 붙지 않은 구간이 있다
 
 즉, **친구 기능은 실제로 붙었고 샘플 데이터 테스트는 가능하지만, 문서/연결 일부는 아직 정리 중인 상태**로 보면 된다.
-

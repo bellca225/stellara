@@ -3,11 +3,9 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-
-import '../../../core/ui/app_toast.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:share_plus/share_plus.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/widgets/glass.dart';
 import '../../friends/application/friend_providers.dart';
@@ -15,6 +13,7 @@ import '../../friends/domain/friend.dart';
 import '../../users/application/user_providers.dart';
 import '../application/compatibility_providers.dart';
 import '../domain/synastry_result.dart';
+import 'match_share_screen.dart';
 
 class _C {
   static const white = Color(0xFFFFFFFF);
@@ -481,7 +480,6 @@ class _MatchScreenState extends ConsumerState<MatchScreen> {
                     _MatchResultBody(
                       friendUid: selectedUid,
                       friendName: selectedFriend?.nickname,
-                      onShare: () => _share(selectedFriend?.nickname),
                     ),
                 ],
               ),
@@ -491,32 +489,16 @@ class _MatchScreenState extends ConsumerState<MatchScreen> {
       ),
     );
   }
-
-  Future<void> _share(String? name) async {
-    final profile = ref.read(currentUserProfileProvider).valueOrNull;
-    final myName = profile?.effectiveDisplayName ?? '나';
-    final text =
-        '✨ Stellara 궁합 결과\n$myName와 ${name ?? '친구'}의 궁합을 확인해보세요!\n\n#Stellara #점성술 #궁합';
-    try {
-      await Share.share(text, subject: '궁합 결과 공유');
-    } catch (_) {
-      if (mounted) {
-        showGlassToast(context, '공유를 지원하지 않는 환경이에요.', type: GlassToastType.error);
-      }
-    }
-  }
 }
 
 class _MatchResultBody extends ConsumerWidget {
   const _MatchResultBody({
     required this.friendUid,
-    required this.onShare,
     this.friendName,
   });
 
   final String friendUid;
   final String? friendName;
-  final VoidCallback onShare;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -570,7 +552,6 @@ class _MatchResultBody extends ConsumerWidget {
             result: result,
             friendName: friendName,
             friendZodiac: friendProfile?.sunSign ?? '-',
-            onShare: onShare,
           ),
         );
       },
@@ -582,14 +563,12 @@ class _ResultContent extends StatefulWidget {
   const _ResultContent({
     required this.result,
     required this.friendZodiac,
-    required this.onShare,
     this.friendName,
   });
 
   final SynastryResult result;
   final String? friendName;
   final String friendZodiac;
-  final VoidCallback onShare;
 
   @override
   State<_ResultContent> createState() => _ResultContentState();
@@ -654,10 +633,9 @@ class _ResultContentState extends State<_ResultContent>
                 builder: (context, child) => Text(
                   '${_countAnim.value}%',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
+                  style: GoogleFonts.rationale(
                     color: _C.white,
-                    fontFamily: 'Rationale',
-                    fontSize: 60,
+                    fontSize: 64,
                     fontWeight: FontWeight.w400,
                     height: 1.0,
                     letterSpacing: -0.2,
@@ -740,7 +718,15 @@ class _ResultContentState extends State<_ResultContent>
             height: 20,
             child: CustomPaint(painter: _ShareWhiteIconPainter()),
           ),
-          onTap: widget.onShare,
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => MatchShareScreen(
+                result: widget.result,
+                friendName: widget.friendName,
+                friendZodiac: widget.friendZodiac,
+              ),
+            ),
+          ),
         ),
       ],
     );

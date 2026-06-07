@@ -3,10 +3,10 @@
 // AI 기반 질문/해설 생성 Repository.
 //
 // 흐름:
-//   1. Env.aiRemoteEnabled == false  → 로컬 fallback (로컬 템플릿 반환)
-//   2. openAiApiKey 비어있음          → 로컬 fallback
-//   3. OpenAI GPT-4o-mini 호출       → 성공 시 QuestionItem(source: remoteAi)
-//   4. 호출 실패/파싱 실패            → 로컬 fallback (사용자에게 에러 미노출)
+//   1. Env.aiRemoteEnabled == false     → 로컬 fallback (로컬 템플릿 반환)
+//   2. 사용 가능한 API 키가 하나도 없음    → 로컬 fallback
+//   3. Env.aiProviderOrder 순서대로 시도  → 기본: Gemini → OpenAI → Anthropic
+//   4. 호출 실패/파싱 실패               → 로컬 fallback (사용자에게 에러 미노출)
 //
 // 시스템 프롬프트는 이 파일에 상수로 보관한다.
 // 사용자 메시지(context)는 NatalChart + SynastryResult를 기반으로 동적 구성한다.

@@ -71,8 +71,8 @@ Stellara는 사용자의 출생 정보(생년월일, 출생 시간, 출생지)�
 | 오늘의 운세 | Prokerala Daily Horoscope + 캐시 | L2 디스크 + L3 Firestore 캐시 구현 | 12주차 캐시 |
 | **궁합 분석 (Synastry)** | 두 사용자 나탈 차트 비교, 4축 점수 및 설명 제공 | 친구 선택 기반 연동 진행 중, 점수는 휴리스틱 유지 | **11주차 실데이터 연결** |
 | **친구 추가 및 소셜 연결** | 랜덤 코드 검색, 친구 요청·수락, 즐겨찾기 3명 | **실데이터 연동 완료** | **11주차** |
-| **AI 랜덤 질문** | local question set 3개 + 사용자 질문 1개. 원격 AI는 별도 승인 전까지 비활성화 | local question flow 구현 | **12주차** |
-| **SNS 공유 이미지 생성** | 운세·궁합 결과를 이미지 카드로 만들어 공유 | 폴더만 존재, 미구현 | **13주차** |
+| **AI 랜덤 질문** | local question set 3개 + 사용자 질문 1개. 원격 AI는 설정 시 멀티 프로바이더 fallback 사용 | local flow + optional remote fallback 구현 | **12주차** |
+| **SNS 공유 이미지 생성** | 운세·랜덤 질문 공유 카드 저장/공유 + 궁합 텍스트 공유 | **부분 구현** | **13주차 고도화** |
 
 ### 2.2 선택 기능 (추가 구현 — 일정 여유 시)
 
@@ -116,11 +116,15 @@ Stellara는 사용자의 출생 정보(생년월일, 출생 시간, 출생지)�
 | 상태 관리 | flutter_riverpod | ^2.5.1 |
 | HTTP 클라이언트 | dio | ^5.7.0 |
 | 환경 변수 | flutter_dotenv | ^5.2.1 |
-| 날짜/포맷 | intl | ^0.19.0 |
+| 날짜/포맷 | intl | ^0.20.2 |
 | 지오코딩 | geocoding | ^3.0.0 (Android/iOS 호출 경로 연결됨) |
 | Firebase 초기화 | firebase_core | ^4.9.0 |
 | Firebase 인증 | firebase_auth | ^6.5.1 |
 | Firestore SDK | cloud_firestore | ^6.4.1 |
+| 보조 HTTP 클라이언트 | http | ^1.2.0 (AI API 호출) |
+| 디스크 캐시 | shared_preferences | ^2.3.2 |
+| 공유 | share_plus | ^10.0.3 |
+| 폰트 / SVG | google_fonts, flutter_svg | ^6.2.1 / ^2.0.10+1 |
 | Flutter Secure Storage | flutter_secure_storage | ^9.2.2 | 현재 의존성만 추가, 앱 로직에서는 미사용 |
 | 모델 어노테이션 | freezed_annotation, json_annotation | 등록만, 코드 생성 미사용 |
 | 코드 생성 (dev) | build_runner, freezed, json_serializable, riverpod_generator | - |
@@ -134,8 +138,6 @@ Stellara는 사용자의 출생 정보(생년월일, 출생 시간, 출생지)�
 |--------|------|-----------|
 | flutter_secure_storage | 민감 정보 저장 보조 | 10주차 이후 선택 |
 | firebase_messaging | FCM 푸시 알림 | 12주차 선택 |
-| shared_preferences | 운세 캐시, 앱 설정 | 12주차 |
-| share_plus / screenshot | 결과 이미지 공유 | 13주차 |
 | lottie | 우주·행성 애니메이션 | 13주차 |
 | kakao_flutter_sdk_user | 카카오 소셜 로그인 | 후순위 |
 | go_router | 선언형 라우팅 | [추후 확인 필요] |
@@ -180,7 +182,7 @@ Prokerala 직접 호출 코드는 유지하되, **기본 브랜치에서는 `PRO
 | Firebase Auth | **Email/Password Auth + 세션 복원 완료** | 앱 시작 시 `FirebaseAuth.currentUser` 확인 후 Firestore 사용자 로드 |
 | Cloud Functions | **MVP 기본 경로 제외** | Firebase 공식 문서상 배포는 Blaze 업그레이드 전제가 필요 |
 | Prokerala | **기본 비활성화** | `PROKERALA_REMOTE_ENABLED=false` 유지. 실응답 검증 창에서만 잠깐 사용 |
-| AI 외부 LLM | **기본 비활성화** | `AI_REMOTE_ENABLED=false` 유지. 멀티 프로바이더 구조: OpenAI(gpt-4o-mini) → Anthropic(claude-3-5-haiku-latest) 순 fallback. `AI_PROVIDER_ORDER` env로 제어. owner 승인 전까지 direct call 금지 |
+| AI 외부 LLM | **기본 비활성화** | 체크인된 `.env.example`은 `AI_REMOTE_ENABLED=false`. 원격 AI를 열면 Gemini(gemini-2.5-flash) → OpenAI(gpt-4o-mini) → Anthropic(claude-3-5-haiku-latest) 순 fallback. owner 승인 전까지 direct call 금지 |
 
 ### 4.4 현재 운영 구조
 
@@ -205,7 +207,8 @@ Prokerala 직접 호출 코드는 유지하되, **기본 브랜치에서는 `PRO
 - `PROKERALA_REMOTE_ENABLED=false` 를 기본값으로 유지한다
 - 실응답 검증이 필요할 때만 owner 확인 후 direct Prokerala 호출을 잠깐 켠다
 - 검증 창이 끝나면 다시 `PROKERALA_REMOTE_ENABLED=false` 로 돌린다
-- `AI_REMOTE_ENABLED=false` 를 기본값으로 유지하고, 랜덤 질문은 local question set 만 사용한다
+- 체크인된 `.env.example`은 `AI_REMOTE_ENABLED=false` 를 유지하고, 발표/기본 시연은 local question set 을 사용한다
+- 원격 AI를 열 경우 `Gemini → OpenAI → Anthropic` 순서로 fallback 한다
 - APK/IPA를 공개 배포하지 않고 팀 내부 데모 범위에서만 사용한다
 - `client_secret` 이 앱 안에 존재하므로 장기 운영 구조로 간주하지 않는다
 
@@ -352,8 +355,7 @@ stellara/
 │       │   └── presentation/friend_screen.dart   # 도연 공동 작업 실구현
 │       ├── content/            # CONTENT-001
 │       ├── profile/            # MYPAGE-001
-│       ├── users/              # T09: users/{uid} 도메인 (UserProfile + UserRepository + Provider)
-│       └── share/              # SHARE-001 [13주차 신규 생성 예정, 현재 폴더 미생성]
+│       └── users/              # T09: users/{uid} 도메인 (UserProfile + UserRepository + Provider)
 ├── functions/                  # [선택 / Blaze 전환 시] 서버 프록시 영역. 현재 폴더 미생성
 ├── test/
 ├── assets/                     # [현재 폴더 미생성. pubspec.yaml 의 assets 에는 .env 만 등록됨]
@@ -479,9 +481,9 @@ main.dart → Env.load() → FirebaseBootstrap.initialize() → ProviderScope �
 | TODAY-001 | 오늘의 운세 | `horoscope/presentation/today_screen.dart` | 부분 구현 | 전 레이어 + L2/L3 캐시 |
 | MATCH-001 | 궁합 결과 | `compatibility/presentation/match_screen.dart` | 부분 구현 | 친구 선택형 연동 + 전 레이어 (점수 휴리스틱) |
 | FRIEND-001 | 친구 관리 | `friends/presentation/friend_screen.dart` | **구현됨** | presentation + Firestore 연동 |
-| CONTENT-001 | 랜덤 질문 | `content/presentation/random_question_screen.dart` | 부분 구현 | presentation + local question flow |
+| CONTENT-001 | 랜덤 질문 | `content/presentation/random_question_screen.dart` | 부분 구현 | presentation + local question flow + optional remote fallback |
 | MYPAGE-001 | 마이페이지 | `profile/presentation/my_page_screen.dart` | 부분 구현 | 출생정보 수정/로그아웃/친구 코드 표시 |
-| SHARE-001 | 결과 공유 | `share/presentation/` (폴더만, 파일 없음) | **미구현** | - |
+| SHARE-001 | 결과 공유 | `horoscope/presentation/horoscope_share_screen.dart`, `content/presentation/question_share_screen.dart`, `compatibility/presentation/match_screen.dart` | **부분 구현** | 운세/랜덤 질문은 저장+공유, 궁합은 텍스트 공유 |
 
 ### 6.2 주요 화면 기능 상세
 
@@ -528,19 +530,22 @@ main.dart → Env.load() → FirebaseBootstrap.initialize() → ProviderScope �
 [AiQuestionRepository]
     ├─ AI OFF or 키 없음 → QuestionRepository (로컬 fallback)
     └─ AI ON
-        ├─ AI_PROVIDER_ORDER 순서대로 시도 (기본: openai → anthropic)
-        ├─ OpenAI gpt-4o-mini → 성공 시 QuestionItem(source: remoteAi)
+        ├─ AI_PROVIDER_ORDER 순서대로 시도 (기본: gemini → openai → anthropic)
+        ├─ Gemini gemini-2.5-flash → 성공 시 QuestionItem(source: remoteAi)
+        ├─ 실패 시 OpenAI gpt-4o-mini → 시도
         ├─ 실패 시 Anthropic claude-3-5-haiku-latest → 시도
         └─ 모두 실패 시 로컬 fallback (사용자에게 에러 미노출)
 ```
 
 **env 키 구조 (Codex 구조와 통일)**
 ```
-AI_REMOTE_ENABLED=false          # 마스터 스위치
-AI_PROVIDER_DEFAULT=auto         # 'openai' | 'anthropic' | 'auto'
-AI_PROVIDER_ORDER=openai,anthropic  # fallback 순서
+AI_REMOTE_ENABLED=false          # 체크인 sample 기본값
+AI_PROVIDER_DEFAULT=auto         # 'gemini' | 'openai' | 'anthropic' | 'auto'
+AI_PROVIDER_ORDER=gemini,openai,anthropic
+AI_MODEL_GEMINI_DEFAULT=gemini-2.5-flash
 AI_MODEL_OPENAI_DEFAULT=gpt-4o-mini
 AI_MODEL_ANTHROPIC_DEFAULT=claude-3-5-haiku-latest
+GEMINI_API_KEY=
 OPENAI_API_KEY=
 ANTHROPIC_API_KEY=
 ```
@@ -548,18 +553,20 @@ ANTHROPIC_API_KEY=
 **AI 질문 특성**
 - 나탈 차트(Big 3 + Venus/Mercury/Mars + 교차 어스펙트)를 context로 전달
 - 6가지 QuestionType 순환: balanceGame / situationPrediction / personalityReveal / funnyCompatibility / emotionStyle / creativeScenario
-- 질문 생성 비용: 1회 ~$0.00027 (gpt-4o-mini 기준, 입력 600 + 출력 300토큰)
 - `AI_REMOTE_ENABLED=false` 상태에서도 로컬 question set 3개로 동작 유지
+- 원격 AI 사용 시에도 화면은 같은 버튼/플로우를 유지하고 repository에서 provider fallback을 처리한다
 
 **구현 파일**
 - `content/data/ai_question_repository.dart` — 멀티 프로바이더 fallback chain
 - `content/application/question_providers.dart` — `aiQuestionSetProvider`, `aiCustomAnswerProvider`
 - `content/domain/question_item.dart` — `QuestionType` enum, `source/questionType/generatedAt` 필드
-- `core/env/env.dart` — `openAiApiKey`, `anthropicApiKey`, `aiProviderOrder`, `aiModelOpenAi`, `aiModelAnthropic` getter
+- `core/env/env.dart` — `geminiApiKey`, `openAiApiKey`, `anthropicApiKey`, `aiProviderOrder`, `aiModelGemini`, `aiModelOpenAi`, `aiModelAnthropic` getter
 
 #### SHARE-001 — 결과 공유
-- **13주차**: `screenshot` + `share_plus` 패키지로 구현
-- 오늘의 운세, 궁합 결과, 나탈 차트 이미지 공유
+- 운세 공유: `horoscope_share_screen.dart` 에서 `RepaintBoundary` 캡처 + 플랫폼별 저장 helper + `share_plus` 텍스트 공유
+- 랜덤 질문 공유: `question_share_screen.dart` 에서 동일 방식으로 저장/공유
+- 궁합 공유: `match_screen.dart` 에서 텍스트 공유만 구현
+- 나탈 차트 전용 공유 화면과 궁합 이미지 카드 공유는 아직 미구현
 
 ---
 
@@ -1145,7 +1152,7 @@ kDebugMode && USE_FIXTURE_IN_DEBUG=true → fixture 즉시 반환 (네트워크 
 | 핫픽스 | `hotfix/{설명}` | `hotfix/env-missing-crash` |
 | 팀원별 기능 | `feature/{이름}-{기능명}` | `feature/도연-친구추가-기능` |
 
-**코드 공동 작업자**: 김도연(`feature/도연-친구추가-기능` 브랜치)이 FRIEND-001 친구 기능 코드를 공동 작성. 2026-05-31 기준 해당 브랜치의 `friend_repository.dart`, `friend_screen.dart`, `app_user.dart` 코드를 `feature/week10-place-resolver`로 머지 완료. 주요 수정 사항: `WriteBatch → runTransaction`, `signInWithPopup(Web 전용) → signInAnonymously`, 하드코딩 FirebaseOptions 제거.
+**코드 공동 작업자**: 김도연(`feature/도연-친구추가-기능` 브랜치)이 FRIEND-001 친구 기능 코드를 공동 작성. 2026-05-31 기준 해당 브랜치의 `friend_repository.dart`, `friend_screen.dart`, `app_user.dart` 코드를 `feature/week10-place-resolver`로 머지 완료. 주요 수정 사항: `WriteBatch → runTransaction`, 초기 임시 로그인 흐름 제거 후 Email/Password 구조 정착, 하드코딩 FirebaseOptions 제거.
 
 PR / 머지 정책 (2026-05-09 결정):
 
@@ -1180,7 +1187,7 @@ PR / 머지 정책 (2026-05-09 결정):
 - 새 키 추가 시 `.env.example`에 키 이름만 추가 후 커밋
 - `PROKERALA_REMOTE_ENABLED=false` 를 기본값으로 유지하고, 실응답 검증이 필요할 때만 잠깐 `true` 로 전환한다
 - Prokerala credential 은 `primary → seoyeon → seonwoo → doyeon` 순서의 backup set 을 둘 수 있다
-- OpenAI / Anthropic API key 도 `.env` 에서만 관리하되, 기본 브랜치에서는 `AI_REMOTE_ENABLED=false` 로 잠근다
+- Gemini / OpenAI / Anthropic API key 는 `.env` 에서만 관리하되, 체크인된 `.env.example`은 `AI_REMOTE_ENABLED=false` 로 유지한다
 - 원격 AI는 owner 승인 + 예산 확정 + 문서 갱신 전까지 켜지지 않는다
 - provider 내부 backup key 도 `primary → seoyeon → seonwoo → doyeon` 규칙을 동일하게 적용할 수 있으나, 현재는 비활성화 상태로 유지한다
 - backup credential 은 무료 플랜과 짧은 프로젝트 기간을 위한 임시 운영 방식이며, 공개 배포용 운영 구조로 간주하지 않는다
@@ -1193,7 +1200,7 @@ PR / 머지 정책 (2026-05-09 결정):
 - 실응답 검증 시 429가 발생하면 앱은 다음 backup credential 로 1회 전환을 시도한다
 - 차트 계산 결과의 Firestore 캐싱은 `chartVersion` 규칙 확정 후 붙인다
 - Android/iOS 출생지 입력은 실제 좌표 변환을 시도하고, Web은 정확도 보장이 약하므로 보조 타깃으로 본다
-- AI (GPT/Claude)로 코드 생성 시 `.env`의 실제 키값은 절대 프롬프트에 포함하지 말 것
+- AI (Gemini/OpenAI/Anthropic) 관련 코드 생성 시 `.env`의 실제 키값은 절대 프롬프트에 포함하지 말 것
 - 기본 브랜치에서는 원격 AI를 켜지 않는다. local question set 만으로 발표/시연 흐름을 유지한다
 - Firebase 프로젝트는 Spark 플랜 유지가 기본이며, owner 승인 없이 Blaze 업그레이드를 시도하지 않는다
 
@@ -1206,8 +1213,9 @@ PR / 머지 정책 (2026-05-09 결정):
 | Firebase 프로젝트 | 나영 (`nywoo0225@gmail.com`) | 무료 (Spark) | 도연 Editor 초대 완료 (2026-05-31) | 프로젝트 ID: `stellara-11878`. 팀 전원 동일 프로젝트 사용. region: `asia-northeast3` (서울). `google-services.json` 및 `.env` FIREBASE_WEB_* 값은 나영이 팀원에게 직접 공유(gitignore) |
 | Firestore Security Rules | 나영 (1차 작성) | - | 리뷰: 공통 | 11주차 T16.5 결과 반영 |
 | Prokerala credential | 나영 | 무료 플랜 | 11주차 후반 ~ 12주차에 seoyeon / seonwoo / doyeon backup 등록 예정 | 기본 브랜치에서는 `PROKERALA_REMOTE_ENABLED=false` 로 미사용 유지. 실응답 검증 시에만 단일 `.env` 에서 primary → seoyeon → seonwoo → doyeon 순서 fallback 사용 |
-| OpenAI API key | 나영 (발급 완료, 기본 비활성화) | 나영 | - | `AI_REMOTE_ENABLED=false` 유지. `.env`에만 보관. **키 노출 이력 있음 — 재발급 필요.** env 키명: `OPENAI_API_KEY` |
-| Anthropic API key | **미발급** | - | - | `AI_REMOTE_ENABLED=false` 유지. OpenAI fallback용. 필요 시 나영 발급. env 키명: `ANTHROPIC_API_KEY` |
+| Gemini API key | 개인 발급 (로컬 `.env`) | 각 사용자 | - | 1순위 fallback provider. `GEMINI_API_KEY`, `AI_MODEL_GEMINI_DEFAULT` 사용. 앱 asset 번들 특성상 공개 배포용으로는 부적합 |
+| OpenAI API key | 나영 (발급 완료, 기본 비활성화) | 나영 | - | 2순위 fallback provider. env 키명: `OPENAI_API_KEY` |
+| Anthropic API key | **미발급** | - | - | 3순위 fallback provider. 필요 시 `.env`에 `ANTHROPIC_API_KEY` 추가 |
 | GitHub 저장소 | 나영 | - | 팀원 4명 push 권한 | 정책 (b): feature 브랜치 자유, `main` 만 보호. PR 머지는 owner 가 처리 |
 
 운영 원칙:
@@ -1248,7 +1256,7 @@ PR / 머지 정책 (2026-05-09 결정):
 
 1. `firebase_core`, `firebase_auth`, `cloud_firestore` 패키지 추가
 2. Firebase 프로젝트 연결 + Android 패키지명(`com.stellara.app`) 정렬 + `google-services.json` 반영
-3. anonymous auth bootstrap 연결 + 무료 플랜 운영 규칙 문서화 (`README`, `SDD`, `MVP`)
+3. Firebase Auth bootstrap 연결 + 무료 플랜 운영 규칙 문서화 (`README`, `SDD`, `MVP`)
 4. Android/iOS geocoding helper 정리 + 온보딩 연결
 5. Prokerala 첫 실응답을 fixture/raw snapshot 으로 저장하고 parser 보정
 6. `users`, `charts`, `friendCodes` 문서 구조 확정 + 팀원 4명 시딩
@@ -1282,7 +1290,7 @@ PR / 머지 정책 (2026-05-09 결정):
 
 *최초 작성: 2026-05-08 v0.1 / 수정: 2026-05-09 v1.0*  
 *v0.9 변경: 11주차 친구 트랜잭션 = Firestore `runTransaction` 으로 단일화, 10.6 자원 소유자 표 신설, BirthInfo Firestore 매핑 규칙 명시, 의존성 표 보강, 폴더 구조 실측 정정, JWT 항목에 (Auth 도입 후) prefix 추가*  
-*v0.9.1 추가 (2026-05-09): 4.7 Firebase Anonymous Auth 도입 결정, 4.8 Firestore Security Rules 운영 절차, 10.6 표에 Q2/Q3 결정 반영(단일 .env 모델), `firestore.rules` 파일 신규 작성*  
+*v0.9.1 추가 (2026-05-09): 초기 Firebase Auth 도입 결정, 4.8 Firestore Security Rules 운영 절차, 10.6 표에 Q2/Q3 결정 반영(단일 .env 모델), `firestore.rules` 파일 신규 작성*  
 *v0.9.2 추가 (2026-05-09): 5.6 데이터 캐시 계층 (토큰 절약 정책) 신설 — L0/L1/L2/L3 4계층 정의 + 키 규칙 + TTL + 운영 원칙. TASKS T13.5 (SharedPreferences 디스크 캐시) 신설*  
-*v1.0 추가 (2026-05-09): Android Firebase bootstrap + anonymous auth 반영, Android 패키지명 `com.stellara.app` 정렬, Prokerala/AI 원격 호출 기본 비활성화 정책과 Spark/Blaze 승인 규칙 문서화*  
-*기준 브랜치: `feature/week09-prokerala-api`*
+*v1.0 추가 (2026-05-09): Android Firebase bootstrap 반영, Android 패키지명 `com.stellara.app` 정렬, Prokerala/AI 원격 호출 기본 비활성화 정책과 Spark/Blaze 승인 규칙 문서화*  
+*기준 브랜치: `main`*

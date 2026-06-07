@@ -3,7 +3,7 @@
 // 질문 생성 Provider 모음.
 //
 // AI 활성화 여부(Env.aiRemoteEnabled)에 따라 자동으로 전략이 전환됨:
-//   - AI ON  → AiQuestionRepository (GPT-4o-mini) → 실패 시 로컬 fallback
+//   - AI ON  → AiQuestionRepository (Gemini → OpenAI → Anthropic) → 실패 시 로컬 fallback
 //   - AI OFF → QuestionRepository (로컬 템플릿)
 //
 // 기존 localQuestionSetProvider / customQuestionProvider 는 하위 호환 유지.
@@ -93,7 +93,7 @@ typedef CustomQuestionRequest = ({
 
 // ── AI Question providers ────────────────────────────────────────────────────
 
-/// 메인 질문 생성 provider — AI ON 시 GPT-4o-mini, OFF 시 로컬 자동 전환.
+/// 메인 질문 생성 provider — AI ON 시 멀티 프로바이더, OFF 시 로컬 자동 전환.
 final aiQuestionSetProvider =
     FutureProvider.family<List<QuestionItem>, AiQuestionRequest>((ref, req) {
       return ref

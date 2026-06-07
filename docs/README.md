@@ -50,7 +50,7 @@
 ### `AI_PROVIDER_GUIDE.md`
 
 - AI 질문 생성 구조와 env 키 규약
-- OpenAI / Anthropic fallback 규칙
+- Gemini / OpenAI / Anthropic fallback 규칙
 - 다음 세션에서 Codex가 반드시 따라야 하는 AI 호출 규칙
 
 이 문서는 **AI 작업 필독 문서**입니다.
@@ -60,7 +60,7 @@
 ### 비개발자 팀원
 
 1. `MVP.md`
-2. `README.md`
+2. `docs/README.md`
 3. `SDD.md`의 프로젝트 개요, 일정, 리스크 부분
 
 추천 목적:
@@ -71,7 +71,7 @@
 
 ### 개발자 / AI 협업자
 
-1. `README.md`
+1. `docs/README.md`
 2. `MVP.md`
 3. `SDD.md`
 4. `TASKS.md`
@@ -130,8 +130,8 @@ SDD 작업은 아래 순서로 시작하면 됩니다.
 
 ### 실행 방법 / 온보딩 방법이 바뀔 때
 
-- 루트 `README.md`
-- 필요하면 `docs/README.md`
+- `docs/README.md`
+- 필요하면 `SDD.md`의 운영 규칙 섹션
 
 예:
 
@@ -169,16 +169,17 @@ SDD 작업은 아래 순서로 시작하면 됩니다.
 - 이 backup credential 운영은 무료 플랜과 짧은 프로젝트 기간을 고려한 **임시 운영 규칙**이다
 - MVP 기본 경로는 `Spark-only` 이며 `Cloud Functions` 는 포함하지 않는다
 - Firebase 프로젝트는 owner 승인 없이 Blaze 로 올리지 않는다
-- AI 원격 호출은 `AI_REMOTE_ENABLED=false` 가 기본값이며, 현재 브랜치에서는 local question set 만 사용한다
-- OpenAI / Anthropic key 는 `.env` 에 있더라도 `AI_REMOTE_ENABLED=true` 전환 전까지 사용하지 않는다
-- `데모 데이터로 둘러보기` 버튼은 최종 마감 직전까지 유지한다
+- 체크인된 `.env.example` 기준 AI 원격 호출 기본값은 `AI_REMOTE_ENABLED=false` 이다
+- 원격 AI를 열면 `Gemini → OpenAI → Anthropic` 순서로 fallback 한다
+- Gemini / OpenAI / Anthropic key 는 `.env` 에만 두고, `AI_REMOTE_ENABLED=true` 전환 전까지 원격 호출하지 않는다
+- 현재 인증 진입은 `LandingScreen → 계정 만들기 / 로그인 → 온보딩 → 메인` 흐름이다
 - 출생지 좌표 자동 변환은 현재 Android/iOS에서 우선 지원하고, Web은 보조 타깃으로 본다
 
 ## 후반부 화려한 기능을 어떻게 다루는가
 
 현재 문서 기준 원칙은 아래와 같습니다.
 
-- 공유, 애니메이션, 컬러 디자인은 **후반부 구현 대상**
+- 공유 기능은 일부 구현되어 있고, 애니메이션·컬러 고도화와 나머지 공유 확장은 **후반부 고도화 대상**
 - 하지만 13주차에 몰리지 않도록 **12주차 후반부터 와이어프레임, 디자인 토큰, 자산 검토를 먼저 시작**
 
 즉, “후반부 구현”과 “막판 과밀 방지”를 동시에 만족하는 방식으로 운영합니다.

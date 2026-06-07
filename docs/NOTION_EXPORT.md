@@ -6,8 +6,8 @@ Stellara는 사용자의 출생 정보(생년월일, 출생 시간, 출생지)�
 나탈 차트, 오늘의 운세, 친구 궁합, 랜덤 질문, 결과 공유를 제공하는 Flutter 앱이다.
 
 현재는 학교 프로젝트용 프로토타입 단계이며,  
-핵심 화면 흐름과 Firebase Android bootstrap은 연결되어 있다.  
-다만 Firestore 실데이터 저장/조회, 공유 기능, 원격 AI, 공개 배포 구조는 아직 순차적으로 붙여가는 중이다.
+핵심 화면 흐름과 Firebase Auth/Firestore 연동은 이미 들어와 있다.  
+다만 Prokerala 실응답 검증, 궁합 점수 고도화, 공유 범위 확장, 공개 배포 구조는 아직 정리 중이다.
 
 ## 2. 지금 상태 한 줄 요약
 
@@ -26,17 +26,19 @@ Stellara는 사용자의 출생 정보(생년월일, 출생 시간, 출생지)�
 - Riverpod 상태 관리 골격
 - Prokerala 직접 호출 코드와 wrapper
 - 나탈 차트 / 운세 / 궁합 fixture fallback
-- Android Firebase bootstrap + anonymous auth
-- 로그인, 온보딩, 홈, 차트, 궁합, 친구, 랜덤 질문, 마이페이지 화면 프로토타입
+- Firebase Email/Password Auth + Firestore 사용자/친구 연동
+- 로그인, 온보딩, 홈, 차트, 궁합, 친구, 랜덤 질문, 마이페이지 화면
+- SharedPreferences 디스크 캐시
+- 운세/랜덤 질문 공유 화면 + 궁합 텍스트 공유
 - Android / Web 실행 검증
 
 ## 4. 아직 없는 것
 
-- Firestore 실데이터 저장/조회 연동 완료
-- 친구/궁합의 실데이터 연결
-- 결과 공유 화면 구현
+- Prokerala 실응답 기준 parser 재검증
+- 궁합 점수 산식 고도화
+- 나탈 차트 전용 공유 화면
 - 카카오 로그인
-- 원격 AI 실연동
+- 원격 AI 운영 정책 정리
 - 후반부 컬러 디자인 / 애니메이션 마감
 
 ## 5. 이번 버전의 목표
@@ -124,10 +126,10 @@ AI_REMOTE_ENABLED=false
 
 현재 브랜치 기준 AI 정책은 아래와 같다.
 
-- `AI_REMOTE_ENABLED=false` 기본 유지
-- 랜덤 질문 화면은 local question set 만 사용
-- GPT / Claude direct call 은 owner 승인 + 예산 확정 + 문서 갱신 전까지 금지
-- OpenAI / Anthropic key 가 `.env` 에 있어도 기본 브랜치에서는 읽지 않는다
+- 체크인된 `.env.example` 기준 `AI_REMOTE_ENABLED=false` 유지
+- 랜덤 질문 화면은 local question set 을 기본으로 사용한다
+- 원격 AI를 열면 `Gemini → OpenAI → Anthropic` 순서로 시도한다
+- Gemini / OpenAI / Anthropic key 는 `.env` 에만 두고 owner 승인 전까지 기본 시연 경로에서 사용하지 않는다
 
 현재는 **모델 선택 UI도 노출하지 않는다.**
 
@@ -144,7 +146,7 @@ AI_REMOTE_ENABLED=false
 - Android 패키지명: `com.stellara.app`
 - Android 로컬 `google-services.json` 반영
 - Android 에서 `Firebase.initializeApp()` 연결
-- Android 에서 anonymous auth 시도
+- Firebase Email/Password 회원가입/로그인 + 세션 복원 동작
 
 아직 남은 것:
 
@@ -153,13 +155,6 @@ AI_REMOTE_ENABLED=false
 - iOS / Web Firebase 설정
 
 ## 11. 문서 역할
-
-### README.md
-
-- 저장소 개요
-- 실행 방법
-- 현재 무료 플랜 운영 원칙
-- 문서 읽는 순서
 
 ### docs/README.md
 
@@ -199,7 +194,7 @@ AI_REMOTE_ENABLED=false
 - 범위 변경: `MVP.md`
 - API / DB / 구조 변경: `SDD.md`
 - 작업 쪼개기 / 담당 변경: `TASKS.md`
-- 실행 / 온보딩 / 운영 규칙 변경: `README.md`, `docs/README.md`
+- 실행 / 온보딩 / 운영 규칙 변경: `docs/README.md`, `docs/SDD.md`
 
 ## 13. 현재 우선순위
 
@@ -279,6 +274,5 @@ AI_REMOTE_ENABLED=false
 - 기본 브랜치에서는 `AI_REMOTE_ENABLED=false`
 - 기본 브랜치에서는 Spark 유지, Blaze 금지
 - 공개 배포 금지
-- `데모 데이터로 둘러보기` 버튼은 최종 마감 직전까지 유지
+- 현재 인증 진입은 `LandingScreen → 계정 만들기 / 로그인` 흐름을 사용
 - 화려한 기능과 디자인은 후반부 구현, 대신 12주차 후반부터 선행 준비
-
