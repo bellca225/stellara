@@ -3,6 +3,8 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+
+import '../../../core/ui/app_toast.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
@@ -499,9 +501,7 @@ class _MatchScreenState extends ConsumerState<MatchScreen> {
       await Share.share(text, subject: '궁합 결과 공유');
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('공유를 지원하지 않는 환경이에요.')));
+        showGlassToast(context, '공유를 지원하지 않는 환경이에요.', type: GlassToastType.error);
       }
     }
   }

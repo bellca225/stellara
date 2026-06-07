@@ -141,7 +141,7 @@ class _SplashScreen extends StatelessWidget {
       backgroundColor: Color(0xFF0A0A1F),
       body: Center(
         child: Text(
-          'Stellera',
+          'Stellara',
           style: TextStyle(
             color: Colors.white54,
             fontSize: 32,

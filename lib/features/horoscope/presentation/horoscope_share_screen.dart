@@ -1,6 +1,8 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+
+import '../../../core/ui/app_toast.dart';
 import 'package:flutter/rendering.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -60,15 +62,11 @@ class _HoroscopeShareScreenState extends State<HoroscopeShareScreen> {
         shareText: '✨ Stellara 오늘의 운세',
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('이미지를 저장했어요.')),
-        );
+        showGlassToast(context, '이미지를 저장했어요.');
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('이미지 저장에 실패했어요. 다시 시도해주세요.')),
-        );
+        showGlassToast(context, '이미지 저장에 실패했어요. 다시 시도해주세요.', type: GlassToastType.error);
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -89,9 +87,7 @@ class _HoroscopeShareScreenState extends State<HoroscopeShareScreen> {
       await Share.share(text);
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('공유를 지원하지 않는 환경이에요.')),
-        );
+        showGlassToast(context, '공유를 지원하지 않는 환경이에요.', type: GlassToastType.error);
       }
     }
   }

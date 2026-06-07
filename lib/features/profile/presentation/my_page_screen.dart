@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+
+import '../../../core/ui/app_toast.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -56,9 +58,7 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> {
   final PlaceResolver _placeResolver = PlaceResolver();
 
   Future<void> _showMessage(String message) async {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    showGlassToast(context, message);
   }
 
   String _displayNameOf(UserProfile? profile, BirthInfo? birth) {
@@ -1255,7 +1255,7 @@ class _EditBirthInfoDialogState extends State<_EditBirthInfoDialog> {
   Future<void> _pickDate() async {
     final picked = await showGlassDatePicker(
       context,
-      initialDate: _selectedDate ?? DateTime(1995, 2, 15),
+      initialDate: _selectedDate ?? DateTime(2002, 1, 1),
       firstDate: DateTime(1900),
       lastDate: DateTime.now(),
     );

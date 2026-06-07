@@ -192,33 +192,59 @@ ThemeData buildAppTheme() {
 }
 
 // 공통 배경 위젯
+//
+// 상위(예: AppShell)에 이미 StarBackground가 있으면 배경/별을 중복으로 그리지
+// 않고 child만 통과시킨다. 덕분에 탭 페이지들이 각자 StarBackground를 써도
+// 실제 별빛은 AppShell의 단일 레이어에서만 그려져, 모든 탭(마이페이지 포함)에
+// 동일하게 보이고 성능도 절약된다.
 class StarBackground extends StatelessWidget {
   const StarBackground({super.key, required this.child});
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox.expand(
-      child: DecoratedBox(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF0A0A1F), Color(0xFF0F1729), Color(0xFF1E3A8A)],
-            stops: [0.0, 0.3, 1.0],
+    if (_StarBackgroundScope.of(context)) {
+      // 이미 상위에 별 배경이 있음 → 그대로 통과 (투명)
+      return child;
+    }
+    return _StarBackgroundScope(
+      child: SizedBox.expand(
+        child: DecoratedBox(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFF0A0A1F),
+                Color(0xFF0F1729),
+                Color(0xFF1E3A8A),
+              ],
+              stops: [0.0, 0.3, 1.0],
+            ),
           ),
-        ),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            // 은은한 트윙클 별 애니메이션 (전 페이지 공통)
-            const Positioned.fill(child: StarField()),
-            child,
-          ],
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // 은은한 트윙클 별 애니메이션 (전 페이지 공통)
+              const Positioned.fill(child: StarField()),
+              child,
+            ],
+          ),
         ),
       ),
     );
   }
+}
+
+/// StarBackground 중첩 감지용 마커.
+class _StarBackgroundScope extends InheritedWidget {
+  const _StarBackgroundScope({required super.child});
+
+  static bool of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_StarBackgroundScope>() != null;
+
+  @override
+  bool updateShouldNotify(_StarBackgroundScope oldWidget) => false;
 }
 
 // 글래스 카드 위젯

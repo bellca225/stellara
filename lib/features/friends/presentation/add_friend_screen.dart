@@ -7,6 +7,8 @@
 // "친구 추가 요청" 버튼에서 진입. 기존 코드 검색 로직 이전.
 
 import 'package:flutter/material.dart';
+
+import '../../../core/ui/app_toast.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -113,9 +115,7 @@ class _AddFriendScreenState extends ConsumerState<AddFriendScreen> {
             toUid: toUid,
           );
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('친구 요청을 보냈어요!')));
+      showGlassToast(context, '친구 요청을 보냈어요!');
       setState(() {
         _searchResult = null;
         _codeCtrl.clear();
@@ -124,15 +124,11 @@ class _AddFriendScreenState extends ConsumerState<AddFriendScreen> {
       ref.invalidate(sentRequestsProvider);
     } on FriendError catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.message)));
+        showGlassToast(context, e.message, type: GlassToastType.error);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('요청 전송에 실패했어요. 다시 시도해주세요.')),
-        );
+        showGlassToast(context, '요청 전송에 실패했어요. 다시 시도해주세요.', type: GlassToastType.error);
       }
     } finally {
       if (mounted) setState(() => _isSending = false);
@@ -141,24 +137,18 @@ class _AddFriendScreenState extends ConsumerState<AddFriendScreen> {
 
   Future<void> _copyMyCode(String code) async {
     if (code.trim().isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('복사할 친구 코드가 아직 없어요.')));
+      showGlassToast(context, '복사할 친구 코드가 아직 없어요.', type: GlassToastType.error);
       return;
     }
     await Clipboard.setData(ClipboardData(text: code));
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('내 친구 코드가 복사되었습니다.')));
+    showGlassToast(context, '내 친구 코드가 복사되었습니다.');
   }
 
   Future<void> _issueMyCode() async {
     final uid = ref.read(currentUserIdProvider).valueOrNull;
     if (uid == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('로그인 정보를 확인할 수 없어요.')));
+      showGlassToast(context, '로그인 정보를 확인할 수 없어요.', type: GlassToastType.error);
       return;
     }
 
@@ -167,14 +157,10 @@ class _AddFriendScreenState extends ConsumerState<AddFriendScreen> {
       final code = await ref.read(friendCodeRepositoryProvider).issue(uid);
       ref.invalidate(currentUserProfileProvider);
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('친구 코드가 생성되었습니다: $code')));
+      showGlassToast(context, '친구 코드가 생성되었습니다: $code');
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('친구 코드 생성에 실패했어요. 다시 시도해주세요.')),
-      );
+      showGlassToast(context, '친구 코드 생성에 실패했어요. 다시 시도해주세요.', type: GlassToastType.error);
     } finally {
       if (mounted) setState(() => _isIssuingCode = false);
     }

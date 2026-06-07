@@ -52,7 +52,7 @@ class BirthInfo {
   /// 화면 안내용 데모 데이터. (실 API 호출 전, 화면 진입 즉시 빈 화면이 보이지 않게.)
   static BirthInfo demo() => BirthInfo(
         nickname: '물병자리의 꿈',
-        dateTime: DateTime(1995, 2, 15, 14, 30),
+        dateTime: DateTime(2002, 1, 1, 00, 00),
         latitude: 37.5665,
         longitude: 126.9780,
         utcOffset: '+09:00',

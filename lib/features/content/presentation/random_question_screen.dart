@@ -1,6 +1,8 @@
 // lib/features/content/presentation/random_question_screen.dart
 
 import 'package:flutter/material.dart';
+
+import '../../../core/ui/app_toast.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/env/env.dart';
@@ -809,15 +811,11 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
   }) async {
     if (_isGeneratingQuestion) return;
     if (_selectedFriendUid == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('먼저 친구를 선택해주세요.')));
+      showGlassToast(context, '먼저 친구를 선택해주세요.', type: GlassToastType.error);
       return;
     }
     if (myUid == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('로그인 정보를 다시 확인해주세요.')));
+      showGlassToast(context, '로그인 정보를 다시 확인해주세요.', type: GlassToastType.error);
       return;
     }
     setState(() {
@@ -852,21 +850,14 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
         _shouldBypassSessionReuse = false;
       });
       if (Env.aiRemoteEnabled && !session.isRemoteAi) {
-        ScaffoldMessenger.of(this.context).showSnackBar(
-          const SnackBar(
-            content: Text('AI 연결 실패 — 기본 질문으로 대체됐어요. (API 키를 확인해주세요)'),
-            duration: Duration(seconds: 4),
-          ),
-        );
+        showGlassToast(this.context, 'AI 연결 실패 — 기본 질문으로 대체됐어요. (API 키를 확인해주세요)', type: GlassToastType.error);
       }
     } catch (e) {
       if (!mounted) return;
       final message = e is AiQuotaExceededException
           ? 'AI 사용량이 초과되어 기본 결과를 보여드릴게요.'
           : '질문을 생성하지 못했어요.';
-      ScaffoldMessenger.of(
-        this.context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      showGlassToast(this.context, message, type: GlassToastType.error);
     } finally {
       if (mounted) setState(() => _isGeneratingQuestion = false);
     }
@@ -910,9 +901,7 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
       final message = e is AiQuotaExceededException
           ? 'AI 사용량이 초과되어 기본 결과를 보여드릴게요.'
           : '답변을 생성하지 못했어요.';
-      ScaffoldMessenger.of(
-        this.context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      showGlassToast(this.context, message, type: GlassToastType.error);
     } finally {
       if (mounted) setState(() => _isGeneratingAnswer = false);
     }
@@ -920,9 +909,7 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
 
   void _openShareScreen(BuildContext context, QuestionItem? item) {
     if (item == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('먼저 질문을 생성해주세요.')));
+      showGlassToast(context, '먼저 질문을 생성해주세요.', type: GlassToastType.error);
       return;
     }
     Navigator.of(context).push(

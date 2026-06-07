@@ -86,7 +86,7 @@ class _LandingScreenState extends ConsumerState<LandingScreen>
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        'Stellerara',
+                        'Stellara',
                         textAlign: TextAlign.center,
                         style: GoogleFonts.sulphurPoint(
                           fontSize: 48,

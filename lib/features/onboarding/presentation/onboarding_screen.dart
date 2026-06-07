@@ -106,7 +106,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   Future<void> _pickDate() async {
     final picked = await showGlassDatePicker(
       context,
-      initialDate: _selectedDate ?? DateTime(1995, 2, 15),
+      initialDate: _selectedDate ?? DateTime(2002, 1, 1),
       firstDate: DateTime(1900),
       lastDate: DateTime.now(),
     );

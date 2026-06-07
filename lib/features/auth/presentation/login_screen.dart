@@ -136,7 +136,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 const SizedBox(height: 4),
                 const Text(
-                  'Stellarara에 다시 오신 것을 환영합니다',
+                  'Stellara에 다시 오신 것을 환영합니다',
                   style: TextStyle(
                     color: Color(0xFF8EC5FF),
                     fontSize: 12,

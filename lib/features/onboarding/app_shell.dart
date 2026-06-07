@@ -51,10 +51,12 @@ class _AppShellState extends State<AppShell> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       extendBody: true,
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          IndexedStack(index: _index, children: _pages),
+      // 별 배경을 AppShell에 한 번만 깔고, 탭 페이지들은 그 위에 투명하게 렌더링.
+      body: StarBackground(
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            IndexedStack(index: _index, children: _pages),
           Positioned(
             left: 24,
             right: 24,
@@ -113,6 +115,7 @@ class _AppShellState extends State<AppShell> {
             ),
           ),
         ],
+      ),
       ),
     );
   }

@@ -2,6 +2,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+
+import '../../../core/ui/app_toast.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -163,9 +165,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     } catch (_) {
       if (mounted) {
         setState(() => _idCheckState = _IdCheckState.unchecked);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('확인 중 오류가 발생했어요. 다시 시도해주세요.')),
-        );
+        showGlassToast(context, '확인 중 오류가 발생했어요. 다시 시도해주세요.', type: GlassToastType.error);
       }
     }
   }
@@ -292,7 +292,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     ),
                     const SizedBox(height: 4),
                     const Text(
-                      'Stellarara에 오신 것을 환영합니다',
+                      'Stellara에 오신 것을 환영합니다',
                       style: TextStyle(
                         color: Color(0xFF8EC5FF),
                         fontSize: 12,

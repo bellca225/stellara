@@ -7,6 +7,8 @@
 // 친구 추가: 하단 "친구 추가 요청" 버튼 → AddFriendScreen (별도 파일)
 
 import 'package:flutter/material.dart';
+
+import '../../../core/ui/app_toast.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -60,15 +62,11 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
       ref.invalidate(friendListProvider);
       ref.invalidate(receivedRequestsProvider);
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('친구가 되었어요!')));
+        showGlassToast(context, '친구가 되었어요!');
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('수락에 실패했어요. 다시 시도해주세요.')));
+        showGlassToast(context, '수락에 실패했어요. 다시 시도해주세요.', type: GlassToastType.error);
       }
     }
   }
@@ -78,15 +76,11 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
       await ref.read(friendRepositoryProvider).rejectRequest(request.requestId);
       ref.invalidate(receivedRequestsProvider);
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('요청을 거절했어요.')));
+        showGlassToast(context, '요청을 거절했어요.');
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('거절에 실패했어요. 다시 시도해주세요.')));
+        showGlassToast(context, '거절에 실패했어요. 다시 시도해주세요.', type: GlassToastType.error);
       }
     }
   }
@@ -97,9 +91,7 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
       ref.invalidate(friendListProvider);
     } on Exception catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
-        );
+        showGlassToast(context, e.toString().replaceAll('Exception: ', ''), type: GlassToastType.error);
       }
     }
   }
