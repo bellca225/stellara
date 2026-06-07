@@ -16,14 +16,15 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/data/kr_regions.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/glass.dart';
 import '../../../core/widgets/glass_pickers.dart';
+import '../../../core/widgets/region_picker.dart';
 import '../../astrology/domain/birth_info.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../auth/presentation/landing_screen.dart';
 import '../../users/application/user_providers.dart';
-import '../data/place_resolver.dart';
 import '../app_shell.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
@@ -51,13 +52,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
 
-  // 출생지
-  final _placeCtrl = TextEditingController();
+  // 출생지 (목록에서만 선택)
+  KrRegion? _selectedRegion;
 
   String? _error;
   bool _isSubmitting = false;
-
-  final _placeResolver = PlaceResolver();
 
   String _initialName = '';
   DateTime? _initialDate;
@@ -79,19 +78,32 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         hour: b.dateTime.hour,
         minute: b.dateTime.minute,
       );
-      _placeCtrl.text = b.placeName ?? '';
+      _selectedRegion = findKrRegionByName(b.placeName);
     }
     _initialName = _nameCtrl.text.trim();
     _initialDate = _selectedDate;
     _initialTime = _selectedTime;
-    _initialPlace = _placeCtrl.text.trim();
+    _initialPlace = _selectedRegion?.name ?? '';
   }
 
   @override
   void dispose() {
     _nameCtrl.dispose();
-    _placeCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickRegion() async {
+    FocusScope.of(context).unfocus();
+    final picked = await showRegionPicker(
+      context,
+      selectedName: _selectedRegion?.name,
+    );
+    if (picked != null) {
+      setState(() {
+        _selectedRegion = picked;
+        _error = null;
+      });
+    }
   }
 
   // ── 이름 검증 ─────────────────────────────────────────────────────
@@ -195,43 +207,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         minute,
       );
 
-      double latitude;
-      double longitude;
-      String? placeName;
-      final placeQuery = _placeCtrl.text.trim();
-
-      if (placeQuery.isEmpty) {
-        if (kDebugMode) print('[Onboarding] 출생지 미입력 → 서울 기본값 사용');
-        latitude = 37.5665;
-        longitude = 126.9780;
-        placeName = '서울특별시';
-      } else if (_placeResolver.supportsForwardGeocoding) {
-        final result = await _placeResolver.resolveDetailed(placeQuery);
-        switch (result) {
-          case PlaceResolutionSuccess(:final place):
-            latitude = place.latitude;
-            longitude = place.longitude;
-            placeName = place.placeName;
-            if (kDebugMode) {
-              print(
-                '[Onboarding] 장소 변환 성공: "$placeQuery" → '
-                'lat=${place.latitude}, lng=${place.longitude}',
-              );
-            }
-          case PlaceResolutionFailure(:final kind):
-            setState(() => _error = _placeErrorMessage(kind));
-            return;
-        }
-      } else {
-        latitude = 37.5665;
-        longitude = 126.9780;
-        placeName = placeQuery;
-        if (kDebugMode) {
-          print(
-            '[Onboarding] geocoding 미지원 → 서울 fallback, placeName="$placeQuery"',
-          );
-        }
+      final region = _selectedRegion;
+      if (region == null) {
+        setState(() => _error = '출생지를 선택해주세요.');
+        return;
       }
+      final double latitude = region.latitude;
+      final double longitude = region.longitude;
+      final String placeName = region.name;
 
       final enteredName = _nameCtrl.text.trim();
       final displayName = enteredName.isNotEmpty
@@ -307,22 +290,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     }
   }
 
-  String _placeErrorMessage(PlaceResolutionFailureKind kind) {
-    switch (kind) {
-      case PlaceResolutionFailureKind.emptyQuery:
-        return '출생지를 입력해주세요.';
-      case PlaceResolutionFailureKind.notFound:
-        return '출생지를 찾지 못했어요. 더 구체적으로 입력해주세요.';
-      case PlaceResolutionFailureKind.platformError:
-        return '주소 변환 중 오류가 발생했어요. 잠시 후 다시 시도해주세요.';
-      case PlaceResolutionFailureKind.unsupportedPlatform:
-        return '현재 환경에서는 자동 변환이 제한돼요.';
-    }
-  }
-
   bool get _hasUnsavedChanges {
     final currentName = _nameCtrl.text.trim();
-    final currentPlace = _placeCtrl.text.trim();
+    final currentPlace = _selectedRegion?.name ?? '';
     final currentTime = _selectedTime;
     final sameTime =
         currentTime?.hour == _initialTime?.hour &&
@@ -625,10 +595,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     nameError: _nameError,
                     selectedDate: _selectedDate,
                     selectedTime: _selectedTime,
-                    placeCtrl: _placeCtrl,
+                    selectedRegion: _selectedRegion,
                     error: _error,
                     onPickDate: _pickDate,
                     onPickTime: _pickTime,
+                    onPickRegion: _pickRegion,
                   ),
 
                   const SizedBox(height: 20),
@@ -660,10 +631,11 @@ class _StepCard extends StatelessWidget {
     this.nameError,
     required this.selectedDate,
     required this.selectedTime,
-    required this.placeCtrl,
+    required this.selectedRegion,
     required this.error,
     required this.onPickDate,
     required this.onPickTime,
+    required this.onPickRegion,
   });
 
   final int step;
@@ -671,10 +643,11 @@ class _StepCard extends StatelessWidget {
   final String? nameError;
   final DateTime? selectedDate;
   final TimeOfDay? selectedTime;
-  final TextEditingController placeCtrl;
+  final KrRegion? selectedRegion;
   final String? error;
   final VoidCallback onPickDate;
   final VoidCallback onPickTime;
+  final VoidCallback onPickRegion;
 
   @override
   Widget build(BuildContext context) {
@@ -753,30 +726,21 @@ class _StepCard extends StatelessWidget {
             ),
           ],
 
-          // ── Step 3: 출생지 TextField ───────────────────────────
+          // ── Step 3: 출생지 선택 (지역 목록) ────────────────────
           if (step == 3) ...[
             _GlassFieldLabel('출생지'),
             const SizedBox(height: 8),
-            _GlassTextInput(
-              controller: placeCtrl,
-              hintText: '예: 서울특별시',
-              keyboardType: TextInputType.streetAddress,
-              textCapitalization: TextCapitalization.words,
-              prefixIcon: const Icon(
-                Icons.location_on_outlined,
-                color: Color(0x668EC5FF),
-                size: 20,
-              ),
+            _GlassPickerButton(
+              icon: Icons.location_on_outlined,
+              label: selectedRegion?.name ?? '출생지 선택',
+              selected: selectedRegion != null,
+              onTap: onPickRegion,
             ),
-            if (kIsWeb) ...[
-              const SizedBox(height: 8),
-            ] else ...[
-              const SizedBox(height: 8),
-              const Text(
-                '시/군/구 단위로 입력하면 더 정확해요.',
-                style: TextStyle(color: Color(0x668EC5FF), fontSize: 12),
-              ),
-            ],
+            const SizedBox(height: 8),
+            const Text(
+              '목록에서 가장 가까운 지역을 선택해주세요.',
+              style: TextStyle(color: Color(0x668EC5FF), fontSize: 12),
+            ),
           ],
 
           if (error != null) ...[

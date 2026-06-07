@@ -922,6 +922,37 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
     );
   }
 
+  String _selectedFriendDisplay(List<Friend> friends) {
+    final uid = _selectedFriendUid;
+    if (uid == null) return '친구 선택';
+    for (final f in friends) {
+      if (f.uid == uid) return '${f.nickname} · ${_signLabel(f.sunSign)}';
+    }
+    return '친구 선택';
+  }
+
+  // 친구 선택을 글라스 바텀시트로 (모바일 친화적)
+  Future<void> _showFriendPicker(List<Friend> friends) async {
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => _FriendPickerSheet(
+        friends: friends,
+        selectedUid: _selectedFriendUid,
+      ),
+    );
+    if (picked != null && picked != _selectedFriendUid) {
+      setState(() {
+        _selectedFriendUid = picked;
+        _hasRequestedQuestion = false;
+        _shouldBypassSessionReuse = false;
+        _showAnswer = false;
+        _session = null;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     ref.listen<BirthInfo?>(currentBirthInfoProvider, (previous, next) {
@@ -1145,129 +1176,38 @@ class _RandomQuestionScreenState extends ConsumerState<RandomQuestionScreen> {
         _GlassCard(
           borderRadius: 16,
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
-          child: SizedBox(
-            height: 49,
-            child: Row(
-              children: [
-                Expanded(
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _selectedFriendUid,
-                      dropdownColor: const Color(0xFF0F1E38),
-                      borderRadius: BorderRadius.circular(16),
-                      elevation: 8,
-                      menuMaxHeight: 320,
-                      itemHeight: 56,
-                      icon: SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CustomPaint(painter: _ChevronDownPainter()),
+          child: GestureDetector(
+            onTap: friends.isEmpty ? null : () => _showFriendPicker(friends),
+            behavior: HitTestBehavior.opaque,
+            child: SizedBox(
+              height: 49,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _selectedFriendDisplay(friends),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: _selectedFriendUid == null
+                            ? _C.accentDim
+                            : _C.white,
+                        fontSize: 16,
+                        fontWeight: _selectedFriendUid == null
+                            ? FontWeight.w400
+                            : FontWeight.w500,
+                        fontFamily: 'Pretendard',
                       ),
-                      isExpanded: true,
-                      hint: const Text(
-                        '친구 선택',
-                        style: TextStyle(
-                          color: _C.accentDim,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w400,
-                          fontFamily: 'Pretendard',
-                        ),
-                      ),
-                      // 닫힌 상태: 아바타 없이 깔끔한 텍스트만
-                      selectedItemBuilder: (context) => [
-                        for (final friend in friends)
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              '${friend.nickname} · ${_signLabel(friend.sunSign)}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: _C.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                                fontFamily: 'Pretendard',
-                              ),
-                            ),
-                          ),
-                      ],
-                      items: [
-                        for (final friend in friends)
-                          DropdownMenuItem(
-                            value: friend.uid,
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 30,
-                                  height: 30,
-                                  alignment: Alignment.center,
-                                  decoration: const BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    gradient: LinearGradient(
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                      colors: [
-                                        Color(0xFF51A2FF),
-                                        Color(0xFF155DFC),
-                                      ],
-                                    ),
-                                  ),
-                                  child: Text(
-                                    friend.initial,
-                                    style: const TextStyle(
-                                      color: _C.white,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      fontFamily: 'Pretendard',
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        friend.nickname,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          color: _C.white,
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w500,
-                                          fontFamily: 'Pretendard',
-                                        ),
-                                      ),
-                                      Text(
-                                        _signLabel(friend.sunSign),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          color: _C.accentDim,
-                                          fontSize: 12,
-                                          fontFamily: 'Pretendard',
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                      ],
-                      onChanged: (value) => setState(() {
-                        _selectedFriendUid = value;
-                        _hasRequestedQuestion = false;
-                        _shouldBypassSessionReuse = false;
-                        _showAnswer = false;
-                        _session = null;
-                      }),
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CustomPaint(painter: _ChevronDownPainter()),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -1579,4 +1519,185 @@ String _signLabel(String sign) {
   final normalized = sign.trim().toLowerCase();
   if (normalized.isEmpty || normalized == '-') return '별자리 미확인';
   return zodiacNameKo(sign);
+}
+
+/// 친구 선택 글라스 바텀시트 (모바일 친화적).
+class _FriendPickerSheet extends StatelessWidget {
+  const _FriendPickerSheet({required this.friends, this.selectedUid});
+
+  final List<Friend> friends;
+  final String? selectedUid;
+
+  @override
+  Widget build(BuildContext context) {
+    final maxHeight = MediaQuery.of(context).size.height * 0.7;
+    return SafeArea(
+      top: false,
+      child: Container(
+        margin: const EdgeInsets.all(12),
+        constraints: BoxConstraints(maxHeight: maxHeight),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF0F1E38), Color(0xFF0A1326)],
+          ),
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: const Color(0x1FFFFFFF), width: 0.8),
+          boxShadow: kGlassShadow,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: const Color(0x33FFFFFF),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              '친구 선택',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                letterSpacing: -0.2,
+                fontFamily: 'Pretendard',
+              ),
+            ),
+            const SizedBox(height: 8),
+            Flexible(
+              child: friends.isEmpty
+                  ? const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Text(
+                        '아직 친구가 없어요.',
+                        style: TextStyle(
+                          color: _C.accentDim,
+                          fontFamily: 'Pretendard',
+                        ),
+                      ),
+                    )
+                  : ListView.separated(
+                      shrinkWrap: true,
+                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
+                      itemCount: friends.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 4),
+                      itemBuilder: (context, i) {
+                        final f = friends[i];
+                        final isSelected = f.uid == selectedUid;
+                        return GestureDetector(
+                          onTap: () => Navigator.of(context).pop(f.uid),
+                          behavior: HitTestBehavior.opaque,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(14),
+                              gradient: isSelected
+                                  ? const LinearGradient(
+                                      begin: Alignment.centerLeft,
+                                      end: Alignment.centerRight,
+                                      colors: [
+                                        Color(0x4D2B7FFF),
+                                        Color(0x4D155DFC),
+                                      ],
+                                    )
+                                  : const LinearGradient(
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                      colors: [
+                                        Color(0x0FFFFFFF),
+                                        Color(0x08FFFFFF),
+                                      ],
+                                    ),
+                              border: Border.all(
+                                color: isSelected
+                                    ? const Color(0x66FFFFFF)
+                                    : const Color(0x14FFFFFF),
+                                width: 0.8,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 36,
+                                  height: 36,
+                                  alignment: Alignment.center,
+                                  decoration: const BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                      colors: [
+                                        Color(0xFF51A2FF),
+                                        Color(0xFF155DFC),
+                                      ],
+                                    ),
+                                  ),
+                                  child: Text(
+                                    f.initial,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      fontFamily: 'Pretendard',
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        f.nickname,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                          letterSpacing: -0.2,
+                                          fontFamily: 'Pretendard',
+                                        ),
+                                      ),
+                                      Text(
+                                        _signLabel(f.sunSign),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: _C.accentDim,
+                                          fontSize: 12,
+                                          fontFamily: 'Pretendard',
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (isSelected)
+                                  const Icon(
+                                    Icons.check_rounded,
+                                    size: 18,
+                                    color: Color(0xFF8EC5FF),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

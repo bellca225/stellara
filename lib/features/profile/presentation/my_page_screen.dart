@@ -8,9 +8,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../core/data/kr_regions.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/glass.dart';
 import '../../../core/widgets/glass_pickers.dart';
+import '../../../core/widgets/region_picker.dart';
 import '../../../core/utils/astro_text.dart';
 import '../../astrology/application/astrology_providers.dart';
 import '../../astrology/domain/birth_info.dart';
@@ -18,7 +20,6 @@ import '../../auth/application/auth_providers.dart';
 import '../../auth/presentation/landing_screen.dart';
 import '../../friends/application/friend_providers.dart';
 import '../../horoscope/application/horoscope_providers.dart';
-import '../../onboarding/data/place_resolver.dart';
 import '../../users/application/user_providers.dart';
 import '../../users/domain/user_profile.dart';
 
@@ -55,8 +56,6 @@ class MyPageScreen extends ConsumerStatefulWidget {
 }
 
 class _MyPageScreenState extends ConsumerState<MyPageScreen> {
-  final PlaceResolver _placeResolver = PlaceResolver();
-
   Future<void> _showMessage(String message) async {
     showGlassToast(context, message);
   }
@@ -197,7 +196,6 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> {
       _EditBirthInfoDialog(
         initialBirthInfo: birthInfo,
         displayName: displayName,
-        placeResolver: _placeResolver,
         onSave: _saveBirthInfo,
       ),
     );
@@ -1148,13 +1146,11 @@ class _EditBirthInfoDialog extends StatefulWidget {
   const _EditBirthInfoDialog({
     required this.initialBirthInfo,
     required this.displayName,
-    required this.placeResolver,
     required this.onSave,
   });
 
   final BirthInfo? initialBirthInfo;
   final String displayName;
-  final PlaceResolver placeResolver;
   final Future<void> Function(BirthInfo birthInfo) onSave;
 
   @override
@@ -1164,7 +1160,7 @@ class _EditBirthInfoDialog extends StatefulWidget {
 class _EditBirthInfoDialogState extends State<_EditBirthInfoDialog> {
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
-  late final TextEditingController _placeController;
+  KrRegion? _selectedRegion;
   String? _error;
   bool _isSaving = false;
 
@@ -1183,13 +1179,21 @@ class _EditBirthInfoDialogState extends State<_EditBirthInfoDialog> {
         minute: birth.dateTime.minute,
       );
     }
-    _placeController = TextEditingController(text: birth?.placeName ?? '');
+    _selectedRegion = findKrRegionByName(birth?.placeName);
   }
 
-  @override
-  void dispose() {
-    _placeController.dispose();
-    super.dispose();
+  Future<void> _pickRegion() async {
+    FocusScope.of(context).unfocus();
+    final picked = await showRegionPicker(
+      context,
+      selectedName: _selectedRegion?.name,
+    );
+    if (picked != null) {
+      setState(() {
+        _selectedRegion = picked;
+        _error = null;
+      });
+    }
   }
 
   Future<void> _pickDate() async {
@@ -1243,40 +1247,13 @@ class _EditBirthInfoDialogState extends State<_EditBirthInfoDialog> {
         _selectedTime!.hour,
         _selectedTime!.minute,
       );
-      final placeQuery = _placeController.text.trim();
-
-      double latitude;
-      double longitude;
-      String? placeName;
-
-      if (placeQuery.isEmpty) {
-        latitude = 37.5665;
-        longitude = 126.9780;
-        placeName = '서울특별시';
-      } else if (widget.placeResolver.supportsForwardGeocoding) {
-        final result = await widget.placeResolver.resolveDetailed(placeQuery);
-        switch (result) {
-          case PlaceResolutionSuccess(:final place):
-            latitude = place.latitude;
-            longitude = place.longitude;
-            placeName = place.placeName;
-          case PlaceResolutionFailure(:final kind):
-            throw _UiMessageException(_placeErrorMessage(kind));
-        }
-      } else {
-        final initial = widget.initialBirthInfo;
-        final samePlace =
-            initial?.placeName?.trim().isNotEmpty == true &&
-            initial!.placeName!.trim() == placeQuery;
-        if (!samePlace) {
-          throw const _UiMessageException(
-            '현재 환경에서는 출생지 좌표를 정확히 갱신할 수 없어 Android에서 수정해주세요.',
-          );
-        }
-        latitude = initial.latitude;
-        longitude = initial.longitude;
-        placeName = placeQuery;
+      final region = _selectedRegion;
+      if (region == null) {
+        throw const _UiMessageException('출생지를 선택해주세요.');
       }
+      final double latitude = region.latitude;
+      final double longitude = region.longitude;
+      final String placeName = region.name;
 
       final birthInfo = BirthInfo(
         nickname: widget.displayName,
@@ -1342,19 +1319,6 @@ class _EditBirthInfoDialogState extends State<_EditBirthInfoDialog> {
 
   String _pad(int value) => value.toString().padLeft(2, '0');
 
-  String _placeErrorMessage(PlaceResolutionFailureKind kind) {
-    switch (kind) {
-      case PlaceResolutionFailureKind.emptyQuery:
-        return '출생지를 입력해주세요.';
-      case PlaceResolutionFailureKind.notFound:
-        return '출생지를 찾지 못했어요. 더 구체적으로 입력해주세요.';
-      case PlaceResolutionFailureKind.platformError:
-        return '주소를 변환하는 중 오류가 발생했어요. 다시 시도해주세요.';
-      case PlaceResolutionFailureKind.unsupportedPlatform:
-        return '현재 환경에서는 출생지 자동 변환이 제한돼요.';
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return _DialogCard(
@@ -1388,43 +1352,10 @@ class _EditBirthInfoDialogState extends State<_EditBirthInfoDialog> {
           const SizedBox(height: 20),
           const _FieldLabel('출생지'),
           const SizedBox(height: 8),
-          _GlassFieldShell(
-            child: TextField(
-              controller: _placeController,
-              enabled: !_isSaving,
-              textAlignVertical: TextAlignVertical.center,
-              style: const TextStyle(
-                color: _C.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w400,
-                letterSpacing: -0.2,
-                fontFamily: 'Pretendard',
-              ),
-              cursorColor: _C.accent,
-              decoration: const InputDecoration(
-                hintText: '서울특별시',
-                hintStyle: TextStyle(
-                  color: _C.inputHint,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w400,
-                  height: 1.0,
-                  letterSpacing: -0.2,
-                  fontFamily: 'Pretendard',
-                ),
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                disabledBorder: InputBorder.none,
-                errorBorder: InputBorder.none,
-                focusedErrorBorder: InputBorder.none,
-                filled: false,
-                isDense: true,
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 17,
-                  vertical: 14,
-                ),
-              ),
-            ),
+          _DisplayInput(
+            value: _selectedRegion?.name,
+            placeholder: '출생지를 선택해주세요',
+            onTap: _isSaving ? () {} : _pickRegion,
           ),
           if (_error != null) ...[
             const SizedBox(height: 12),
