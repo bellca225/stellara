@@ -66,7 +66,11 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
       }
     } catch (_) {
       if (mounted) {
-        showGlassToast(context, '수락에 실패했어요. 다시 시도해주세요.', type: GlassToastType.error);
+        showGlassToast(
+          context,
+          '수락에 실패했어요. 다시 시도해주세요.',
+          type: GlassToastType.error,
+        );
       }
     }
   }
@@ -80,7 +84,11 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
       }
     } catch (_) {
       if (mounted) {
-        showGlassToast(context, '거절에 실패했어요. 다시 시도해주세요.', type: GlassToastType.error);
+        showGlassToast(
+          context,
+          '거절에 실패했어요. 다시 시도해주세요.',
+          type: GlassToastType.error,
+        );
       }
     }
   }
@@ -91,7 +99,11 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
       ref.invalidate(friendListProvider);
     } on Exception catch (e) {
       if (mounted) {
-        showGlassToast(context, e.toString().replaceAll('Exception: ', ''), type: GlassToastType.error);
+        showGlassToast(
+          context,
+          e.toString().replaceAll('Exception: ', ''),
+          type: GlassToastType.error,
+        );
       }
     }
   }
@@ -100,6 +112,13 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
   Widget build(BuildContext context) {
     final friendsAsync = ref.watch(friendListProvider);
     final requestsAsync = ref.watch(receivedRequestsProvider);
+    final mediaQuery = MediaQuery.of(context);
+    final bottomInset = mediaQuery.padding.bottom;
+    final keyboardInset = mediaQuery.viewInsets.bottom;
+    final actionBottomOffset =
+        (keyboardInset > 0 ? keyboardInset : bottomInset) + 16;
+    final listBottomPadding =
+        24 + 61 + 16 + (keyboardInset > 0 ? keyboardInset : bottomInset);
 
     final allFriends = friendsAsync.valueOrNull ?? <Friend>[];
     final requestCount = requestsAsync.valueOrNull?.length ?? 0;
@@ -118,195 +137,209 @@ class _FriendScreenState extends ConsumerState<FriendScreen> {
 
     return StarBackground(
       child: Scaffold(
+        extendBody: true,
         backgroundColor: Colors.transparent,
-        body: SafeArea(
-          child: Column(
-            children: [
-              // ── 헤더만 고정 ────────────────────────────────────
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
-                child: Row(
-                  children: [
-                    _RoundBackButton(
-                      onTap: () {
-                        FocusScope.of(context).unfocus();
-                        Navigator.of(context).maybePop();
-                      },
-                    ),
-                    const SizedBox(width: 12),
-                    const Text(
-                      '친구 관리',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: -0.2,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              // ── 검색창 + 탭 + 리스트 모두 스크롤 ──────────────
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
-                  children: [
-                    // 검색창
-                    _SearchField(
-                      onChanged: (v) => setState(() => _searchQuery = v.trim()),
-                    ),
-                    const SizedBox(height: 16),
-                    // 탭
-                    Container(
-                      padding: const EdgeInsets.all(4.634),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [Color(0x14FFFFFF), Color(0x08FFFFFF)],
+        body: Stack(
+          children: [
+            SafeArea(
+              bottom: false,
+              child: Column(
+                children: [
+                  // ── 헤더만 고정 ────────────────────────────────────
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+                    child: Row(
+                      children: [
+                        _RoundBackButton(
+                          onTap: () {
+                            FocusScope.of(context).unfocus();
+                            Navigator.of(context).maybePop();
+                          },
                         ),
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(
-                          color: const Color(0x1FFFFFFF),
-                          width: 0.636,
-                        ),
-                        boxShadow: _glassBoxShadow,
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: _TabButton(
-                              label: '내 친구 (${allFriends.length})',
-                              isSelected: _tab == _FriendTab.friends,
-                              onTap: () =>
-                                  setState(() => _tab = _FriendTab.friends),
-                            ),
+                        const SizedBox(width: 12),
+                        const Text(
+                          '친구 관리',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: -0.2,
                           ),
-                          Expanded(
-                            child: _TabButton(
-                              label: '받은 요청 ($requestCount)',
-                              isSelected: _tab == _FriendTab.received,
-                              onTap: () =>
-                                  setState(() => _tab = _FriendTab.received),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // ── 검색창 + 탭 + 리스트 모두 스크롤 ──────────────
+                  Expanded(
+                    child: ListView(
+                      padding: EdgeInsets.fromLTRB(
+                        24,
+                        20,
+                        24,
+                        listBottomPadding.toDouble(),
+                      ),
+                      children: [
+                        // 검색창
+                        _SearchField(
+                          onChanged: (v) =>
+                              setState(() => _searchQuery = v.trim()),
+                        ),
+                        const SizedBox(height: 16),
+                        // 탭
+                        Container(
+                          padding: const EdgeInsets.all(4.634),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [Color(0x14FFFFFF), Color(0x08FFFFFF)],
                             ),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: const Color(0x1FFFFFFF),
+                              width: 0.636,
+                            ),
+                            boxShadow: _glassBoxShadow,
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: _TabButton(
+                                  label: '내 친구 (${allFriends.length})',
+                                  isSelected: _tab == _FriendTab.friends,
+                                  onTap: () =>
+                                      setState(() => _tab = _FriendTab.friends),
+                                ),
+                              ),
+                              Expanded(
+                                child: _TabButton(
+                                  label: '받은 요청 ($requestCount)',
+                                  isSelected: _tab == _FriendTab.received,
+                                  onTap: () => setState(
+                                    () => _tab = _FriendTab.received,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        // ── 친구 탭 ──────────────────────────────────
+                        if (_tab == _FriendTab.friends) ...[
+                          if (allFriends.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: Text(
+                                '즐겨찾기 $favoriteCount/$kMaxFavorites',
+                                style: const TextStyle(
+                                  color: Color(0xFFB0C4DE),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          friendsAsync.when(
+                            loading: () => const SizedBox(
+                              height: 120,
+                              child: Center(child: CircularProgressIndicator()),
+                            ),
+                            error: (e, _) => _EmptyStateCard(
+                              message:
+                                  '데이터를 불러오지 못했어요.\n(${e.toString().split('\n').first})',
+                            ),
+                            data: (_) => filteredFriends.isEmpty
+                                ? _EmptyStateCard(
+                                    message: _searchQuery.isNotEmpty
+                                        ? '검색 결과가 없어요.'
+                                        : '아직 친구가 없어요.\n아래 버튼을 눌러 친구를 추가해보세요!',
+                                  )
+                                : Column(
+                                    children: [
+                                      for (final friend in filteredFriends)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            bottom: 12,
+                                          ),
+                                          child: _FriendRow(
+                                            friend: friend,
+                                            onFavorite: () =>
+                                                _toggleFavorite(friend),
+                                            onMatch: () =>
+                                                Navigator.of(context).push(
+                                                  MaterialPageRoute(
+                                                    builder: (_) => MatchScreen(
+                                                      initialFriendUid:
+                                                          friend.uid,
+                                                    ),
+                                                  ),
+                                                ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                          ),
+                        ] else ...[
+                          // ── 받은 요청 탭 ──────────────────────────
+                          requestsAsync.when(
+                            loading: () => const SizedBox(
+                              height: 120,
+                              child: Center(child: CircularProgressIndicator()),
+                            ),
+                            error: (e, _) => _EmptyStateCard(
+                              message:
+                                  '데이터를 불러오지 못했어요.\n(${e.toString().split('\n').first})',
+                            ),
+                            data: (_) => filteredRequests.isEmpty
+                                ? _EmptyStateCard(
+                                    message: _searchQuery.isNotEmpty
+                                        ? '검색 결과가 없어요.'
+                                        : '받은 친구 요청이 없어요.',
+                                  )
+                                : Column(
+                                    children: [
+                                      for (final req in filteredRequests)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            bottom: 12,
+                                          ),
+                                          child: _RequestCard(
+                                            request: req,
+                                            onAccept: () => _acceptRequest(req),
+                                            onReject: () => _rejectRequest(req),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
                           ),
                         ],
-                      ),
+                      ],
                     ),
-                    const SizedBox(height: 20),
-                    // ── 친구 탭 ──────────────────────────────────
-                    if (_tab == _FriendTab.friends) ...[
-                      if (allFriends.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: Text(
-                            '즐겨찾기 $favoriteCount/$kMaxFavorites',
-                            style: const TextStyle(
-                              color: Color(0xFFB0C4DE),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      friendsAsync.when(
-                        loading: () => const SizedBox(
-                          height: 120,
-                          child: Center(child: CircularProgressIndicator()),
-                        ),
-                        error: (e, _) => _EmptyStateCard(
-                          message:
-                              '데이터를 불러오지 못했어요.\n(${e.toString().split('\n').first})',
-                        ),
-                        data: (_) => filteredFriends.isEmpty
-                            ? _EmptyStateCard(
-                                message: _searchQuery.isNotEmpty
-                                    ? '검색 결과가 없어요.'
-                                    : '아직 친구가 없어요.\n아래 버튼을 눌러 친구를 추가해보세요!',
-                              )
-                            : Column(
-                                children: [
-                                  for (final friend in filteredFriends)
-                                    Padding(
-                                      padding: const EdgeInsets.only(
-                                        bottom: 12,
-                                      ),
-                                      child: _FriendRow(
-                                        friend: friend,
-                                        onFavorite: () =>
-                                            _toggleFavorite(friend),
-                                        onMatch: () =>
-                                            Navigator.of(context).push(
-                                              MaterialPageRoute(
-                                                builder: (_) => MatchScreen(
-                                                  initialFriendUid: friend.uid,
-                                                ),
-                                              ),
-                                            ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                      ),
-                    ] else ...[
-                      // ── 받은 요청 탭 ──────────────────────────
-                      requestsAsync.when(
-                        loading: () => const SizedBox(
-                          height: 120,
-                          child: Center(child: CircularProgressIndicator()),
-                        ),
-                        error: (e, _) => _EmptyStateCard(
-                          message:
-                              '데이터를 불러오지 못했어요.\n(${e.toString().split('\n').first})',
-                        ),
-                        data: (_) => filteredRequests.isEmpty
-                            ? _EmptyStateCard(
-                                message: _searchQuery.isNotEmpty
-                                    ? '검색 결과가 없어요.'
-                                    : '받은 친구 요청이 없어요.',
-                              )
-                            : Column(
-                                children: [
-                                  for (final req in filteredRequests)
-                                    Padding(
-                                      padding: const EdgeInsets.only(
-                                        bottom: 12,
-                                      ),
-                                      child: _RequestCard(
-                                        request: req,
-                                        onAccept: () => _acceptRequest(req),
-                                        onReject: () => _rejectRequest(req),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        // ── 하단 친구 추가 버튼 ──────────────────────────────────
-        bottomNavigationBar: SafeArea(
-          top: false,
-          minimum: const EdgeInsets.fromLTRB(24, 0, 24, 16),
-          child: SizedBox(
-            height: 61,
-            child: GlassButton(
-              label: '친구 추가 요청',
-              isPrimary: true,
-              height: 61,
-              leading: const Icon(
-                Icons.person_add_outlined,
-                color: Colors.white,
-                size: 20,
-              ),
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const AddFriendScreen()),
+                  ),
+                ],
               ),
             ),
-          ),
+            Positioned(
+              left: 24,
+              right: 24,
+              bottom: actionBottomOffset,
+              child: SizedBox(
+                height: 61,
+                child: GlassButton(
+                  label: '친구 추가 요청',
+                  isPrimary: true,
+                  height: 61,
+                  leading: const Icon(
+                    Icons.person_add_outlined,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const AddFriendScreen()),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -630,7 +663,7 @@ class _SearchFieldState extends State<_SearchField> {
               ),
               cursorColor: const Color(0xFF8EC5FF),
               decoration: const InputDecoration(
-                hintText: '아이디로 친구 검색',
+                hintText: '닉네임으로 친구 검색',
                 hintStyle: TextStyle(
                   color: Color(0x808EC5FF),
                   fontSize: 16,

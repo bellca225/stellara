@@ -105,6 +105,7 @@ class GlassButton extends StatelessWidget {
     this.height = 60,
     this.fontSize = 18,
     this.fontWeight = FontWeight.w700,
+    this.backgroundGradient,
   });
 
   final String label;
@@ -115,6 +116,7 @@ class GlassButton extends StatelessWidget {
   final double height;
   final double fontSize;
   final FontWeight fontWeight;
+  final Gradient? backgroundGradient;
 
   @override
   Widget build(BuildContext context) {
@@ -128,13 +130,15 @@ class GlassButton extends StatelessWidget {
           width: double.infinity,
           height: height,
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: isPrimary
-                  ? const [Color(0x592B6FE6), Color(0x592B6FE6)]
-                  : const [Color(0x1AFFFFFF), Color(0x1AFFFFFF)],
-            ),
+            gradient:
+                backgroundGradient ??
+                LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: isPrimary
+                      ? const [Color(0x592B6FE6), Color(0x592B6FE6)]
+                      : const [Color(0x1AFFFFFF), Color(0x1AFFFFFF)],
+                ),
             borderRadius: BorderRadius.circular(9999),
             // 상단 밝고 하단 옅어지는 그라데이션 스트로크
             border: const GradientBoxBorder(
