@@ -46,3 +46,6 @@ app.*.map.json
 
 # Local AI/editor settings
 .claude/settings.local.json
+
+# 미사용 Firebase 설정 중복본 (빌드는 google-services.json만 사용)
+android/app/google-services_.json
