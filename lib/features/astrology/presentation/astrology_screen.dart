@@ -1,7 +1,6 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/env/env.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/astro_text.dart';
 import '../../../core/widgets/glass.dart';

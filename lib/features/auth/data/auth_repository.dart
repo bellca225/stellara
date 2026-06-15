@@ -17,7 +17,6 @@ import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
-import '../../friends/data/friend_code_repository.dart';
 import '../domain/app_user.dart';
 import 'login_id_repository.dart';
 

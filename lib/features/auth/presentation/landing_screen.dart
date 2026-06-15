@@ -180,26 +180,6 @@ class _GlowPainter extends CustomPainter {
     // );
   }
 
-  void _drawGlow(
-    Canvas canvas, {
-    required Offset center,
-    required double radius,
-    required double alpha,
-    required Color innerColor,
-    required Color outerColor,
-  }) {
-    final paint = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          innerColor.withOpacity(alpha),
-          outerColor.withOpacity(alpha * 0.4),
-          Colors.transparent,
-        ],
-        stops: const [0.0, 0.5, 1.0],
-      ).createShader(Rect.fromCircle(center: center, radius: radius));
-    canvas.drawCircle(center, radius, paint);
-  }
-
   @override
   bool shouldRepaint(_GlowPainter o) => o.a != a;
 }
