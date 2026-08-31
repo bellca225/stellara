@@ -1,6 +1,6 @@
 <div align="center">
 
-# ✨ Stellara
+<img src="docs/screenshots/00_hero.jpg" alt="Stellara" width="100%" />
 
 **출생 정보(생년월일·시간·장소)를 기반으로 별자리와 궁합을 읽어주는 점성술 모바일 앱**
 
@@ -20,14 +20,39 @@
 
 ---
 
+## 📱 화면 미리보기
+
+<div align="center">
+<table>
+  <tr>
+    <td align="center" width="33%"><img src="docs/screenshots/01_home.jpg" width="220" /><br/><sub><b>홈 · 나의 우주</b><br/>내 별·친구 행성 시각화</sub></td>
+    <td align="center" width="33%"><img src="docs/screenshots/02_horoscope.jpg" width="220" /><br/><sub><b>오늘의 운세</b><br/>운세·감정·행운 요소</sub></td>
+    <td align="center" width="33%"><img src="docs/screenshots/03_random.jpg" width="220" /><br/><sub><b>랜덤 질문</b><br/>별자리 기반 AI 질문</sub></td>
+  </tr>
+  <tr>
+    <td align="center" width="33%"><img src="docs/screenshots/04_friends.jpg" width="220" /><br/><sub><b>친구 · 궁합</b><br/>친구 관리 & 궁합 보기</sub></td>
+    <td align="center" width="33%"><img src="docs/screenshots/05_mypage.jpg" width="220" /><br/><sub><b>마이페이지</b><br/>친구 코드·출생 정보</sub></td>
+    <td align="center" width="33%"><img src="docs/screenshots/06_onboarding.jpg" width="220" /><br/><sub><b>온보딩</b><br/>출생 정보 4단계 입력</sub></td>
+  </tr>
+</table>
+</div>
+
+---
+
 ## 🎬 시연 영상 · 발표 자료
+
+<div align="center">
+
+<video src="https://github.com/bellca225/stellara/raw/main/docs/stellara_demo.mp4" controls muted width="320"></video>
+
+</div>
+
+> 영상 플레이어가 보이지 않으면 아래 링크로 확인하세요.
 
 | | 자료 | 링크 |
 |:-:|---|---|
-| ▶️ | **시연 영상** — 앱 전체 흐름 데모 | **[docs/stellara_demo.mp4 보기](docs/stellara_demo.mp4)** |
-| 📑 | **발표 자료** — 프로젝트 발표 최종본 | **[docs/stellara_presentation.pdf 보기](docs/stellara_presentation.pdf)** |
-
-> 영상은 파일 용량이 커서 GitHub에서 바로 재생되지 않을 수 있습니다. 링크를 눌러 다운로드해 확인하세요.
+| ▶️ | **시연 영상** — 앱 전체 흐름 데모 (약 3분 30초) | **[docs/stellara_demo.mp4 다운로드](docs/stellara_demo.mp4)** |
+| 📑 | **발표 자료** — 프로젝트 발표 최종본 (13p) | **[docs/stellara_presentation.pdf 보기](docs/stellara_presentation.pdf)** |
 
 ---
 
