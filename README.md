@@ -43,15 +43,15 @@
 
 <div align="center">
 
-<video src="https://github.com/bellca225/stellara/raw/main/docs/stellara_demo.mp4" controls muted width="320"></video>
+[![시연 영상 재생](docs/screenshots/video_poster.jpg)](https://github.com/bellca225/stellara/blob/main/docs/stellara_demo.mp4)
+
+<sub>▶️ 이미지를 클릭하면 GitHub에서 시연 영상이 재생됩니다 (약 3분 30초)</sub>
 
 </div>
 
-> 영상 플레이어가 보이지 않으면 아래 링크로 확인하세요.
-
 | | 자료 | 링크 |
 |:-:|---|---|
-| ▶️ | **시연 영상** — 앱 전체 흐름 데모 (약 3분 30초) | **[docs/stellara_demo.mp4 다운로드](docs/stellara_demo.mp4)** |
+| ▶️ | **시연 영상** — 앱 전체 흐름 데모 | **[재생](https://github.com/bellca225/stellara/blob/main/docs/stellara_demo.mp4)** · [다운로드](docs/stellara_demo.mp4) |
 | 📑 | **발표 자료** — 프로젝트 발표 최종본 (13p) | **[docs/stellara_presentation.pdf 보기](docs/stellara_presentation.pdf)** |
 
 ---
